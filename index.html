@@ -563,7 +563,7 @@
     </div>
     <p class="land-note" id="land-note"></p>
     <div class="land-strip">
-      <div class="land-chip"><b>5</b><span>subjects</span></div>
+      <div class="land-chip"><b>6–12</b><span>grades</span></div>
       <div class="land-chip"><b>1,000+</b><span>questions</span></div>
       <div class="land-chip"><b>34</b><span>badges</span></div>
       <div class="land-chip"><b>6</b><span>themes</span></div>
@@ -816,7 +816,7 @@
       </div>
       <!-- SUBJECTS sub-tab -->
       <div id="fc-pane-subjects" style="display:none">
-        <p class="sub">Your five courses. Open one to see its key topics and browse or add its flashcards.</p>
+        <p class="sub">Your courses. Open one to see its key topics and browse or add its flashcards. Edit the list any time in Settings.</p>
         <div class="grid g3" id="subj-grid"></div>
         <div id="subj-detail" style="display:none;margin-top:26px">
           <button class="btn ghost sm" id="subj-back">← All subjects</button>
@@ -1180,6 +1180,11 @@
       <h2 class="title">Settings</h2>
       <p class="sub">Personalize the app and (optionally) turn on live AI.</p>
       <div class="card" style="margin-bottom:16px">
+        <h3 style="margin:0 0 4px">Your grade &amp; courses</h3>
+        <p class="sub" style="margin:0 0 12px">Your grade sets how hard the AI pitches every explanation, hint and generated question. Your courses are yours to change — rename them to match your real timetable, add the ones you take, remove the ones you don't.</p>
+        <div id="set-courses"></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
         <h3 style="margin:0 0 10px">Account</h3>
         <div id="set-account"></div>
         <div class="section-h">Cloud sync</div>
@@ -1273,6 +1278,15 @@
       <button class="btn sec sm" id="ac-cancel">Cancel</button>
       <button class="btn sm" id="ac-save">Add card</button>
     </div>
+  </div>
+</div>
+<!-- First-run: which grade are you in? -->
+<div class="modal-bg" id="modal-grade">
+  <div class="modal" style="max-width:440px;text-align:center">
+    <div style="font-size:40px;line-height:1">◈</div>
+    <h3 style="margin:10px 0 4px;font-size:22px">What grade are you in?</h3>
+    <p class="sub" style="margin:0 0 18px">This sets your starting courses and how hard the AI pitches every hint and explanation. You can change it any time in Settings.</p>
+    <div class="row" id="grade-choices" style="justify-content:center;gap:8px"></div>
   </div>
 </div>
 <!-- First-time / help guide -->
@@ -1379,18 +1393,99 @@
 </div>
 <script>
 /* ============================ DATA ============================ */
-const SUBJECTS = [
-  {id:"alg", name:"Algebra 2", color:"--s-alg", desc:"Functions, quadratics, polynomials, exponentials & logs, sequences.",
+/* ---------------------------------------------------------------------------
+   COURSES AND GRADE LEVEL
+   A course is what the student sees. A *bank* is the built-in question set a
+   course may draw on. They are deliberately separate: a 7th-grader's
+   "Pre-Algebra" is the same course slot as a 9th-grader's "Algebra 2", but
+   only the latter has matching built-in questions. Courses without a bank
+   still work — AI practice, the Study Coach, and the student's own cards.
+   --------------------------------------------------------------------------- */
+const BANK_IDS = ["alg","ela","sci","spa","his",     // the five original banks
+                  "math6","prealg","alg1","geom","precalc"]; // the math ladder, grades 6-12
+
+/* The five built-in course templates. Their ids double as the default course
+   slots, so existing accounts migrate with no data movement at all. */
+const COURSE_TEMPLATES = {
+  alg:{color:"--s-alg", bank:"alg", name:"Algebra 2", desc:"Functions, quadratics, polynomials, exponentials & logs, sequences.",
     topics:["Quadratic functions","Polynomial division","Factoring","Exponentials & logs","Rational expressions","Sequences & series","Systems of equations","Complex numbers"]},
-  {id:"ela", name:"English / Language Arts 9", color:"--s-ela", desc:"Close reading, literary analysis, essay structure, grammar & rhetoric.",
+  ela:{color:"--s-ela", bank:"ela", name:"English / Language Arts", desc:"Close reading, literary analysis, essay structure, grammar & rhetoric.",
     topics:["Thesis statements","Textual evidence","Literary devices","Argumentative essays","Theme & tone","Vocabulary in context","MLA citation","Rhetorical appeals"]},
-  {id:"sci", name:"Science · Physics + Biology", color:"--s-sci", desc:"Mechanics & energy plus cells, genetics, and ecology.",
+  sci:{color:"--s-sci", bank:"sci", name:"Science · Physics + Biology", desc:"Mechanics & energy plus cells, genetics, and ecology.",
     topics:["Kinematics","Newton's laws","Energy & work","Cell structure","Photosynthesis","DNA & genetics","Evolution","Ecosystems"]},
-  {id:"spa", name:"Spanish 9", color:"--s-spa", desc:"Present/past tenses, core vocabulary, and everyday conversation.",
+  spa:{color:"--s-spa", bank:"spa", name:"Spanish", desc:"Present/past tenses, core vocabulary, and everyday conversation.",
     topics:["Present tense (-ar/-er/-ir)","Ser vs estar","Preterite tense","Common vocabulary","Adjective agreement","Question words","Reflexive verbs","Numbers & dates"]},
-  {id:"his", name:"US History 9", color:"--s-his", desc:"Founding era through Reconstruction: documents, causes, key figures.",
-    topics:["Colonial America","American Revolution","Constitution & Bill of Rights","Early republic","Westward expansion","Civil War causes","The Civil War","Reconstruction"]},
-];
+  his:{color:"--s-his", bank:"his", name:"US History", desc:"Founding era through Reconstruction: documents, causes, key figures.",
+    topics:["Colonial America","American Revolution","Constitution & Bill of Rights","Early republic","Westward expansion","Civil War causes","The Civil War","Reconstruction"]}
+};
+
+/* Starting course list per grade. `bank` is set only where the built-in
+   questions genuinely match the course — never to pad a grade out. */
+const MATH_COURSES = {
+  math6:{name:"Math 6", desc:"Fractions, decimals, ratios, integers, and the first taste of algebra.",
+    topics:["Fractions","Decimals","Ratios & rates","Percents","Integers","Expressions & equations","Area & volume","Statistics & data"]},
+  prealg:{name:"Pre-Algebra", desc:"Equations, exponents, slope, and the Pythagorean theorem.",
+    topics:["Two-step equations","Exponents & scientific notation","Slope & linear graphs","Proportions & percents","Inequalities","Pythagorean theorem","Circles & volume","Rational & irrational numbers"]},
+  alg1:{name:"Algebra 1", desc:"Linear equations, systems, factoring, and quadratic functions.",
+    topics:["Linear equations","Systems of equations","Factoring","Quadratic functions","Exponent rules & radicals","Functions & notation","Inequalities","Sequences"]},
+  geom:{name:"Geometry", desc:"Proof, congruence, similarity, right-triangle trig, circles, and solids.",
+    topics:["Angles & parallel lines","Triangle congruence","Similarity","Right triangle trigonometry","Circles","Area & volume","Transformations","Coordinate geometry"]},
+  precalc:{name:"Precalculus", desc:"Functions, trigonometry, logarithms, series, conics, and vectors.",
+    topics:["Functions & inverses","Polynomial & rational functions","Exponentials & logarithms","Unit circle & trig graphs","Trig identities","Sequences & series","Conics & polar","Vectors & complex numbers"]}
+};
+/* One helper so a math course carries its own description and topic list rather
+   than inheriting Algebra 2's just because it sits in the same course slot. */
+function mathCourse(bank){
+  const m=MATH_COURSES[bank];
+  return {id:"alg", name:m.name, bank:bank, desc:m.desc, topics:m.topics};
+}
+const GRADE_PRESETS = {
+  6:[mathCourse("math6"),                    {id:"ela",name:"English 6"},        {id:"sci",name:"Science 6"},
+     {id:"his",name:"Social Studies 6"},     {id:"spa",name:"Spanish 1",bank:"spa"}],
+  7:[mathCourse("prealg"),                   {id:"ela",name:"English 7"},        {id:"sci",name:"Life Science"},
+     {id:"his",name:"World History"},        {id:"spa",name:"Spanish 1",bank:"spa"}],
+  8:[mathCourse("alg1"),                     {id:"ela",name:"English 8",bank:"ela"}, {id:"sci",name:"Physical Science"},
+     {id:"his",name:"US History",bank:"his"},{id:"spa",name:"Spanish 1",bank:"spa"}],
+  9:[{id:"alg",name:"Algebra 2",bank:"alg"}, {id:"ela",name:"English 9",bank:"ela"},
+     {id:"sci",name:"Science · Physics + Biology",bank:"sci"},
+     {id:"spa",name:"Spanish 1",bank:"spa"}, {id:"his",name:"US History",bank:"his"}],
+  10:[mathCourse("geom"),                    {id:"ela",name:"English 10",bank:"ela"},{id:"sci",name:"Chemistry"},
+     {id:"his",name:"World History"},        {id:"spa",name:"Spanish 2",bank:"spa"}],
+  11:[{id:"alg",name:"Algebra 2",bank:"alg"},{id:"ela",name:"English 11",bank:"ela"},{id:"sci",name:"Physics",bank:"sci"},
+     {id:"his",name:"US History",bank:"his"},{id:"spa",name:"Spanish 3"}],
+  12:[mathCourse("precalc"),                 {id:"ela",name:"English 12",bank:"ela"},{id:"sci",name:"Biology",bank:"sci"},
+     {id:"his",name:"Government & Economics"},{id:"spa",name:"Spanish 4"}]
+};
+const GRADES=[6,7,8,9,10,11,12];
+const DEFAULT_GRADE=9;
+/* Colours for courses the student adds themselves. */
+const COURSE_COLORS=["#c67c4e","#9a7bab","#7f9b6a","#cfa14e","#b56b5c","#4a86c8","#3fa377","#c2415a","#6f7fa6","#9866d4"];
+
+/* Live course list. Every screen reads this; it is refilled from the account's
+   saved courses, so the 30-odd places that already reference SUBJECTS keep
+   working untouched. */
+const SUBJECTS = [];
+
+function coursesForGrade(g){
+  return (GRADE_PRESETS[g]||GRADE_PRESETS[DEFAULT_GRADE]).map(function(c){
+    const t=COURSE_TEMPLATES[c.id]||{};
+    return {id:c.id, name:c.name, color:c.color||t.color||COURSE_COLORS[0],
+            bank:c.bank||null, desc:c.desc||t.desc||"", topics:c.topics||t.topics||[]};
+  });
+}
+/* Rebuild SUBJECTS in place from the saved course list. */
+function applyCourses(){
+  const list=(DB&&DB.subjects&&DB.subjects.length)?DB.subjects:coursesForGrade((DB&&DB.grade)||DEFAULT_GRADE);
+  SUBJECTS.length=0;
+  list.forEach(function(c){SUBJECTS.push(c);});
+}
+/* Which built-in question bank, if any, does this course use? */
+function bankOf(id){
+  const c=SUBJECTS.find(function(s){return s.id===id;});
+  return (c&&c.bank&&BANK_IDS.indexOf(c.bank)>=0)?c.bank:null;
+}
+function hasBank(id){return !!bankOf(id);}
+function gradeLabel(){const g=(DB&&DB.grade)||DEFAULT_GRADE;return g+"th grader";}
 // "Science" counts as the combined sixth course area; six study areas total are the five cards (Science merges Physics+Biology as requested).
 /* External resources per subject. type drives the little badge. All open in a new tab. */
 const RESOURCES = {
@@ -1843,7 +1938,17 @@ const TEST_QUESTIONS = {
   ],
 };
 // topic lookup: test questions carry their topic at index 4; practice questions use the TOPICS map.
-function topicOf(subj,q){if(q&&q[4])return q[4];const i=QUESTIONS[subj].indexOf(q);return (i>=0&&TOPICS[subj]&&TOPICS[subj][i])||'General';}
+/* A question carries its own topic when it has one. Otherwise fall back to the
+   parallel TOPICS array — matched on the prompt text, not on object identity,
+   because randomizeChoices() hands back a fresh array whose indexOf always misses. */
+function topicOf(subj,q){
+  if(q&&q[4])return q[4];
+  const b=bankOf(subj); if(!b||!q)return 'General';
+  const bank=QUESTIONS[b]||[];
+  let i=bank.indexOf(q);
+  if(i<0)i=bank.findIndex(function(x){return x[0]===q[0];});
+  return (i>=0&&TOPICS[b]&&TOPICS[b][i])||'General';
+}
 /* ===== ELA READING PASSAGES — passage-based analysis for practice + tests =====
    Each question is [prompt, choices, answerIndex, explanation, topic, passage].
    The passage {text, src} is shown above the question. randomizeChoices preserves index 5. */
@@ -1882,8 +1987,10 @@ const READING={
     ["“Let the quiet do the work of prayer” suggests the speaker finds the morning…",["boring","peaceful and almost sacred","lonely and sad","rushed and stressful"],1,"Equating the quiet with prayer implies a peaceful, sacred calm.","Theme",RP.morning],
   ],
 };
-function practiceBank(subj){return subj==='ela'?(QUESTIONS.ela||[]).concat(READING.practice):(QUESTIONS[subj]||[]);}
-function testBank(subj){return subj==='ela'?(TEST_QUESTIONS.ela||[]).concat(READING.test):(TEST_QUESTIONS[subj]||[]);}
+function practiceBank(subj){const b=bankOf(subj);if(!b)return [];return b==='ela'?(QUESTIONS.ela||[]).concat(READING.practice):(QUESTIONS[b]||[]);}
+function testBank(subj){const b=bankOf(subj);if(!b)return [];return b==='ela'?(TEST_QUESTIONS.ela||[]).concat(READING.test):(TEST_QUESTIONS[b]||[]);}
+function challengeBank(subj){const b=bankOf(subj);return b?(CHALLENGE_QUESTIONS[b]||[]):[];}
+function apBank(subj){const b=bankOf(subj);return b?(AP_QUESTIONS[b]||[]):[];}
 function passageHTML(q){return (q&&q[5])?`<div class="passage">${esc(q[5].text)}<span class="src">— ${esc(q[5].src)}</span></div>`:'';}
 /* ===== CHALLENGE BANK — harder questions, unlocked after scoring 90%+ on a subject's test ===== */
 /* format: [question, [choices], correctIndex, explanation, topic] */
@@ -2452,7 +2559,8 @@ const AP_QUESTIONS_X = {
 /* Merge the expansion banks into the core banks (mutating each subject's array). */
 [[QUESTIONS,QUESTIONS_X],[TEST_QUESTIONS,TEST_QUESTIONS_X],[CHALLENGE_QUESTIONS,CHALLENGE_QUESTIONS_X],[AP_QUESTIONS,AP_QUESTIONS_X]].forEach(function(pair){
   var base=pair[0], extra=pair[1];
-  SUBJECTS.forEach(function(s){ if(extra[s.id]) base[s.id]=(base[s.id]||[]).concat(extra[s.id]); });
+  /* keyed off the banks themselves — the course list is empty until an account loads */
+  BANK_IDS.forEach(function(id){ if(extra[id]) base[id]=(base[id]||[]).concat(extra[id]); });
 });
 /* ============================ FINAL EXAM ============================
    A single, comprehensive, ultra-hard exam drawing on EVERY subject from its own bank.
@@ -2672,7 +2780,8 @@ FINAL_QUESTIONS.push.apply(FINAL_QUESTIONS, FINAL_EXTRA);
 /* ===== DIFFICULTY UNLOCK ===== */
 const MASTERY=90; // score needed on a subject's test to unlock its challenge content
 function isMastered(subj){return (DB.tests[subj]||0)>=MASTERY;}
-function allMastered(){return SUBJECTS.every(s=>isMastered(s.id));}
+function bankCourses(){return SUBJECTS.filter(s=>hasBank(s.id));}
+function allMastered(){const b=bankCourses();return b.length>0&&b.every(s=>isMastered(s.id));}
 /* ===== GAUNTLET UNLOCK =====
    The Gauntlet is locked like Challenge mode, but demands perfection:
    100% on BOTH the subject's practice test (DB.tests) AND its Challenge (DB.challengeBest). */
@@ -2681,8 +2790,8 @@ function testPerfect(subj){return (DB.tests[subj]||0)>=AP_UNLOCK;}
 function challengePerfect(subj){return (DB.challengeBest[subj]||0)>=AP_UNLOCK;}
 function apUnlocked(subj){return testPerfect(subj)&&challengePerfect(subj);}
 // The Final Exam unlocks only when EVERY subject's Gauntlet has been scored 100%.
-function gauntletsAced(){return SUBJECTS.filter(s=>(DB.apTests[s.id]||0)>=100).length;}
-function finalUnlocked(){return SUBJECTS.every(s=>(DB.apTests[s.id]||0)>=100);}
+function gauntletsAced(){return bankCourses().filter(s=>(DB.apTests[s.id]||0)>=100).length;}
+function finalUnlocked(){const b=bankCourses();return b.length>0&&b.every(s=>(DB.apTests[s.id]||0)>=100);}
 // Announce a freshly-earned unlock exactly once.
 function maybeUnlockAP(subj){
   if(!DB.apAnnounced)DB.apAnnounced={};
@@ -2696,8 +2805,9 @@ function syncChallengeCards(){
   const have=new Set(DB.cards.map(c=>c.subj+'||'+c.front));
   let id=Date.now()+1,added=0;
   SUBJECTS.forEach(s=>{
-    if(isMastered(s.id)){
-      (CHALLENGE_CARDS[s.id]||[]).forEach(([f,b])=>{
+    const bk=bankOf(s.id);
+    if(bk&&isMastered(s.id)){
+      (CHALLENGE_CARDS[bk]||[]).forEach(([f,b])=>{
         if(!have.has(s.id+'||'+f)){DB.cards.push(newCard(id++,s.id,f,b));added++;}
       });
     }
@@ -2765,11 +2875,12 @@ function newCard(id,subj,front,back){
 function syncSeedCards(){
   const have=new Set(DB.cards.map(c=>c.subj+'||'+c.front));
   let id=Date.now();
-  for(const s of SUBJECTS){
-    (SEED_CARDS[s.id]||[]).forEach(([f,b])=>{
+  SUBJECTS.forEach(s=>{
+    const bk=bankOf(s.id); if(!bk)return;          /* nothing to seed for a custom course */
+    (SEED_CARDS[bk]||[]).forEach(([f,b])=>{
       if(!have.has(s.id+'||'+f)){DB.cards.push(newCard(id++,s.id,f,b));}
     });
-  }
+  });
   save();
 }
 const SEED_VERSION=2;
@@ -2780,7 +2891,7 @@ function prepareDB(){
   if(!DB.pomToday)DB.pomToday={date:"",count:0};
   if(!DB.settings)DB.settings={provider:"none",key:"",gcid:""};
   if(!DB.feynman)DB.feynman=[];
-  if((DB.seedVersion||0)<SEED_VERSION){syncSeedCards();DB.seedVersion=SEED_VERSION;}
+  /* deliberately after applyCourses() below — seeding needs the course list */
   if(!DB.tests)DB.tests={};
   if(!DB.history)DB.history=[];
   if(!DB.assignments)DB.assignments=[];
@@ -2789,6 +2900,19 @@ function prepareDB(){
   if(!DB.mySources)DB.mySources={};
   if(!DB.goals)DB.goals=[];
   if(!DB.fcStats)DB.fcStats={};   // per-subject flashcard mistakes for the Weak Topics tab
+  /* Grade level + the student's own course list. Existing accounts predate both:
+     they get grade 9 and the original five courses, whose ids are unchanged, so
+     every card, test score and weak topic already on file still lines up. */
+  if(!DB.grade)DB.grade=DEFAULT_GRADE;
+  /* Accounts that already have work in them shouldn't be interrogated on load. */
+  if(DB.gradeChosen===undefined)DB.gradeChosen=!!(DB.cards&&DB.cards.length);
+  if(!DB.subjects||!DB.subjects.length)DB.subjects=coursesForGrade(DB.grade);
+  DB.subjects=DB.subjects.filter(c=>c&&c.id&&c.name);
+  if(!DB.subjects.length)DB.subjects=coursesForGrade(DB.grade);
+  applyCourses();
+  /* Hold off seeding until we know the grade — otherwise a brand-new account
+     gets the grade-9 decks a moment before the student says they're in 7th. */
+  if(DB.gradeChosen&&(DB.seedVersion||0)<SEED_VERSION){syncSeedCards();DB.seedVersion=SEED_VERSION;}
   // ----- Gauntlet / Final Exam / AI-provider fields -----
   if(!DB.apTests)DB.apTests={};                           // best Gauntlet score per subject
   if(!DB.challengeBest)DB.challengeBest={};               // best Challenge score per subject
@@ -2835,7 +2959,11 @@ navBtns.forEach(b=>b.onclick=()=>go(b.dataset.page));
 document.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>go(b.dataset.jump));
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
 function subjById(id){return SUBJECTS.find(s=>s.id===id);}
-function col(id){return getComputedStyle(document.documentElement).getPropertyValue(subjById(id).color).trim();}
+function col(id){
+  const s=subjById(id); if(!s)return getComputedStyle(document.documentElement).getPropertyValue('--faint').trim();
+  const c=s.color||'--s-alg';
+  return c.charAt(0)==='-'?getComputedStyle(document.documentElement).getPropertyValue(c).trim():c;
+}
 // display helpers that also work for custom "Other" subjects (any string not in SUBJECTS)
 function subjDisplayName(v){const s=subjById(v);return s?s.name:(v||'Other');}
 function subjDisplayColor(v){return subjById(v)?col(v):'var(--faint)';}
@@ -3134,7 +3262,7 @@ function renderWeak(){
       try{
         const lines=[];
         subs.forEach(s=>{const m=DB.fcStats[s.id].missed;Object.keys(m).forEach(id=>lines.push(s.name+': '+m[id].front));});
-        const plan=await aiComplete(`A 9th grader missed these flashcards. Group them into the key topics they should study and give a short, encouraging study plan (3-6 bullet points).\n\n${lines.join('\n')}`,2048);
+        const plan=await aiComplete(`A ${gradeLabel()} missed these flashcards. Group them into the key topics they should study and give a short, encouraging study plan (3-6 bullet points).\n\n${lines.join('\n')}`,2048);
         box.innerHTML=`<div class="help-out">${esc(plan)}</div>`;
       }catch(e){box.innerHTML=`<p class="sub" style="margin:0">Couldn't generate: ${esc(e.message)}</p>`;}
     };
@@ -3278,10 +3406,893 @@ const FEYNMAN_TOPICS={
   spa:["When to use ser vs estar","How to conjugate -ar verbs in the present","Preterite vs imperfect past tense","How the subjunctive works","Why nouns are masculine or feminine","How the verb 'gustar' works","Reflexive verbs (me, te, se)","When to use por vs para","How to form a question in Spanish","Adjective agreement","How to conjugate -er and -ir verbs","Definite vs indefinite articles (el/la vs un/una)","How to make a noun plural","When to use tú vs usted","How to form a negative sentence","What stem-changing verbs are","Common irregular verbs (tener, ir, ser)","How accent marks change a word","How to tell time in Spanish","How to describe the weather","Direct vs indirect object pronouns","How to give a command (imperative)"],
   his:["How checks and balances work","What caused the American Revolution","Why the Bill of Rights exists","What the Three-Fifths Compromise was","The main causes of the Civil War","What federalism means","Why the Articles of Confederation failed","What Manifest Destiny was","What Reconstruction tried to do","Judicial review (Marbury v. Madison)","What the Declaration of Independence said","Why the colonists protested taxes","What the Boston Tea Party was","What the Louisiana Purchase was","What the Emancipation Proclamation did","What the Underground Railroad was","The three branches of government","What the Great Compromise was","Why Gettysburg was a turning point","What mercantilism was","The Enlightenment ideas behind the founding","What the 13th, 14th, and 15th Amendments did","Why the Constitution replaced the Articles","What separation of powers means"],
 };
+/* ==================== MATH LADDER QUESTION BANKS ====================
+   Five full course banks for the math slot across grades 6-12: Math 6,
+   Pre-Algebra, Algebra 1, Geometry, and Precalculus. Each carries the same
+   set Algebra 2 has - 50 practice, 30 test, 16 challenge, 16 gauntlet,
+   30 seed cards, 6 challenge cards, Feynman topics, and resources - so a
+   student in any grade gets the whole app, not a stub.
+   Written into a namespace first, then merged into the live banks, so the
+   original const declarations above stay untouched. */
+var BANKS={QUESTIONS:{},TOPICS:{},TEST_QUESTIONS:{},CHALLENGE_QUESTIONS:{},AP_QUESTIONS:{},SEED_CARDS:{},CHALLENGE_CARDS:{},FEYNMAN_TOPICS:{},RESOURCES:{}};
+/* ============================ MATH 6 ============================ */
+BANKS.QUESTIONS.math6=[
+  ["What is 3/4 of 48?",["36","32","12","16"],0,"3/4 × 48 = 144/4 = 36."],
+  ["Simplify the fraction 18/24.",["3/4","2/3","6/8","9/12"],0,"Divide both by 6: 18÷6=3, 24÷6=4."],
+  ["What is 0.6 written as a fraction in lowest terms?",["3/5","6/10","2/3","1/6"],0,"0.6 = 6/10 = 3/5."],
+  ["Evaluate 4 + 3 × 5.",["19","35","23","17"],0,"Order of operations: multiply first, 3×5=15, then 4+15=19."],
+  ["What is the greatest common factor of 24 and 36?",["12","6","4","18"],0,"Factors shared by both: the largest is 12."],
+  ["What is the least common multiple of 4 and 6?",["12","24","10","6"],0,"Multiples of 4: 4, 8, 12. 12 is the first also divisible by 6."],
+  ["A ratio of 3 boys to 5 girls means what fraction of the class is boys?",["3/8","3/5","5/8","5/3"],0,"3 boys out of 3+5 = 8 students."],
+  ["What is 25% of 80?",["20","25","30","16"],0,"25% = 1/4, and 80 ÷ 4 = 20."],
+  ["Convert 7/10 to a percent.",["70%","7%","0.7%","17%"],0,"7/10 = 0.7 = 70%."],
+  ["What is the area of a rectangle 7 cm by 4 cm?",["28 cm²","22 cm²","11 cm²","14 cm²"],0,"Area = length × width = 7 × 4 = 28."],
+  ["What is the perimeter of a square with side 9 m?",["36 m","81 m","18 m","27 m"],0,"Perimeter = 4 × 9 = 36 m."],
+  ["Evaluate 2³.",["8","6","9","23"],0,"2³ = 2 × 2 × 2 = 8."],
+  ["What is the value of the 7 in 3,742?",["700","70","7","7,000"],0,"The 7 sits in the hundreds place."],
+  ["Round 4.267 to the nearest tenth.",["4.3","4.2","4.27","4.0"],0,"The hundredths digit is 6, so round the tenths up."],
+  ["What is −8 + 3?",["−5","−11","5","11"],0,"Move 3 to the right from −8."],
+  ["Which is greater: −4 or −9?",["−4","−9","They are equal","Cannot tell"],0,"On a number line −4 sits to the right of −9."],
+  ["What is the absolute value of −12?",["12","−12","0","1/12"],0,"Absolute value is distance from zero, always non-negative."],
+  ["Solve x + 7 = 15.",["x = 8","x = 22","x = 7","x = 105"],0,"Subtract 7 from both sides."],
+  ["Solve 4x = 36.",["x = 9","x = 32","x = 40","x = 144"],0,"Divide both sides by 4."],
+  ["What is the mean of 4, 8, 6, 10?",["7","6","8","28"],0,"Sum = 28, and 28 ÷ 4 = 7."],
+  ["What is the median of 3, 9, 5, 1, 7?",["5","7","3","9"],0,"Ordered: 1, 3, 5, 7, 9 — the middle value is 5."],
+  ["What is the mode of 2, 5, 5, 7, 9?",["5","7","2","9"],0,"The mode is the value that appears most often."],
+  ["What is the range of 12, 4, 9, 20?",["16","12","20","9"],0,"Range = largest − smallest = 20 − 4 = 16."],
+  ["A recipe uses 2 cups of flour for 3 batches. How much for 9 batches?",["6 cups","5 cups","4 cups","12 cups"],0,"9 batches is 3× as many, so 3 × 2 = 6 cups."],
+  ["What is the volume of a box 2 × 3 × 4 cm?",["24 cm³","9 cm³","12 cm³","18 cm³"],0,"Volume = length × width × height."],
+  ["Write 5 × 5 × 5 × 5 using an exponent.",["5⁴","4⁵","5 × 4","20"],0,"Five is used as a factor four times."],
+  ["What is 1/2 + 1/3?",["5/6","2/5","1/5","2/6"],0,"Common denominator 6: 3/6 + 2/6 = 5/6."],
+  ["What is 3/5 × 10?",["6","30","5/50","15"],0,"3/5 of 10 is 6."],
+  ["What is 3/4 ÷ 1/2?",["3/2","3/8","2/3","1/2"],0,"Multiply by the reciprocal: 3/4 × 2/1 = 6/4 = 3/2."],
+  ["A shirt costs $20 and is 15% off. How much is taken off?",["$3","$15","$5","$1.50"],0,"15% of 20 = 0.15 × 20 = 3."],
+  ["What is the coordinate pair for a point 3 right and 2 up from the origin?",["(3, 2)","(2, 3)","(−3, 2)","(3, −2)"],0,"Coordinates are written (x, y)."],
+  ["In which quadrant is the point (−4, 5)?",["Quadrant II","Quadrant I","Quadrant III","Quadrant IV"],0,"Negative x with positive y is the upper-left quadrant."],
+  ["What is the area of a triangle with base 10 and height 6?",["30","60","16","15"],0,"Area = ½ × base × height = ½ × 10 × 6."],
+  ["Which number is prime?",["17","21","27","33"],0,"17 has no factors besides 1 and itself."],
+  ["What is 144 ÷ 12?",["12","14","24","11"],0,"12 × 12 = 144."],
+  ["Write 0.25 as a percent.",["25%","2.5%","250%","0.25%"],0,"Multiply by 100."],
+  ["What is 6² − 4²?",["20","4","2","52"],0,"36 − 16 = 20."],
+  ["Evaluate 5 + 2(3 + 1).",["13","28","11","24"],0,"Brackets first: 3+1=4, then 2×4=8, then 5+8=13."],
+  ["A bag has 3 red and 5 blue marbles. What is the probability of drawing red?",["3/8","3/5","5/8","1/3"],0,"3 favourable outcomes out of 8 total."],
+  ["What is the reciprocal of 4?",["1/4","−4","4","0.4"],0,"A number times its reciprocal equals 1."],
+  ["Convert 3 feet to inches.",["36","30","12","24"],0,"1 foot = 12 inches, so 3 × 12 = 36."],
+  ["What is 10% of 250?",["25","2.5","50","10"],0,"10% is one tenth."],
+  ["Which fraction is equivalent to 2/3?",["8/12","6/8","3/4","4/9"],0,"Multiply numerator and denominator by 4."],
+  ["Simplify the ratio 12:18.",["2:3","3:2","6:9","1:2"],0,"Divide both by 6."],
+  ["What is the surface area of a cube with side 3?",["54","27","36","9"],0,"Six faces of 3×3 = 6 × 9 = 54."],
+  ["Solve x/5 = 4.",["x = 20","x = 9","x = 0.8","x = 45"],0,"Multiply both sides by 5."],
+  ["What is −6 × 3?",["−18","18","−9","−2"],0,"A negative times a positive is negative."],
+  ["What is the next term: 2, 6, 18, 54, …?",["162","108","72","216"],0,"Each term is multiplied by 3."],
+  ["What is 4.5 × 100?",["450","45","4500","0.045"],0,"Move the decimal two places right."],
+  ["An angle measures 45°. What kind is it?",["Acute","Obtuse","Right","Straight"],0,"Angles under 90° are acute."]
+];
+BANKS.TOPICS.math6=["Fractions","Fractions","Decimals & fractions","Order of operations","Factors & multiples","Factors & multiples","Ratios","Percents","Decimals & fractions","Area & perimeter","Area & perimeter","Exponents","Place value","Rounding","Integers","Integers","Integers","One-step equations","One-step equations","Statistics","Statistics","Statistics","Statistics","Ratios","Volume","Exponents","Fractions","Fractions","Fractions","Percents","Coordinate plane","Coordinate plane","Area & perimeter","Factors & multiples","Division","Percents","Exponents","Order of operations","Probability","Fractions","Measurement","Percents","Fractions","Ratios","Volume","One-step equations","Integers","Patterns","Decimals & fractions","Geometry basics"];
+BANKS.TEST_QUESTIONS.math6=[
+  ["What is 2/5 of 60?",["24","30","12","20"],0,"2/5 × 60 = 120/5 = 24.","Fractions"],
+  ["Simplify 20/45.",["4/9","5/9","2/5","4/5"],0,"Divide both by 5.","Fractions"],
+  ["Evaluate 12 − 3 × 2.",["6","18","9","24"],0,"Multiply first: 3×2=6, then 12−6=6.","Order of operations"],
+  ["What is the GCF of 16 and 40?",["8","4","2","16"],0,"8 divides both and is the largest that does.","Factors & multiples"],
+  ["What is the LCM of 3 and 5?",["15","8","30","5"],0,"The first shared multiple is 15.","Factors & multiples"],
+  ["What is 40% of 90?",["36","45","30","24"],0,"0.40 × 90 = 36.","Percents"],
+  ["Write 0.85 as a fraction in lowest terms.",["17/20","85/100","8/10","17/25"],0,"85/100 divides by 5.","Decimals & fractions"],
+  ["Area of a rectangle 12 m by 5 m?",["60 m²","34 m²","17 m²","30 m²"],0,"12 × 5 = 60.","Area & perimeter"],
+  ["Perimeter of a rectangle 8 by 3?",["22","24","11","16"],0,"2(8+3) = 22.","Area & perimeter"],
+  ["Evaluate 3⁴.",["81","12","64","27"],0,"3×3×3×3 = 81.","Exponents"],
+  ["Round 12.849 to the nearest hundredth.",["12.85","12.84","12.9","13.00"],0,"The thousandths digit 9 rounds the hundredths up.","Rounding"],
+  ["What is −7 − 5?",["−12","−2","2","12"],0,"Subtracting moves further left on the number line.","Integers"],
+  ["Solve x − 9 = 4.",["x = 13","x = −5","x = 5","x = 36"],0,"Add 9 to both sides.","One-step equations"],
+  ["Solve 7x = 56.",["x = 8","x = 49","x = 63","x = 7"],0,"Divide both sides by 7.","One-step equations"],
+  ["Mean of 5, 9, 13, 13?",["10","11","13","9"],0,"Sum 40 ÷ 4 = 10.","Statistics"],
+  ["Median of 8, 2, 6, 4?",["5","4","6","8"],0,"Ordered: 2, 4, 6, 8 — average the middle two.","Statistics"],
+  ["A map uses 1 cm : 5 km. How far is 7 cm?",["35 km","12 km","5 km","70 km"],0,"7 × 5 = 35 km.","Ratios"],
+  ["Volume of a box 5 × 2 × 6?",["60","13","30","22"],0,"5 × 2 × 6 = 60.","Volume"],
+  ["What is 2/3 + 1/6?",["5/6","3/9","1/2","3/6"],0,"4/6 + 1/6 = 5/6.","Fractions"],
+  ["What is 2/3 ÷ 4?",["1/6","8/3","2/12","3/8"],0,"2/3 × 1/4 = 2/12 = 1/6.","Fractions"],
+  ["In which quadrant is (5, −2)?",["Quadrant IV","Quadrant I","Quadrant II","Quadrant III"],0,"Positive x, negative y is lower-right.","Coordinate plane"],
+  ["Area of a triangle with base 14, height 5?",["35","70","19","19.5"],0,"½ × 14 × 5 = 35.","Area & perimeter"],
+  ["Which is prime?",["23","25","27","33"],0,"23 has only 1 and itself as factors.","Factors & multiples"],
+  ["A spinner has 4 equal parts, one green. P(green)?",["1/4","1/3","3/4","4"],0,"One favourable out of four.","Probability"],
+  ["Simplify the ratio 15:25.",["3:5","5:3","1:2","15:5"],0,"Divide both by 5.","Ratios"],
+  ["Convert 2.5 metres to centimetres.",["250","25","0.025","2500"],0,"1 m = 100 cm.","Measurement"],
+  ["What is −4 × −6?",["24","−24","−10","10"],0,"A negative times a negative is positive.","Integers"],
+  ["Next term: 100, 50, 25, …?",["12.5","20","15","5"],0,"Each term is halved.","Patterns"],
+  ["Surface area of a cube with side 2?",["24","8","12","16"],0,"6 faces of 2×2 = 24.","Volume"],
+  ["An angle of 120° is…",["Obtuse","Acute","Right","Straight"],0,"Between 90° and 180° is obtuse.","Geometry basics"]
+];
+BANKS.CHALLENGE_QUESTIONS.math6=[
+  ["A jacket costs $60. It is discounted 25%, then 10% is taken off the new price. What is the final price?",["$40.50","$39.00","$45.00","$36.00"],0,"25% off gives $45; 10% off $45 is $4.50, leaving $40.50.","Percents"],
+  ["What is 2/3 of 3/4 of 48?",["24","32","18","36"],0,"3/4 of 48 = 36, then 2/3 of 36 = 24.","Fractions"],
+  ["The ratio of red to blue marbles is 3:4. If there are 21 red, how many blue?",["28","24","18","32"],0,"21 ÷ 3 = 7, so blue = 4 × 7 = 28.","Ratios"],
+  ["A rectangle has area 48 and width 6. What is its perimeter?",["28","20","14","24"],0,"Length = 8, so perimeter = 2(8+6) = 28.","Area & perimeter"],
+  ["Evaluate 3 + 2 × (8 − 3)² ÷ 5.",["13","25","11","20"],0,"(8−3)²=25, 2×25=50, 50÷5=10, 3+10=13.","Order of operations"],
+  ["The mean of four numbers is 12. Three of them are 8, 14 and 10. What is the fourth?",["16","14","12","18"],0,"Total must be 48; 48 − 32 = 16.","Statistics"],
+  ["What is the LCM of 6, 8 and 12?",["24","48","12","36"],0,"24 is the smallest number all three divide.","Factors & multiples"],
+  ["A tank holds 3/5 of its 40-litre capacity. How many more litres fit?",["16","24","20","8"],0,"3/5 of 40 = 24 used, so 40 − 24 = 16 remain.","Fractions"],
+  ["Point A is (−3, 4) and B is (−3, −2). How long is segment AB?",["6","2","5","1"],0,"Same x, so the distance is |4 − (−2)| = 6.","Coordinate plane"],
+  ["A recipe for 4 people uses 3/4 cup of rice. How much for 10 people?",["1 7/8 cups","2 cups","1 1/2 cups","3 cups"],0,"3/4 ÷ 4 = 3/16 per person; 10 × 3/16 = 30/16 = 1 7/8.","Ratios"],
+  ["What is the value of 5³ − 5²?",["100","25","0","150"],0,"125 − 25 = 100.","Exponents"],
+  ["A number increased by 20% becomes 96. What was it?",["80","76","78","120"],0,"96 ÷ 1.2 = 80.","Percents"],
+  ["Two bags each hold 5 counters. One counter is drawn from each. What is P(both red) if each bag has 2 red?",["4/25","2/5","4/10","1/5"],0,"(2/5)×(2/5) = 4/25.","Probability"],
+  ["The temperature falls from 4°C to −9°C. By how much did it drop?",["13°C","5°C","−13°C","9°C"],0,"4 − (−9) = 13 degrees.","Integers"],
+  ["A cube has volume 64 cm³. What is the length of one edge?",["4 cm","8 cm","16 cm","6 cm"],0,"4 × 4 × 4 = 64.","Volume"],
+  ["Solve 3x + 4 = 19.",["x = 5","x = 7","x = 23/3","x = 15"],0,"Subtract 4 to get 3x = 15, then divide by 3.","One-step equations"]
+];
+BANKS.AP_QUESTIONS.math6=[
+  ["A class of 30 students is asked to choose one club. Two fifths choose art, one third choose music, and the rest choose sport. How many chose sport?",["8","10","12","7"],0,"Art = 12, music = 10, so sport = 30 − 22 = 8.","Fractions"],
+  ["A shop buys pens for $2 each and sells them at a 45% mark-up. A customer buys 8. What do they pay in total?",["$23.20","$21.60","$25.60","$18.40"],0,"Selling price = 2 × 1.45 = $2.90; 8 × 2.90 = $23.20.","Percents"],
+  ["A rectangular garden is 12 m by 8 m. A path 1 m wide runs around the outside. What is the area of the path alone?",["44 m²","40 m²","36 m²","56 m²"],0,"Outer 14×10 = 140, inner 12×8 = 96, difference = 44.","Area & perimeter"],
+  ["A car travels 240 km in 3 hours. At the same rate, how far does it travel in 5 hours 30 minutes?",["440 km","400 km","480 km","420 km"],0,"80 km/h × 5.5 = 440 km.","Ratios"],
+  ["Five test scores average 78. After a sixth test the average rises to 80. What did the student score on the sixth test?",["90","88","82","92"],0,"Totals: 390 then 480, so the sixth score is 90.","Statistics"],
+  ["A recipe needs 2/3 cup of sugar per batch. A cook has 5 cups. How many whole batches can they make?",["7","6","8","5"],0,"5 ÷ 2/3 = 7.5, so 7 complete batches.","Fractions"],
+  ["A phone is discounted 30% to $280. What was the original price?",["$400","$364","$380","$420"],0,"280 ÷ 0.70 = 400.","Percents"],
+  ["Two numbers have a GCF of 6 and an LCM of 72. One number is 24. What is the other?",["18","12","36","48"],0,"GCF × LCM = product, so 6 × 72 = 432, and 432 ÷ 24 = 18.","Factors & multiples"],
+  ["A swimming pool 10 m long, 4 m wide and 2 m deep is filled to 75% of capacity. How many cubic metres of water is that?",["60","80","45","72"],0,"Volume 80 m³ × 0.75 = 60.","Volume"],
+  ["The point (2, −5) is reflected across the x-axis. Where does it land?",["(2, 5)","(−2, −5)","(−2, 5)","(5, 2)"],0,"Reflecting across the x-axis flips the sign of y.","Coordinate plane"],
+  ["A bag has 4 red, 6 blue and 10 green counters. One is drawn and NOT replaced, and it is green. What is P(green) on the second draw?",["9/19","10/19","9/20","1/2"],0,"9 greens remain out of 19 counters.","Probability"],
+  ["A diver descends 12 m, rises 5 m, then descends 9 m more. What is her position relative to the surface?",["−16 m","−26 m","−7 m","16 m"],0,"−12 + 5 − 9 = −16.","Integers"],
+  ["A triangle has base 16 cm and area 96 cm². What is its height?",["12 cm","6 cm","24 cm","8 cm"],0,"96 = ½ × 16 × h, so h = 12.","Area & perimeter"],
+  ["A pattern starts at 3 and each term is double the previous minus 1: 3, 5, 9, 17, … What is the 6th term?",["65","33","49","129"],0,"Continuing: 33 then 65.","Patterns"],
+  ["A 2-litre bottle of juice costs $3.20 and a 500 ml bottle costs $0.90. How much cheaper per litre is the large bottle?",["$0.20","$0.40","$0.10","$0.30"],0,"Large = $1.60/L, small = $1.80/L, difference $0.20.","Ratios"],
+  ["Solve for x: (x + 3)/4 = 7.",["x = 25","x = 31","x = 28","x = 1.75"],0,"Multiply both sides by 4 to get x + 3 = 28, so x = 25.","One-step equations"]
+];
+BANKS.SEED_CARDS.math6=[
+  ["What does GCF stand for, and what is it?","Greatest Common Factor — the largest number that divides two numbers evenly."],
+  ["What does LCM stand for, and what is it?","Least Common Multiple — the smallest number both numbers divide into."],
+  ["What is the order of operations?","Brackets, Exponents, Multiply/Divide (left to right), Add/Subtract (left to right)."],
+  ["How do you add fractions?","Find a common denominator, add the numerators, keep the denominator."],
+  ["How do you divide by a fraction?","Multiply by its reciprocal — flip the second fraction and multiply."],
+  ["How do you convert a fraction to a percent?","Divide to get a decimal, then multiply by 100."],
+  ["Area of a rectangle?","length × width."],
+  ["Area of a triangle?","½ × base × height."],
+  ["Perimeter of a rectangle?","2 × (length + width)."],
+  ["Volume of a rectangular box?","length × width × height."],
+  ["What is absolute value?","A number's distance from zero — always zero or positive."],
+  ["A negative times a negative gives…","A positive."],
+  ["A negative times a positive gives…","A negative."],
+  ["What is the mean?","The average: add all values, divide by how many there are."],
+  ["What is the median?","The middle value once the numbers are in order."],
+  ["What is the mode?","The value that appears most often."],
+  ["What is the range?","Largest value minus smallest value."],
+  ["What is a prime number?","A whole number greater than 1 whose only factors are 1 and itself."],
+  ["How are coordinates written?","(x, y) — across first, then up or down."],
+  ["Which quadrant has negative x and positive y?","Quadrant II, the upper left."],
+  ["What is a ratio?","A comparison of two quantities, e.g. 3:5."],
+  ["How do you find a percent of a number?","Convert the percent to a decimal and multiply."],
+  ["What does an exponent tell you?","How many times to use the base as a factor."],
+  ["What is the reciprocal of a number?","The number you multiply it by to get 1 — flip the fraction."],
+  ["How do you simplify a fraction?","Divide the numerator and denominator by their GCF."],
+  ["1 foot equals how many inches?","12."],
+  ["1 metre equals how many centimetres?","100."],
+  ["What is probability?","Favourable outcomes ÷ total possible outcomes."],
+  ["An angle smaller than 90° is called…","Acute. Exactly 90° is right; between 90° and 180° is obtuse."],
+  ["Surface area of a cube with side s?","6s² — six identical square faces."]
+];
+BANKS.CHALLENGE_CARDS.math6=[
+  ["Two percent changes applied one after another — can you just add them?","No. Apply them in turn: 25% off then 10% off is not 35% off."],
+  ["GCF × LCM of two numbers equals what?","The product of the two numbers."],
+  ["How do you reverse a percent increase?","Divide by (1 + the rate), e.g. a 20% rise is undone by ÷ 1.2."],
+  ["How do you find a missing value in a ratio?","Scale: divide the known amount by its ratio part, then multiply by the other part."],
+  ["Probability of two independent events both happening?","Multiply their individual probabilities."],
+  ["Reflecting a point across the x-axis does what?","Keeps x, flips the sign of y."]
+];
+BANKS.FEYNMAN_TOPICS.math6=["Why you can't add fractions without a common denominator","What a percent really means","Why dividing by a fraction makes the answer bigger","What the order of operations is for","The difference between GCF and LCM","What a ratio tells you","Why a negative times a negative is positive","What absolute value measures","How mean, median and mode differ","How to read a coordinate grid","What an exponent is shorthand for","Why area and perimeter are different","How to find a percent of a number","What makes a number prime"];
+BANKS.RESOURCES.math6=[
+  {type:"Course",title:"Khan Academy — 6th Grade Math",note:"Full free course with practice for every unit.",url:"https://www.khanacademy.org/math/cc-sixth-grade-math"},
+  {type:"Practice",title:"Khan Academy — Fractions",note:"Targeted drills on adding, multiplying and dividing fractions.",url:"https://www.khanacademy.org/math/arithmetic/fraction-arithmetic"},
+  {type:"Video",title:"Math Antics",note:"Short, clear videos on every 6th-grade topic.",url:"https://mathantics.com/"},
+  {type:"Practice",title:"IXL — Grade 6 Math",note:"Skill-by-skill practice with instant feedback.",url:"https://www.ixl.com/math/grade-6"},
+  {type:"Reference",title:"Math is Fun",note:"Plain-English explanations with worked examples.",url:"https://www.mathsisfun.com/"},
+  {type:"Tool",title:"Desmos Graphing Calculator",note:"Plot points and explore the coordinate plane.",url:"https://www.desmos.com/calculator"}
+];
+/* ============================ PRE-ALGEBRA ============================ */
+BANKS.QUESTIONS.prealg=[
+  ["Solve 3x − 7 = 14.",["x = 7","x = 21","x = 3","x = 2.33"],0,"Add 7 to get 3x = 21, then divide by 3."],
+  ["Simplify 5x + 3 − 2x + 8.",["3x + 11","7x + 11","3x + 5","10x"],0,"Combine like terms: 5x − 2x = 3x, and 3 + 8 = 11."],
+  ["What is the value of −3² ?",["−9","9","6","−6"],0,"The exponent binds tighter than the sign: −(3²) = −9."],
+  ["Evaluate 2x + 5 when x = −4.",["−3","13","−13","3"],0,"2(−4) = −8, and −8 + 5 = −3."],
+  ["Solve x/3 + 2 = 7.",["x = 15","x = 27","x = 3","x = 5"],0,"Subtract 2 to get x/3 = 5, then multiply by 3."],
+  ["Simplify 4(2x − 3).",["8x − 12","8x − 3","6x − 12","8x + 12"],0,"Distribute the 4 to both terms."],
+  ["What is the slope of a line through (0, 1) and (2, 7)?",["3","2","6","1/3"],0,"(7 − 1)/(2 − 0) = 6/2 = 3."],
+  ["Write 0.000045 in scientific notation.",["4.5 × 10⁻⁵","45 × 10⁻⁶","4.5 × 10⁵","0.45 × 10⁻⁴"],0,"Move the decimal 5 places right, so the exponent is −5."],
+  ["Simplify x⁵ · x³.",["x⁸","x¹⁵","x²","2x⁸"],0,"Same base: add the exponents."],
+  ["Simplify x⁹ / x⁴.",["x⁵","x¹³","x²·²⁵","x³⁶"],0,"Same base: subtract the exponents."],
+  ["What is 7⁰ ?",["1","0","7","undefined"],0,"Any non-zero number to the power 0 is 1."],
+  ["Simplify √81.",["9","8.1","40.5","6561"],0,"9 × 9 = 81."],
+  ["Between which two whole numbers does √50 lie?",["7 and 8","6 and 7","8 and 9","5 and 6"],0,"7² = 49 and 8² = 64."],
+  ["Solve 2(x + 3) = 16.",["x = 5","x = 8","x = 11","x = 6.5"],0,"Divide by 2 to get x + 3 = 8, so x = 5."],
+  ["Which is an irrational number?",["√2","0.75","−4","3/8"],0,"√2 cannot be written as a fraction; its decimal never repeats."],
+  ["Solve the proportion 3/4 = x/20.",["x = 15","x = 12","x = 16","x = 26.7"],0,"Cross-multiply: 4x = 60, so x = 15."],
+  ["A price rises from $40 to $50. What is the percent increase?",["25%","20%","10%","125%"],0,"Increase of 10 on 40 is 10/40 = 25%."],
+  ["Solve −5x = 35.",["x = −7","x = 7","x = −30","x = 40"],0,"Divide both sides by −5."],
+  ["What is the y-intercept of y = 3x − 5?",["−5","3","5","−3"],0,"In y = mx + b, b is where the line crosses the y-axis."],
+  ["Simplify 3(x + 2) − 2x.",["x + 6","5x + 6","x + 2","5x + 2"],0,"3x + 6 − 2x = x + 6."],
+  ["Solve x + 4 < 10.",["x < 6","x > 6","x < 14","x > 14"],0,"Subtract 4 from both sides; the direction is unchanged."],
+  ["Solve −2x > 8.",["x < −4","x > −4","x < 4","x > 4"],0,"Dividing by a negative flips the inequality."],
+  ["What is the additive inverse of −7?",["7","−7","1/7","0"],0,"The additive inverse is what you add to get zero."],
+  ["Evaluate 3 + 4 × 2² − 6.",["13","17","22","8"],0,"2²=4, 4×4=16, 3+16−6 = 13."],
+  ["A triangle has angles 40° and 75°. What is the third?",["65°","55°","75°","80°"],0,"Angles in a triangle total 180°."],
+  ["What is the area of a circle with radius 5? (use π ≈ 3.14)",["78.5","31.4","15.7","25"],0,"A = πr² = 3.14 × 25."],
+  ["What is the circumference of a circle with diameter 10? (π ≈ 3.14)",["31.4","78.5","15.7","10"],0,"C = πd = 3.14 × 10."],
+  ["Solve 4x + 2 = 2x + 12.",["x = 5","x = 7","x = 2","x = 3.5"],0,"Subtract 2x and 2: 2x = 10."],
+  ["What is 3⁻² written as a fraction?",["1/9","−9","−1/9","1/6"],0,"A negative exponent means the reciprocal: 1/3² = 1/9."],
+  ["Simplify (2x³)².",["4x⁶","2x⁶","4x⁵","2x⁵"],0,"Square both the coefficient and the power."],
+  ["Convert 3/8 to a decimal.",["0.375","0.38","0.83","2.67"],0,"3 ÷ 8 = 0.375."],
+  ["Which ordered pair satisfies y = 2x − 1?",["(3, 5)","(3, 7)","(2, 5)","(1, 2)"],0,"2(3) − 1 = 5."],
+  ["What is the mean absolute deviation useful for?",["Measuring spread","Finding the middle","Finding the most common value","Adding data"],0,"It measures how far, on average, values sit from the mean."],
+  ["Solve 5 − x = 2.",["x = 3","x = −3","x = 7","x = −7"],0,"Subtract 5, then multiply by −1."],
+  ["A number n is doubled then increased by 5. Write the expression.",["2n + 5","2(n + 5)","n² + 5","5n + 2"],0,"Double first, then add."],
+  ["What is the slope of a horizontal line?",["0","1","Undefined","−1"],0,"No rise over any run gives slope 0."],
+  ["What is the slope of a vertical line?",["Undefined","0","1","−1"],0,"Run is zero, and division by zero is undefined."],
+  ["Simplify 12x / 4.",["3x","8x","48x","3"],0,"Divide the coefficient only."],
+  ["Solve 3(x − 1) = 2x + 4.",["x = 7","x = 5","x = 1","x = 3"],0,"3x − 3 = 2x + 4, so x = 7."],
+  ["Which is equivalent to 25%?",["1/4","1/25","2.5","4"],0,"25/100 simplifies to 1/4."],
+  ["What is the volume of a cylinder with r = 2, h = 5? (π ≈ 3.14)",["62.8","31.4","20","125.6"],0,"V = πr²h = 3.14 × 4 × 5."],
+  ["What is the hypotenuse of a right triangle with legs 3 and 4?",["5","7","12","25"],0,"3² + 4² = 25, and √25 = 5."],
+  ["Is 8, 15, 17 a right triangle?",["Yes","No","Only if scaled","Cannot tell"],0,"64 + 225 = 289 = 17², so it satisfies the Pythagorean theorem."],
+  ["Simplify the ratio 45:60.",["3:4","4:3","9:12","1:2"],0,"Divide both by 15."],
+  ["What is 20% of 250?",["50","25","40","5"],0,"0.20 × 250 = 50."],
+  ["What is the next term: 1, 4, 9, 16, …?",["25","20","24","32"],0,"These are perfect squares: 5² = 25."],
+  ["Solve |x| = 6.",["x = 6 or −6","x = 6","x = −6","No solution"],0,"Both 6 and −6 sit 6 units from zero."],
+  ["Which expression means 'five less than twice a number'?",["2n − 5","5 − 2n","2(n − 5)","5n − 2"],0,"Twice the number first, then five taken away."],
+  ["Simplify −(4x − 7).",["−4x + 7","−4x − 7","4x − 7","4x + 7"],0,"The negative distributes to both terms."],
+  ["A line has slope 2 and passes through (0, −3). Write its equation.",["y = 2x − 3","y = −3x + 2","y = 2x + 3","y = 3x − 2"],0,"Slope-intercept form is y = mx + b."]
+];
+BANKS.TOPICS.prealg=["Two-step equations","Combining like terms","Exponents","Evaluating expressions","Two-step equations","Distributive property","Slope","Scientific notation","Exponent rules","Exponent rules","Exponent rules","Square roots","Square roots","Multi-step equations","Rational & irrational","Proportions","Percent change","One-step equations","Linear graphs","Distributive property","Inequalities","Inequalities","Integers","Order of operations","Angles","Circles","Circles","Equations both sides","Exponent rules","Exponent rules","Decimals & fractions","Linear graphs","Statistics","One-step equations","Writing expressions","Slope","Slope","Simplifying","Equations both sides","Percents","Volume","Pythagorean theorem","Pythagorean theorem","Ratios","Percents","Patterns","Absolute value","Writing expressions","Distributive property","Linear graphs"];
+BANKS.TEST_QUESTIONS.prealg=[
+  ["Solve 5x + 3 = 28.",["x = 5","x = 6.2","x = 125","x = 31"],0,"5x = 25, so x = 5.","Two-step equations"],
+  ["Simplify 7y − 2 + 3y + 9.",["10y + 7","10y + 11","4y + 7","10y − 7"],0,"7y + 3y = 10y; −2 + 9 = 7.","Combining like terms"],
+  ["Evaluate 4a − 3 when a = −2.",["−11","5","−5","11"],0,"4(−2) = −8, and −8 − 3 = −11.","Evaluating expressions"],
+  ["Simplify 3(4x − 5).",["12x − 15","12x − 5","7x − 15","12x + 15"],0,"Distribute the 3.","Distributive property"],
+  ["Slope through (1, 2) and (5, 14)?",["3","4","12","1/3"],0,"(14−2)/(5−1) = 3.","Slope"],
+  ["Write 62,000 in scientific notation.",["6.2 × 10⁴","62 × 10³","6.2 × 10⁵","0.62 × 10⁵"],0,"Move the decimal 4 places left.","Scientific notation"],
+  ["Simplify y⁷ · y².",["y⁹","y¹⁴","y⁵","2y⁹"],0,"Add exponents.","Exponent rules"],
+  ["Simplify a⁸ / a⁵.",["a³","a¹³","a⁴⁰","a¹·⁶"],0,"Subtract exponents.","Exponent rules"],
+  ["What is 5⁻²?",["1/25","−25","−1/25","1/10"],0,"Negative exponent means reciprocal.","Exponent rules"],
+  ["Simplify √144.",["12","14.4","72","11"],0,"12² = 144.","Square roots"],
+  ["Solve 3(x + 4) = 27.",["x = 5","x = 9","x = 23","x = 7"],0,"x + 4 = 9.","Multi-step equations"],
+  ["Which is irrational?",["π","0.5","−3","7/2"],0,"π has a non-repeating, non-terminating decimal.","Rational & irrational"],
+  ["Solve 2/5 = x/30.",["x = 12","x = 15","x = 75","x = 6"],0,"5x = 60.","Proportions"],
+  ["A $60 item drops to $45. What is the percent decrease?",["25%","15%","33%","20%"],0,"15/60 = 0.25.","Percent change"],
+  ["What is the y-intercept of y = −4x + 9?",["9","−4","−9","4"],0,"b in y = mx + b.","Linear graphs"],
+  ["Solve x − 6 > 1.",["x > 7","x < 7","x > −5","x < −5"],0,"Add 6 to both sides.","Inequalities"],
+  ["Solve −3x ≤ 12.",["x ≥ −4","x ≤ −4","x ≥ 4","x ≤ 4"],0,"Dividing by a negative flips the sign.","Inequalities"],
+  ["Evaluate 5 + 3 × 3² − 10.",["22","62","17","31"],0,"3²=9, 3×9=27, 5+27−10 = 22.","Order of operations"],
+  ["A triangle has angles 30° and 90°. Find the third.",["60°","70°","45°","120°"],0,"180 − 120 = 60.","Angles"],
+  ["Area of a circle with r = 3? (π ≈ 3.14)",["28.26","18.84","9.42","6.28"],0,"πr² = 3.14 × 9.","Circles"],
+  ["Solve 6x − 4 = 2x + 16.",["x = 5","x = 3","x = 4","x = 6"],0,"4x = 20.","Equations both sides"],
+  ["Simplify (3x²)³.",["27x⁶","9x⁶","27x⁵","3x⁶"],0,"Cube the coefficient and multiply exponents.","Exponent rules"],
+  ["Convert 5/8 to a decimal.",["0.625","0.58","1.6","0.85"],0,"5 ÷ 8.","Decimals & fractions"],
+  ["Which point is on y = 3x + 2?",["(2, 8)","(2, 6)","(1, 6)","(3, 9)"],0,"3(2) + 2 = 8.","Linear graphs"],
+  ["Hypotenuse of a right triangle with legs 6 and 8?",["10","14","48","√14"],0,"36 + 64 = 100.","Pythagorean theorem"],
+  ["Volume of a cylinder r = 3, h = 4? (π ≈ 3.14)",["113.04","37.68","75.36","28.26"],0,"πr²h = 3.14 × 9 × 4.","Volume"],
+  ["Solve |x| = 11.",["x = 11 or −11","x = 11","x = −11","No solution"],0,"Two points sit 11 from zero.","Absolute value"],
+  ["Which expression is 'seven more than triple a number'?",["3n + 7","7n + 3","3(n + 7)","7 − 3n"],0,"Triple first, then add seven.","Writing expressions"],
+  ["Simplify −(6x − 2).",["−6x + 2","−6x − 2","6x + 2","6x − 2"],0,"The minus distributes.","Distributive property"],
+  ["A line with slope −2 through (0, 4) is…",["y = −2x + 4","y = 4x − 2","y = 2x + 4","y = −2x − 4"],0,"y = mx + b.","Linear graphs"]
+];
+BANKS.CHALLENGE_QUESTIONS.prealg=[
+  ["Solve 2(3x − 4) = 4(x + 1) + 2.",["x = 7","x = 5","x = 3","x = 9"],0,"6x − 8 = 4x + 6, so 2x = 14.","Equations both sides"],
+  ["A number is increased by 30%, then the result is decreased by 30%. Compared with the original it is…",["9% smaller","the same","9% larger","30% smaller"],0,"1.3 × 0.7 = 0.91, a 9% decrease.","Percent change"],
+  ["Simplify (2x²y)³ ÷ (4x³y).",["2x³y²","8x³y²","2x⁶y²","2x³y³"],0,"(2x²y)³ = 8x⁶y³; dividing gives 2x³y².","Exponent rules"],
+  ["Solve the inequality −4(x − 2) ≥ 12.",["x ≤ −1","x ≥ −1","x ≤ 5","x ≥ 5"],0,"−4x + 8 ≥ 12 → −4x ≥ 4 → x ≤ −1 (sign flips).","Inequalities"],
+  ["Light travels 3 × 10⁸ m/s. How far in 2 × 10³ seconds?",["6 × 10¹¹ m","6 × 10²⁴ m","5 × 10¹¹ m","6 × 10⁵ m"],0,"Multiply the numbers and add the exponents.","Scientific notation"],
+  ["A ladder 13 m long leans against a wall with its foot 5 m out. How high does it reach?",["12 m","8 m","14 m","18 m"],0,"13² − 5² = 144, and √144 = 12.","Pythagorean theorem"],
+  ["A line passes through (2, 5) with slope 3. What is its y-intercept?",["−1","5","11","1"],0,"5 = 3(2) + b, so b = −1.","Linear graphs"],
+  ["Solve 1/2 x + 1/3 = 5/6.",["x = 1","x = 2","x = 1/2","x = 3"],0,"Multiply through by 6: 3x + 2 = 5, so x = 1.","Multi-step equations"],
+  ["Which is largest: √30, 5.5, or 11/2?",["5.5 and 11/2 tie","√30","11/2","They are all equal"],0,"√30 ≈ 5.48, while 5.5 = 11/2 exactly.","Rational & irrational"],
+  ["A cylinder and a cone share the same radius and height. The cone's volume is what fraction of the cylinder's?",["1/3","1/2","2/3","1/4"],0,"Cone volume is one third of the matching cylinder.","Volume"],
+  ["Solve for x: 3/(x) = 12/20.",["x = 5","x = 4","x = 7.2","x = 6"],0,"Cross-multiply: 12x = 60.","Proportions"],
+  ["If 2ˣ = 32, what is x?",["5","6","16","4"],0,"2⁵ = 32.","Exponent rules"],
+  ["The angles of a triangle are in the ratio 2:3:4. What is the largest angle?",["80°","90°","60°","100°"],0,"2+3+4 = 9 parts; 180 ÷ 9 = 20, so 4 × 20 = 80.","Angles"],
+  ["Simplify −2(3 − x) + 4x.",["6x − 6","2x − 6","6x + 6","−2x − 6"],0,"−6 + 2x + 4x = 6x − 6.","Distributive property"],
+  ["A circle's area is 49π. What is its circumference?",["14π","7π","49π","24.5π"],0,"r = 7, so C = 2πr = 14π.","Circles"],
+  ["Evaluate −2² + (−2)².",["0","8","−8","4"],0,"−2² = −4 and (−2)² = 4, so they cancel.","Exponents"]
+];
+BANKS.AP_QUESTIONS.prealg=[
+  ["A phone plan charges a $25 monthly fee plus $0.08 per text. A student's bill is $41.40. How many texts did they send?",["205","180","220","195"],0,"41.40 − 25 = 16.40, and 16.40 ÷ 0.08 = 205.","Two-step equations"],
+  ["Two trains leave the same station in opposite directions, one at 60 km/h and the other at 80 km/h. After how long are they 350 km apart?",["2.5 hours","3 hours","2 hours","3.5 hours"],0,"Combined 140 km/h, so 350 ÷ 140 = 2.5.","Multi-step equations"],
+  ["A jacket is marked up 40% and then put on sale at 25% off. What is the overall change from the original price?",["5% increase","15% increase","15% decrease","No change"],0,"1.40 × 0.75 = 1.05, a 5% rise.","Percent change"],
+  ["A rectangle's length is 3 cm more than twice its width. Its perimeter is 36 cm. What is the width?",["5 cm","6 cm","4 cm","7 cm"],0,"2(2w+3) + 2w = 36 → 6w + 6 = 36 → w = 5.","Writing expressions"],
+  ["A recipe requires ingredients in the ratio 2:3:5 by mass. A batch weighs 900 g. How much of the largest component is used?",["450 g","300 g","500 g","180 g"],0,"10 parts, so 900 ÷ 10 = 90; 5 × 90 = 450.","Ratios"],
+  ["The distance from Earth to the Sun is about 1.5 × 10⁸ km. Light travels 3 × 10⁵ km/s. Roughly how long does sunlight take to arrive?",["500 s","50 s","5,000 s","5 s"],0,"1.5×10⁸ ÷ 3×10⁵ = 5 × 10² = 500 seconds.","Scientific notation"],
+  ["A ramp rises 1.5 m over a horizontal run of 18 m. What is its slope, as a decimal?",["0.083","12","1.5","0.12"],0,"Slope = rise/run = 1.5/18 ≈ 0.083.","Slope"],
+  ["A square garden is enlarged so each side grows by 3 m, increasing the area by 69 m². What was the original side length?",["10 m","8 m","12 m","11 m"],0,"(s+3)² − s² = 6s + 9 = 69, so s = 10.","Writing expressions"],
+  ["A cyclist covers 45 km at 15 km/h, then 45 km at 30 km/h. What is her average speed for the whole trip?",["20 km/h","22.5 km/h","25 km/h","18 km/h"],0,"Total time 3 + 1.5 = 4.5 h for 90 km, so 20 km/h.","Ratios"],
+  ["Solve for x: (2x − 1)/3 = (x + 4)/2.",["x = 14","x = 7","x = 10","x = 5"],0,"Cross-multiply: 4x − 2 = 3x + 12.","Multi-step equations"],
+  ["A cone-shaped cup has radius 3 cm and height 10 cm. Using π ≈ 3.14, roughly how much does it hold?",["94.2 cm³","282.6 cm³","31.4 cm³","62.8 cm³"],0,"V = ⅓πr²h = ⅓ × 3.14 × 9 × 10.","Volume"],
+  ["A support wire runs from the top of a 24 m pole to a point 7 m from its base. How long is the wire?",["25 m","31 m","23 m","26 m"],0,"√(24² + 7²) = √625 = 25.","Pythagorean theorem"],
+  ["A savings account holds $x. After adding $150 and then doubling, it holds $900. What was x?",["$300","$450","$375","$600"],0,"2(x + 150) = 900 → x + 150 = 450.","Two-step equations"],
+  ["A pool is filled by one pipe in 6 hours and another in 3 hours. Working together, how long do they take?",["2 hours","1.5 hours","4.5 hours","9 hours"],0,"Rates 1/6 + 1/3 = 1/2 pool per hour, so 2 hours.","Ratios"],
+  ["The temperature is −6°C and falls 2°C per hour. After how many hours does it reach −18°C?",["6","9","12","3"],0,"−6 − 2h = −18 → 2h = 12.","Two-step equations"],
+  ["A circle is inscribed in a square of side 10. What area of the square is left uncovered? (π ≈ 3.14)",["21.5","78.5","100","57"],0,"100 − 3.14 × 25 = 100 − 78.5 = 21.5.","Circles"]
+];
+BANKS.SEED_CARDS.prealg=[
+  ["How do you solve a two-step equation?","Undo addition or subtraction first, then undo multiplication or division."],
+  ["What are like terms?","Terms with exactly the same variable and power — only these can be combined."],
+  ["State the distributive property.","a(b + c) = ab + ac."],
+  ["What does −3² equal, and why?","−9. The exponent applies to 3 before the negative sign."],
+  ["What does (−3)² equal?","9 — the brackets mean the whole −3 is squared."],
+  ["xᵃ · xᵇ = ?","x^(a+b) — add exponents when multiplying the same base."],
+  ["xᵃ / xᵇ = ?","x^(a−b) — subtract exponents when dividing."],
+  ["(xᵃ)ᵇ = ?","x^(ab) — multiply the exponents."],
+  ["What does a negative exponent mean?","The reciprocal: x⁻ⁿ = 1/xⁿ."],
+  ["What is x⁰ for any non-zero x?","1."],
+  ["What is scientific notation?","A number written as a × 10ⁿ where 1 ≤ a < 10."],
+  ["What is the slope formula?","m = (y₂ − y₁)/(x₂ − x₁) — rise over run."],
+  ["What is slope-intercept form?","y = mx + b, where m is the slope and b the y-intercept."],
+  ["Slope of a horizontal line? A vertical one?","Horizontal is 0; vertical is undefined."],
+  ["When do you flip an inequality sign?","When you multiply or divide both sides by a negative number."],
+  ["What is a rational number?","One that can be written as a fraction of integers; its decimal terminates or repeats."],
+  ["Give an example of an irrational number.","√2 or π — the decimal never ends and never repeats."],
+  ["State the Pythagorean theorem.","a² + b² = c², where c is the hypotenuse."],
+  ["Area and circumference of a circle?","A = πr² and C = 2πr (or πd)."],
+  ["Volume of a cylinder?","V = πr²h."],
+  ["Volume of a cone compared with a cylinder?","One third, when radius and height match: V = ⅓πr²h."],
+  ["How do you solve a proportion?","Cross-multiply, then solve the resulting equation."],
+  ["How do you find percent change?","(new − old) ÷ old, then × 100."],
+  ["Angles in a triangle add to…","180°."],
+  ["What does |x| = 6 mean?","x is 6 units from zero, so x = 6 or x = −6."],
+  ["How do you write 'five less than twice a number'?","2n − 5 — order matters."],
+  ["What is the additive inverse of a number?","The value you add to get zero — flip its sign."],
+  ["How do you evaluate an expression?","Substitute the given value for the variable, then follow order of operations."],
+  ["What happens when you distribute a negative sign?","Every term inside the brackets changes sign."],
+  ["Between which whole numbers does √50 fall?","7 and 8, since 7² = 49 and 8² = 64."]
+];
+BANKS.CHALLENGE_CARDS.prealg=[
+  ["Why isn't a 30% rise followed by a 30% fall a wash?","Because the fall applies to the larger amount: 1.3 × 0.7 = 0.91, a 9% loss."],
+  ["How do you solve an equation with variables on both sides?","Collect variables on one side and constants on the other, then isolate."],
+  ["How do you clear fractions from an equation?","Multiply every term by the least common denominator."],
+  ["How do you multiply numbers in scientific notation?","Multiply the coefficients and add the exponents, then renormalise."],
+  ["Given a point and a slope, how do you find b?","Substitute the point into y = mx + b and solve for b."],
+  ["Two rates working together — how do you combine them?","Add the per-hour rates, then invert to get the combined time."]
+];
+BANKS.FEYNMAN_TOPICS.prealg=["Why you flip the inequality when dividing by a negative","What slope actually measures","Why x⁰ equals 1","What a negative exponent means","How the distributive property works","Why −3² and (−3)² differ","What makes a number irrational","Why the Pythagorean theorem works","How to turn a word problem into an equation","What scientific notation is for","Why percent increase then decrease doesn't cancel","How to solve a proportion","What y = mx + b tells you about a line","How to clear fractions from an equation"];
+BANKS.RESOURCES.prealg=[
+  {type:"Course",title:"Khan Academy — Pre-Algebra",note:"The full free course, unit by unit, with practice.",url:"https://www.khanacademy.org/math/pre-algebra"},
+  {type:"Course",title:"Khan Academy — 8th Grade Math",note:"Overlaps heavily with pre-algebra: exponents, slope, Pythagoras.",url:"https://www.khanacademy.org/math/cc-eighth-grade-math"},
+  {type:"Video",title:"Math Antics",note:"Short, clear explanations of each pre-algebra topic.",url:"https://mathantics.com/"},
+  {type:"Practice",title:"IXL — Pre-Algebra",note:"Skill-by-skill drills with instant feedback.",url:"https://www.ixl.com/math/grade-8"},
+  {type:"Reference",title:"Purplemath",note:"Written lessons with worked examples and common pitfalls.",url:"https://www.purplemath.com/modules/index.htm"},
+  {type:"Tool",title:"Desmos Graphing Calculator",note:"Graph lines and see what slope and intercept do.",url:"https://www.desmos.com/calculator"}
+];
+/* ============================ ALGEBRA 1 ============================ */
+BANKS.QUESTIONS.alg1=[
+  ["Solve 4x − 9 = 23.",["x = 8","x = 3.5","x = 128","x = 14"],0,"Add 9 to get 4x = 32."],
+  ["Simplify 6x + 2(x − 5).",["8x − 10","8x + 10","6x − 10","4x − 10"],0,"Distribute first: 6x + 2x − 10."],
+  ["Solve 3x + 5 = x + 17.",["x = 6","x = 11","x = 5.5","x = 22"],0,"2x = 12."],
+  ["What is the slope of a line through (−2, 3) and (4, 15)?",["2","3","−2","1/2"],0,"(15 − 3)/(4 + 2) = 12/6 = 2."],
+  ["Write the equation of a line with slope −3 and y-intercept 7.",["y = −3x + 7","y = 7x − 3","y = 3x + 7","y = −3x − 7"],0,"Slope-intercept form: y = mx + b."],
+  ["Solve the system: y = 2x, x + y = 9.",["(3, 6)","(6, 3)","(4.5, 4.5)","(9, 0)"],0,"Substitute: x + 2x = 9, so x = 3."],
+  ["Factor x² + 7x + 12.",["(x + 3)(x + 4)","(x + 2)(x + 6)","(x + 12)(x + 1)","(x − 3)(x − 4)"],0,"Two numbers that multiply to 12 and add to 7."],
+  ["Factor x² − 9.",["(x + 3)(x − 3)","(x − 3)²","(x + 9)(x − 1)","(x − 9)(x + 1)"],0,"Difference of squares."],
+  ["Solve x² − 5x + 6 = 0.",["x = 2 or 3","x = −2 or −3","x = 1 or 6","x = 5 or 6"],0,"Factors to (x − 2)(x − 3) = 0."],
+  ["Simplify (3x²)(4x⁵).",["12x⁷","12x¹⁰","7x⁷","12x³"],0,"Multiply coefficients, add exponents."],
+  ["Expand (x + 5)(x − 2).",["x² + 3x − 10","x² − 3x − 10","x² + 7x − 10","x² + 3x + 10"],0,"FOIL: x² − 2x + 5x − 10."],
+  ["Expand (x + 4)².",["x² + 8x + 16","x² + 16","x² + 4x + 16","x² + 8x + 8"],0,"(a+b)² = a² + 2ab + b²."],
+  ["Solve 2x − 3 > 7.",["x > 5","x < 5","x > 2","x < 2"],0,"2x > 10."],
+  ["Solve −3x + 1 ≥ 10.",["x ≤ −3","x ≥ −3","x ≤ 3","x ≥ 3"],0,"−3x ≥ 9, and dividing by a negative flips the sign."],
+  ["What is f(3) if f(x) = x² − 2x + 1?",["4","2","10","16"],0,"9 − 6 + 1 = 4."],
+  ["Which relation is NOT a function?",["{(1,2),(1,3)}","{(1,2),(2,3)}","{(0,0),(1,1)}","{(2,5),(3,5)}"],0,"One input maps to two different outputs."],
+  ["What is the domain of f(x) = 1/(x − 4)?",["All reals except 4","All reals","x > 4","x ≥ 4"],0,"The denominator cannot be zero."],
+  ["Simplify √72 in simplest radical form.",["6√2","8√3","36√2","2√18"],0,"72 = 36 × 2."],
+  ["Solve x² = 49.",["x = 7 or −7","x = 7","x = 24.5","x = −7"],0,"Taking a square root gives both signs."],
+  ["Use the quadratic formula: what is the discriminant of x² + 4x + 4?",["0","16","32","−16"],0,"b² − 4ac = 16 − 16 = 0."],
+  ["A discriminant of 0 means the quadratic has…",["One real root","Two real roots","No real roots","Infinite roots"],0,"A repeated root — the parabola just touches the x-axis."],
+  ["What is the vertex of y = (x − 3)² + 2?",["(3, 2)","(−3, 2)","(3, −2)","(2, 3)"],0,"Vertex form is y = a(x − h)² + k."],
+  ["Simplify (x⁶y³)/(x²y).",["x⁴y²","x³y³","x⁸y⁴","x⁴y³"],0,"Subtract exponents for each base."],
+  ["Solve the system: 2x + y = 10, x − y = 2.",["(4, 2)","(2, 4)","(6, −2)","(3, 4)"],0,"Add the equations: 3x = 12."],
+  ["What is the slope of a line parallel to y = 5x − 1?",["5","−5","1/5","−1/5"],0,"Parallel lines share a slope."],
+  ["What is the slope of a line perpendicular to y = 2x + 3?",["−1/2","2","1/2","−2"],0,"Perpendicular slopes are negative reciprocals."],
+  ["Factor 3x² + 6x.",["3x(x + 2)","3(x² + 2x)","x(3x + 6)","3x(x + 6)"],0,"Pull out the greatest common factor, 3x."],
+  ["Simplify (2x + 3) − (x − 4).",["x + 7","x − 1","3x − 1","x + 12"],0,"Subtracting flips the signs in the second bracket."],
+  ["An arithmetic sequence starts 4, 7, 10, … What is the 10th term?",["31","34","30","37"],0,"aₙ = 4 + 3(n − 1), so a₁₀ = 4 + 27."],
+  ["A geometric sequence starts 3, 6, 12, … What is the 6th term?",["96","64","48","192"],0,"3 × 2⁵ = 96."],
+  ["Solve |x − 2| = 5.",["x = 7 or −3","x = 7","x = 3 or −7","x = 5 or −5"],0,"x − 2 = 5 or x − 2 = −5."],
+  ["What does the graph of y = x² look like?",["A parabola opening up","A straight line","A parabola opening down","A hyperbola"],0,"A positive leading coefficient opens upward."],
+  ["What transformation does y = x² − 4 apply to y = x²?",["Shift down 4","Shift up 4","Shift right 4","Shift left 4"],0,"Subtracting outside the function moves it down."],
+  ["What transformation does y = (x + 3)² apply to y = x²?",["Shift left 3","Shift right 3","Shift up 3","Shift down 3"],0,"Inside changes move horizontally, opposite the sign."],
+  ["Simplify (2√3)(5√3).",["30","10√3","10√9","15√3"],0,"2 × 5 = 10, and √3 × √3 = 3."],
+  ["Solve 0.5x + 1.5 = 4.",["x = 5","x = 11","x = 2.5","x = 8"],0,"0.5x = 2.5."],
+  ["What is the y-intercept of 2x + 3y = 12?",["4","6","12","2"],0,"Set x = 0: 3y = 12."],
+  ["What is the x-intercept of 2x + 3y = 12?",["6","4","12","2"],0,"Set y = 0: 2x = 12."],
+  ["Which describes the solution set of two parallel lines?",["No solution","One solution","Infinite solutions","Two solutions"],0,"Parallel lines never intersect."],
+  ["Simplify 3x(2x² − x + 4).",["6x³ − 3x² + 12x","6x³ − x + 4","5x³ − 3x² + 12x","6x² − 3x + 12"],0,"Distribute 3x across all three terms."],
+  ["Factor x² + 2x − 15.",["(x + 5)(x − 3)","(x − 5)(x + 3)","(x + 15)(x − 1)","(x + 5)(x + 3)"],0,"Multiply to −15, add to 2."],
+  ["What is the rate of change of a linear function?",["Constant","Increasing","Squared","Zero always"],0,"That is what makes it linear."],
+  ["A function is written f(x) = 3x + 2. What is f(−1)?",["−1","5","1","−5"],0,"3(−1) + 2 = −1."],
+  ["Solve 5(x − 2) = 3(x + 4).",["x = 11","x = 5","x = 2","x = 7"],0,"5x − 10 = 3x + 12, so 2x = 22."],
+  ["Simplify √50 + √8.",["7√2","√58","5√2 + 4√2","12√2"],0,"5√2 + 2√2 = 7√2."],
+  ["What is the axis of symmetry of y = x² − 6x + 5?",["x = 3","x = −3","x = 6","x = 5"],0,"x = −b/(2a) = 6/2."],
+  ["What is the range of y = x² ?",["y ≥ 0","All reals","y > 0","y ≤ 0"],0,"A square is never negative."],
+  ["A line passes through (1, 4) with slope 2. Its equation is…",["y = 2x + 2","y = 2x + 4","y = 2x − 2","y = 4x + 2"],0,"4 = 2(1) + b, so b = 2."],
+  ["Simplify (x³)⁴.",["x¹²","x⁷","x⁸¹","4x³"],0,"Multiply the exponents."],
+  ["Solve x² + 6x + 9 = 0.",["x = −3","x = 3","x = −3 or 3","No real solution"],0,"(x + 3)² = 0."]
+];
+BANKS.TOPICS.alg1=["Linear equations","Distributive property","Equations both sides","Slope","Slope-intercept form","Systems of equations","Factoring","Factoring","Quadratic equations","Exponent rules","Polynomials","Polynomials","Inequalities","Inequalities","Functions","Functions","Domain & range","Radicals","Quadratic equations","Quadratic formula","Quadratic formula","Vertex form","Exponent rules","Systems of equations","Parallel & perpendicular","Parallel & perpendicular","Factoring","Polynomials","Sequences","Sequences","Absolute value","Graphing quadratics","Transformations","Transformations","Radicals","Linear equations","Intercepts","Intercepts","Systems of equations","Polynomials","Factoring","Functions","Functions","Equations both sides","Radicals","Graphing quadratics","Domain & range","Slope-intercept form","Exponent rules","Quadratic equations"];
+BANKS.TEST_QUESTIONS.alg1=[
+  ["Solve 7x − 4 = 31.",["x = 5","x = 3.86","x = 35","x = 27"],0,"7x = 35.","Linear equations"],
+  ["Simplify 5x + 3(x − 4).",["8x − 12","8x + 12","5x − 12","2x − 12"],0,"Distribute, then combine.","Distributive property"],
+  ["Solve 4x + 7 = 2x + 19.",["x = 6","x = 13","x = 3","x = 26"],0,"2x = 12.","Equations both sides"],
+  ["Slope through (−1, 2) and (3, 14)?",["3","4","12","1/3"],0,"12/4 = 3.","Slope"],
+  ["Line with slope 4 and y-intercept −2?",["y = 4x − 2","y = −2x + 4","y = 4x + 2","y = 2x − 4"],0,"y = mx + b.","Slope-intercept form"],
+  ["Solve: y = 3x, 2x + y = 15.",["(3, 9)","(9, 3)","(5, 5)","(15, 0)"],0,"2x + 3x = 15.","Systems of equations"],
+  ["Factor x² + 9x + 20.",["(x + 4)(x + 5)","(x + 2)(x + 10)","(x + 20)(x + 1)","(x − 4)(x − 5)"],0,"4 × 5 = 20, 4 + 5 = 9.","Factoring"],
+  ["Factor x² − 25.",["(x + 5)(x − 5)","(x − 5)²","(x + 25)(x − 1)","(x + 5)²"],0,"Difference of squares.","Factoring"],
+  ["Solve x² − 7x + 10 = 0.",["x = 2 or 5","x = −2 or −5","x = 1 or 10","x = 7 or 10"],0,"(x−2)(x−5) = 0.","Quadratic equations"],
+  ["Simplify (5x³)(3x⁴).",["15x⁷","15x¹²","8x⁷","15x³"],0,"Add exponents.","Exponent rules"],
+  ["Expand (x + 6)(x − 3).",["x² + 3x − 18","x² − 3x − 18","x² + 9x − 18","x² + 3x + 18"],0,"FOIL.","Polynomials"],
+  ["Expand (x − 5)².",["x² − 10x + 25","x² + 25","x² − 25","x² − 10x − 25"],0,"(a−b)² = a² − 2ab + b².","Polynomials"],
+  ["Solve 3x − 5 < 10.",["x < 5","x > 5","x < 1.67","x > 1.67"],0,"3x < 15.","Inequalities"],
+  ["Solve −2x + 4 ≥ 12.",["x ≤ −4","x ≥ −4","x ≤ 4","x ≥ 4"],0,"−2x ≥ 8, sign flips.","Inequalities"],
+  ["If f(x) = x² + 3x, what is f(−2)?",["−2","10","2","−10"],0,"4 − 6 = −2.","Functions"],
+  ["Domain of f(x) = 1/(x + 3)?",["All reals except −3","All reals","x > −3","x ≥ −3"],0,"Denominator ≠ 0.","Domain & range"],
+  ["Simplify √48.",["4√3","4√12","16√3","2√12"],0,"48 = 16 × 3.","Radicals"],
+  ["Discriminant of x² + 6x + 5?",["16","36","56","−16"],0,"36 − 20 = 16.","Quadratic formula"],
+  ["Vertex of y = (x + 2)² − 5?",["(−2, −5)","(2, −5)","(−2, 5)","(5, −2)"],0,"Vertex form.","Vertex form"],
+  ["Solve: 3x + y = 11, x − y = 1.",["(3, 2)","(2, 3)","(4, −1)","(1, 8)"],0,"Add: 4x = 12.","Systems of equations"],
+  ["Slope perpendicular to y = −3x + 1?",["1/3","−1/3","3","−3"],0,"Negative reciprocal.","Parallel & perpendicular"],
+  ["Factor 5x² + 10x.",["5x(x + 2)","5(x² + 2x)","x(5x + 10)","5x(x + 10)"],0,"GCF is 5x.","Factoring"],
+  ["10th term of 2, 5, 8, …?",["29","32","30","26"],0,"2 + 3(9).","Sequences"],
+  ["5th term of 4, 8, 16, …?",["64","32","128","48"],0,"4 × 2⁴.","Sequences"],
+  ["Solve |x + 1| = 4.",["x = 3 or −5","x = 3","x = 5 or −3","x = 4 or −4"],0,"x + 1 = ±4.","Absolute value"],
+  ["y = (x − 4)² is y = x² shifted…",["Right 4","Left 4","Up 4","Down 4"],0,"Inside shifts go opposite the sign.","Transformations"],
+  ["y-intercept of 3x + 4y = 24?",["6","8","24","4"],0,"x = 0 gives 4y = 24.","Intercepts"],
+  ["Axis of symmetry of y = x² − 8x + 3?",["x = 4","x = −4","x = 8","x = 3"],0,"−b/(2a) = 8/2.","Graphing quadratics"],
+  ["Simplify √32 + √18.",["7√2","√50","4√2 + 3√2","10√2"],0,"4√2 + 3√2.","Radicals"],
+  ["Solve 4(x − 3) = 2(x + 5).",["x = 11","x = 8","x = 4","x = 2"],0,"4x − 12 = 2x + 10.","Equations both sides"]
+];
+BANKS.CHALLENGE_QUESTIONS.alg1=[
+  ["Solve x² − 4x − 12 = 0 by factoring.",["x = 6 or −2","x = −6 or 2","x = 4 or −3","x = 12 or −1"],0,"(x − 6)(x + 2) = 0.","Quadratic equations"],
+  ["Use the quadratic formula on 2x² + 5x − 3 = 0.",["x = 1/2 or −3","x = −1/2 or 3","x = 1 or −3","x = 3 or −2"],0,"Discriminant 49; x = (−5 ± 7)/4.","Quadratic formula"],
+  ["Factor 6x² + 11x + 3.",["(3x + 1)(2x + 3)","(6x + 1)(x + 3)","(3x + 3)(2x + 1)","(2x + 1)(3x + 3)"],0,"Split 11x into 9x + 2x and group.","Factoring"],
+  ["Solve the system 3x + 2y = 16 and 5x − 2y = 8.",["(3, 3.5)","(3, 3)","(2, 5)","(4, 2)"],0,"Add: 8x = 24, so x = 3, then y = 3.5.","Systems of equations"],
+  ["Simplify (2x²y³)³ / (4xy²).",["2x⁵y⁷","8x⁵y⁷","2x⁶y⁷","4x⁵y⁷"],0,"8x⁶y⁹ ÷ 4xy² = 2x⁵y⁷.","Exponent rules"],
+  ["What is the vertex of y = x² − 6x + 11?",["(3, 2)","(−3, 2)","(3, −2)","(6, 11)"],0,"Complete the square: (x − 3)² + 2.","Vertex form"],
+  ["A quadratic has roots 3 and −5. Which equation fits?",["x² + 2x − 15 = 0","x² − 2x − 15 = 0","x² + 2x + 15 = 0","x² − 8x + 15 = 0"],0,"(x − 3)(x + 5) = x² + 2x − 15.","Quadratic equations"],
+  ["Solve √(x + 7) = 4.",["x = 9","x = 16","x = −3","x = 23"],0,"Square both sides: x + 7 = 16.","Radicals"],
+  ["Solve 2|x − 3| + 1 = 11.",["x = 8 or −2","x = 8","x = 5 or 1","x = 2 or −8"],0,"|x − 3| = 5.","Absolute value"],
+  ["If f(x) = 2x + 1 and g(x) = x², what is f(g(3))?",["19","49","13","37"],0,"g(3) = 9, then f(9) = 19.","Functions"],
+  ["A line passes through (2, −1) and is perpendicular to y = 4x. Find its equation.",["y = −¼x − ½","y = −4x + 7","y = ¼x − 1.5","y = 4x − 9"],0,"Slope −1/4; −1 = −½ + b, so b = −½.","Parallel & perpendicular"],
+  ["The sum of two numbers is 20 and their product is 91. What are they?",["7 and 13","9 and 11","6 and 14","8 and 12"],0,"x² − 20x + 91 = 0 factors to (x−7)(x−13).","Quadratic equations"],
+  ["Simplify (x² − 9)/(x + 3).",["x − 3","x + 3","x² − 3","1/(x − 3)"],0,"Factor the numerator and cancel.","Factoring"],
+  ["Which system has infinitely many solutions?",["y = 2x + 1 and 2y = 4x + 2","y = 2x + 1 and y = 2x + 3","y = 2x and y = 3x","y = x and y = −x"],0,"The two equations describe the same line.","Systems of equations"],
+  ["An arithmetic sequence has a₃ = 11 and a₇ = 27. What is the common difference?",["4","3","5","16"],0,"(27 − 11)/(7 − 3) = 4.","Sequences"],
+  ["For what values of k does x² + kx + 9 = 0 have exactly one root?",["k = 6 or −6","k = 3 only","k = 9","k = 0"],0,"Discriminant k² − 36 = 0.","Quadratic formula"]
+];
+BANKS.AP_QUESTIONS.alg1=[
+  ["A ball is thrown so its height is h = −16t² + 48t + 4 feet. When does it reach maximum height?",["t = 1.5 s","t = 3 s","t = 2 s","t = 0.75 s"],0,"Vertex at t = −b/(2a) = 48/32 = 1.5.","Graphing quadratics"],
+  ["Using h = −16t² + 48t + 4, what is the maximum height?",["40 ft","52 ft","36 ft","48 ft"],0,"h(1.5) = −36 + 72 + 4 = 40.","Graphing quadratics"],
+  ["A rectangle's length is 4 m more than its width and its area is 96 m². What is the width?",["8 m","6 m","10 m","12 m"],0,"w(w + 4) = 96 → w² + 4w − 96 = 0 → (w+12)(w−8).","Quadratic equations"],
+  ["Two workers together finish a job in 4 hours. Alone, one takes 6 hours. How long does the other take?",["12 hours","8 hours","10 hours","24 hours"],0,"1/6 + 1/x = 1/4 → 1/x = 1/12.","Functions"],
+  ["A phone plan costs $30 plus $0.10 per GB; another costs $50 flat. Beyond how many GB is the flat plan cheaper?",["200 GB","150 GB","250 GB","500 GB"],0,"30 + 0.1g = 50 → g = 200.","Systems of equations"],
+  ["A 20% salt solution is mixed with a 50% solution to make 12 L of 30% solution. How much of the 20% is used?",["8 L","4 L","6 L","9 L"],0,"0.2x + 0.5(12−x) = 3.6 → x = 8.","Systems of equations"],
+  ["A number of coins are nickels and dimes, 30 coins worth $2.30. How many dimes?",["16","14","12","18"],0,"5n + 10d = 230 with n + d = 30 → d = 16.","Systems of equations"],
+  ["A population doubles every 5 years from 400. What is it after 20 years?",["6,400","3,200","1,600","12,800"],0,"400 × 2⁴ = 6,400.","Sequences"],
+  ["The perimeter of a rectangle is 44 and the length is 3 times the width. What is the area?",["90.75","121","96","132"],0,"w = 5.5, l = 16.5, so A = 90.75.","Linear equations"],
+  ["A car depreciates 15% per year from $24,000. What is it worth after 2 years?",["$17,340","$16,800","$18,000","$20,400"],0,"24,000 × 0.85² = 17,340.","Sequences"],
+  ["Solve for x: (x + 1)/2 − (x − 3)/5 = 2.",["x = 3","x = 1","x = 5","x = −1"],0,"Multiply through by 10: 5(x+1) − 2(x−3) = 20 → 3x + 11 = 20 → x = 3.","Linear equations"],
+  ["A projectile's path is y = −x² + 6x. Where does it land (other than the origin)?",["x = 6","x = 3","x = 9","x = −6"],0,"−x(x − 6) = 0.","Quadratic equations"],
+  ["A rectangular pen uses 60 m of fence against a wall (three sides). What width maximises the area?",["15 m","20 m","10 m","30 m"],0,"A = w(60 − 2w); vertex at w = 15.","Graphing quadratics"],
+  ["A line of best fit is y = 2.5x + 12 for study hours vs score. What does 2.5 represent?",["Points gained per hour studied","The starting score","Total points","Hours needed"],0,"Slope is the rate of change of score per hour.","Slope"],
+  ["The sum of three consecutive even integers is 78. What is the largest?",["28","26","30","24"],0,"n + (n+2) + (n+4) = 78 → n = 24.","Linear equations"],
+  ["A boat travels 30 km downstream in 2 h and returns in 3 h. What is the current's speed?",["2.5 km/h","5 km/h","1.5 km/h","3 km/h"],0,"b + c = 15, b − c = 10, so c = 2.5.","Systems of equations"]
+];
+BANKS.SEED_CARDS.alg1=[
+  ["What is slope-intercept form?","y = mx + b — m is the slope, b the y-intercept."],
+  ["What is point-slope form?","y − y₁ = m(x − x₁)."],
+  ["What is standard form of a line?","Ax + By = C."],
+  ["What is the slope formula?","m = (y₂ − y₁)/(x₂ − x₁)."],
+  ["Slopes of parallel lines?","Identical."],
+  ["Slopes of perpendicular lines?","Negative reciprocals — their product is −1."],
+  ["How do you find a y-intercept from an equation?","Set x = 0 and solve for y."],
+  ["How do you find an x-intercept?","Set y = 0 and solve for x."],
+  ["Three ways to solve a system?","Graphing, substitution, and elimination."],
+  ["What does 'no solution' mean for a system?","The lines are parallel — same slope, different intercept."],
+  ["What does 'infinitely many solutions' mean?","Both equations describe the same line."],
+  ["What is FOIL?","First, Outer, Inner, Last — a way to expand two binomials."],
+  ["Expand (a + b)².","a² + 2ab + b²."],
+  ["Expand (a − b)².","a² − 2ab + b²."],
+  ["Factor a² − b².","(a + b)(a − b) — difference of squares."],
+  ["How do you factor x² + bx + c?","Find two numbers that multiply to c and add to b."],
+  ["What is always the first factoring step?","Pull out the greatest common factor."],
+  ["State the quadratic formula.","x = (−b ± √(b² − 4ac)) / 2a."],
+  ["What is the discriminant?","b² − 4ac — it tells you how many real roots there are."],
+  ["Discriminant > 0, = 0, < 0 mean…","Two real roots, one repeated root, and no real roots."],
+  ["What is vertex form of a quadratic?","y = a(x − h)² + k, with vertex (h, k)."],
+  ["How do you find the axis of symmetry?","x = −b/(2a)."],
+  ["What makes a relation a function?","Every input has exactly one output."],
+  ["What is domain? What is range?","Domain is the set of inputs; range is the set of outputs."],
+  ["What does f(3) mean?","Evaluate the function by substituting 3 for x."],
+  ["xᵃ · xᵇ and (xᵃ)ᵇ?","x^(a+b) and x^(ab)."],
+  ["How do you simplify a radical like √72?","Pull out the largest perfect square: √36 × √2 = 6√2."],
+  ["When can you add radicals?","Only when the radicands match, like 3√2 + 5√2 = 8√2."],
+  ["What is the nth term of an arithmetic sequence?","aₙ = a₁ + d(n − 1)."],
+  ["What is the nth term of a geometric sequence?","aₙ = a₁ · r^(n−1)."]
+];
+BANKS.CHALLENGE_CARDS.alg1=[
+  ["How do you complete the square on x² + 6x?","Add (6/2)² = 9 to make (x + 3)², then subtract 9 to keep it equal."],
+  ["How do you factor ax² + bx + c when a ≠ 1?","Find two numbers multiplying to ac and adding to b, split the middle term, then group."],
+  ["Why must you check solutions to radical equations?","Squaring both sides can introduce extraneous roots that fail the original equation."],
+  ["What is a composite function f(g(x))?","Evaluate g first, then feed its output into f."],
+  ["How do you build a quadratic from its roots?","If the roots are p and q, the equation is (x − p)(x − q) = 0."],
+  ["How do you solve a system by elimination?","Scale equations so one variable's coefficients are opposites, then add."]
+];
+BANKS.FEYNMAN_TOPICS.alg1=["What slope really tells you about a relationship","Why the quadratic formula works","What the discriminant predicts before you solve","Why factoring solves equations (the zero product property)","How to choose between substitution and elimination","What makes a relation a function","How transformations move a parabola","Why parallel lines give no solution","What completing the square does geometrically","Why extraneous solutions appear in radical equations","The difference between an expression and an equation","How to translate a word problem into a system","What domain restrictions come from","Arithmetic vs geometric growth"];
+BANKS.RESOURCES.alg1=[
+  {type:"Course",title:"Khan Academy — Algebra 1",note:"The complete course with practice and mastery checks.",url:"https://www.khanacademy.org/math/algebra"},
+  {type:"Video",title:"Organic Chemistry Tutor — Algebra",note:"Long, worked-example videos for every Algebra 1 topic.",url:"https://www.youtube.com/@TheOrganicChemistryTutor"},
+  {type:"Practice",title:"IXL — Algebra 1",note:"Targeted skill drills with instant explanations.",url:"https://www.ixl.com/math/algebra-1"},
+  {type:"Tool",title:"Desmos Graphing Calculator",note:"Graph lines, parabolas and systems to see the algebra.",url:"https://www.desmos.com/calculator"},
+  {type:"Reference",title:"Paul's Online Notes — Algebra",note:"Clean written notes and cheat sheets.",url:"https://tutorial.math.lamar.edu/Classes/Alg/Alg.aspx"},
+  {type:"Practice",title:"Kuta Software Free Worksheets",note:"Printable problem sets with answer keys.",url:"https://www.kutasoftware.com/free.html"}
+];
+/* ============================ GEOMETRY ============================ */
+BANKS.QUESTIONS.geom=[
+  ["The angles of a triangle sum to…",["180°","360°","90°","270°"],0,"True for every triangle in the plane."],
+  ["The interior angles of a quadrilateral sum to…",["360°","180°","540°","720°"],0,"Two triangles' worth."],
+  ["What is the sum of interior angles of a hexagon?",["720°","540°","900°","1080°"],0,"(n − 2) × 180 = 4 × 180."],
+  ["Each exterior angle of a regular pentagon measures…",["72°","108°","60°","36°"],0,"Exterior angles always total 360°: 360 ÷ 5."],
+  ["Two angles are complementary. One is 35°. The other is…",["55°","145°","65°","35°"],0,"Complementary angles sum to 90°."],
+  ["Two angles are supplementary. One is 110°. The other is…",["70°","80°","250°","110°"],0,"Supplementary angles sum to 180°."],
+  ["Vertical angles are always…",["Congruent","Supplementary","Complementary","Right"],0,"Opposite angles at an intersection are equal."],
+  ["When parallel lines are cut by a transversal, alternate interior angles are…",["Congruent","Supplementary","Complementary","Unrelated"],0,"They sit on opposite sides of the transversal, inside the parallels."],
+  ["State the Pythagorean theorem.",["a² + b² = c²","a + b = c","a² − b² = c²","2a + 2b = c"],0,"c is the hypotenuse of a right triangle."],
+  ["A right triangle has legs 5 and 12. Its hypotenuse is…",["13","17","15","√17"],0,"25 + 144 = 169."],
+  ["In a 45-45-90 triangle, the hypotenuse is the leg times…",["√2","2","√3","1.5"],0,"The legs are congruent and the ratio is 1 : 1 : √2."],
+  ["In a 30-60-90 triangle, the side ratios are…",["1 : √3 : 2","1 : 2 : 3","1 : 1 : √2","2 : 3 : 4"],0,"Short leg, long leg, hypotenuse."],
+  ["What is sin θ in a right triangle?",["Opposite / hypotenuse","Adjacent / hypotenuse","Opposite / adjacent","Hypotenuse / opposite"],0,"SOH from SOH-CAH-TOA."],
+  ["What is cos θ?",["Adjacent / hypotenuse","Opposite / hypotenuse","Adjacent / opposite","Hypotenuse / adjacent"],0,"CAH."],
+  ["What is tan θ?",["Opposite / adjacent","Adjacent / opposite","Opposite / hypotenuse","Adjacent / hypotenuse"],0,"TOA."],
+  ["Area of a triangle?",["½bh","bh","2bh","b + h"],0,"Half the base times the height."],
+  ["Area of a trapezoid?",["½(b₁ + b₂)h","b₁b₂h","(b₁ + b₂)h","½b₁b₂"],0,"Average the parallel sides, then multiply by the height."],
+  ["Area of a circle?",["πr²","2πr","πd","πr"],0,"Radius squared times π."],
+  ["Circumference of a circle?",["2πr","πr²","πr","4πr"],0,"Equivalently πd."],
+  ["Volume of a rectangular prism?",["lwh","2(lw + lh + wh)","½lwh","l + w + h"],0,"Length times width times height."],
+  ["Volume of a cylinder?",["πr²h","2πrh","⅓πr²h","πrh"],0,"Base area times height."],
+  ["Volume of a cone?",["⅓πr²h","πr²h","⅔πr²h","2πr²h"],0,"One third of the matching cylinder."],
+  ["Volume of a sphere?",["⁴⁄₃πr³","4πr²","πr³","⅓πr³"],0,"And its surface area is 4πr²."],
+  ["Which is a triangle congruence criterion?",["SAS","SSA","AAA","ASS"],0,"Side-Angle-Side proves congruence; AAA only proves similarity."],
+  ["Which proves triangles are similar but not necessarily congruent?",["AA","SSS","SAS","HL"],0,"Equal angles fix the shape but not the size."],
+  ["HL congruence applies only to…",["Right triangles","All triangles","Isosceles triangles","Quadrilaterals"],0,"Hypotenuse-Leg needs a right angle."],
+  ["In similar figures, corresponding sides are…",["Proportional","Congruent","Perpendicular","Equal in sum"],0,"Angles are congruent; sides share a scale factor."],
+  ["If two similar figures have a scale factor of 3, their areas have a ratio of…",["9","3","27","6"],0,"Area scales by the square of the factor."],
+  ["If the scale factor is 2, the volume ratio is…",["8","2","4","6"],0,"Volume scales by the cube."],
+  ["The distance between (1, 2) and (4, 6) is…",["5","7","√7","25"],0,"√(3² + 4²)."],
+  ["The midpoint of (2, 4) and (8, 10) is…",["(5, 7)","(6, 6)","(10, 14)","(3, 3)"],0,"Average each coordinate."],
+  ["A central angle of 90° cuts an arc that is what fraction of the circle?",["1/4","1/2","1/3","1/8"],0,"90/360."],
+  ["An inscribed angle is what fraction of its central angle?",["Half","Double","Equal","One third"],0,"The inscribed angle theorem."],
+  ["An angle inscribed in a semicircle is…",["90°","45°","180°","60°"],0,"A special case of the inscribed angle theorem."],
+  ["A tangent line meets a radius at the point of tangency at…",["90°","45°","180°","60°"],0,"The radius is perpendicular to the tangent."],
+  ["Opposite sides of a parallelogram are…",["Parallel and congruent","Perpendicular","Congruent only","Parallel only"],0,"That is the defining property."],
+  ["The diagonals of a rectangle are…",["Congruent","Perpendicular","Never equal","Parallel"],0,"They bisect each other and are equal in length."],
+  ["The diagonals of a rhombus are…",["Perpendicular","Congruent","Parallel","Equal to the sides"],0,"They also bisect the angles."],
+  ["A square is…",["Both a rectangle and a rhombus","Only a rectangle","Only a rhombus","Neither"],0,"It has all their properties."],
+  ["A translation is a…",["Slide","Flip","Turn","Resize"],0,"It moves every point the same distance and direction."],
+  ["A reflection over the x-axis maps (3, 5) to…",["(3, −5)","(−3, 5)","(−3, −5)","(5, 3)"],0,"The y-coordinate changes sign."],
+  ["A rotation of 180° about the origin maps (2, −7) to…",["(−2, 7)","(2, 7)","(−2, −7)","(7, 2)"],0,"Both coordinates change sign."],
+  ["A dilation with scale factor 1/2 makes a figure…",["Smaller and similar","Larger","Congruent","Rotated"],0,"Dilations preserve shape, not size."],
+  ["Which transformation is NOT a rigid motion?",["Dilation","Translation","Rotation","Reflection"],0,"A dilation changes size."],
+  ["The perpendicular bisector of a segment is the set of points…",["Equidistant from the endpoints","Halfway along","On the segment","Parallel to it"],0,"That is the characterising property."],
+  ["The three medians of a triangle meet at the…",["Centroid","Incenter","Circumcenter","Orthocenter"],0,"The centroid is the balance point."],
+  ["The three altitudes meet at the…",["Orthocenter","Centroid","Incenter","Circumcenter"],0,"Altitudes are perpendicular to the opposite sides."],
+  ["Surface area of a sphere?",["4πr²","⁴⁄₃πr³","2πr²","πr²"],0,"Four times the area of a great circle."],
+  ["Can a triangle have sides 3, 4, and 9?",["No","Yes","Only if right","Only if isosceles"],0,"3 + 4 < 9 fails the triangle inequality."],
+  ["Arc length of a 60° arc on a circle with radius 6?",["2π","6π","π","12π"],0,"(60/360) × 2π(6) = 2π."]
+];
+BANKS.TOPICS.geom=["Angles","Polygons","Polygons","Polygons","Angles","Angles","Angles","Parallel lines","Right triangles","Right triangles","Special right triangles","Special right triangles","Trigonometry","Trigonometry","Trigonometry","Area","Area","Circles","Circles","Volume","Volume","Volume","Volume","Congruence","Similarity","Congruence","Similarity","Similarity","Similarity","Coordinate geometry","Coordinate geometry","Circles","Circles","Circles","Circles","Quadrilaterals","Quadrilaterals","Quadrilaterals","Quadrilaterals","Transformations","Transformations","Transformations","Transformations","Transformations","Constructions","Triangle centers","Triangle centers","Surface area","Triangle inequality","Circles"];
+BANKS.TEST_QUESTIONS.geom=[
+  ["Interior angles of an octagon sum to…",["1080°","720°","900°","1440°"],0,"(8 − 2) × 180.","Polygons"],
+  ["Each interior angle of a regular hexagon?",["120°","108°","135°","144°"],0,"720 ÷ 6.","Polygons"],
+  ["An angle complementary to 62° is…",["28°","118°","38°","128°"],0,"90 − 62.","Angles"],
+  ["Corresponding angles on parallel lines are…",["Congruent","Supplementary","Complementary","Unrelated"],0,"They occupy matching positions.","Parallel lines"],
+  ["Legs of 8 and 15 give a hypotenuse of…",["17","23","√23","120"],0,"64 + 225 = 289.","Right triangles"],
+  ["In a 30-60-90 triangle with short leg 4, the hypotenuse is…",["8","4√3","4√2","12"],0,"Hypotenuse is twice the short leg.","Special right triangles"],
+  ["In a 45-45-90 triangle with leg 5, the hypotenuse is…",["5√2","10","5√3","2.5√2"],0,"Leg × √2.","Special right triangles"],
+  ["sin θ equals…",["opposite/hypotenuse","adjacent/hypotenuse","opposite/adjacent","hypotenuse/adjacent"],0,"SOH.","Trigonometry"],
+  ["Area of a triangle with base 10, height 7?",["35","70","17","140"],0,"½ × 10 × 7.","Area"],
+  ["Area of a trapezoid with bases 6 and 10, height 4?",["32","40","60","24"],0,"½(16)(4).","Area"],
+  ["Area of a circle with r = 6 (leave in π)?",["36π","12π","6π","144π"],0,"πr².","Circles"],
+  ["Volume of a cylinder r = 2, h = 9 (in π)?",["36π","18π","72π","12π"],0,"πr²h.","Volume"],
+  ["Volume of a cone r = 3, h = 8 (in π)?",["24π","72π","36π","12π"],0,"⅓π(9)(8).","Volume"],
+  ["Volume of a sphere r = 3 (in π)?",["36π","27π","12π","9π"],0,"⁴⁄₃π(27).","Volume"],
+  ["Which is NOT a congruence criterion?",["SSA","SSS","ASA","SAS"],0,"SSA does not guarantee congruence.","Congruence"],
+  ["AA proves triangles are…",["Similar","Congruent","Equal in area","Right"],0,"Two equal angles fix the shape.","Similarity"],
+  ["Scale factor 4 means the area ratio is…",["16","4","64","8"],0,"Square the factor.","Similarity"],
+  ["Scale factor 3 means the volume ratio is…",["27","9","3","6"],0,"Cube the factor.","Similarity"],
+  ["Distance between (0, 0) and (6, 8)?",["10","14","√14","100"],0,"√(36 + 64).","Coordinate geometry"],
+  ["Midpoint of (−2, 6) and (8, 2)?",["(3, 4)","(5, 4)","(3, 8)","(6, 4)"],0,"Average the coordinates.","Coordinate geometry"],
+  ["An inscribed angle subtending a 100° arc measures…",["50°","100°","200°","25°"],0,"Half the arc.","Circles"],
+  ["An angle inscribed in a semicircle is…",["90°","180°","45°","60°"],0,"Thales' theorem.","Circles"],
+  ["Diagonals of a rhombus are…",["Perpendicular","Congruent","Parallel","Equal to sides"],0,"They meet at right angles.","Quadrilaterals"],
+  ["Diagonals of a rectangle are…",["Congruent","Perpendicular","Unequal","Parallel"],0,"Both diagonals have the same length.","Quadrilaterals"],
+  ["Reflecting (4, −3) over the y-axis gives…",["(−4, −3)","(4, 3)","(−4, 3)","(3, −4)"],0,"x changes sign.","Transformations"],
+  ["Rotating (5, 2) 180° about the origin gives…",["(−5, −2)","(5, −2)","(−5, 2)","(2, 5)"],0,"Both signs flip.","Transformations"],
+  ["Which transformation is not rigid?",["Dilation","Reflection","Rotation","Translation"],0,"Only a dilation changes size.","Transformations"],
+  ["Medians of a triangle meet at the…",["Centroid","Orthocenter","Incenter","Circumcenter"],0,"The centroid.","Triangle centers"],
+  ["Can sides 5, 7, 13 form a triangle?",["No","Yes","Only if right","Only if obtuse"],0,"5 + 7 < 13.","Triangle inequality"],
+  ["Arc length of a 90° arc, radius 8?",["4π","8π","2π","16π"],0,"¼ × 2π(8).","Circles"]
+];
+BANKS.CHALLENGE_QUESTIONS.geom=[
+  ["A regular polygon has interior angles of 150°. How many sides does it have?",["12","10","15","9"],0,"Exterior angle is 30°, and 360 ÷ 30 = 12.","Polygons"],
+  ["A ladder leans at 65° to the ground and reaches 6 m up a wall. Roughly how long is it?",["6.6 m","5.4 m","7.1 m","12.9 m"],0,"sin 65° = 6/L, so L ≈ 6/0.906 ≈ 6.6.","Trigonometry"],
+  ["From 50 m away, the angle of elevation to a tower top is 40°. Roughly how tall is it?",["42 m","32 m","60 m","78 m"],0,"tan 40° × 50 ≈ 0.839 × 50.","Trigonometry"],
+  ["Two similar cones have volumes in ratio 8:27. What is the ratio of their heights?",["2:3","8:27","4:9","√8:√27"],0,"Take cube roots.","Similarity"],
+  ["A circle has equation (x − 2)² + (y + 3)² = 25. What is its center and radius?",["(2, −3), r = 5","(−2, 3), r = 5","(2, −3), r = 25","(2, 3), r = 5"],0,"Standard form (x−h)² + (y−k)² = r².","Coordinate geometry"],
+  ["A sector of 120° in a circle of radius 9 has what area?",["27π","18π","81π","9π"],0,"(120/360) × 81π.","Circles"],
+  ["A rectangular prism has surface area 94 and dimensions 3 × 4 × h. Find h.",["5","6","4","7"],0,"2(12 + 3h + 4h) = 94 → 14h = 70.","Surface area"],
+  ["The centroid divides each median in what ratio, vertex to midpoint?",["2:1","1:2","3:1","1:1"],0,"It sits two thirds of the way from the vertex.","Triangle centers"],
+  ["Two chords intersect inside a circle, splitting into 3 & 8 and 4 & x. Find x.",["6","5","12","9"],0,"3 × 8 = 4 × x.","Circles"],
+  ["A triangle has vertices (0,0), (6,0), (0,8). What is its perimeter?",["24","14","48","20"],0,"Legs 6 and 8, hypotenuse 10.","Coordinate geometry"],
+  ["A cube's volume is 125 cm³. What is its surface area?",["150 cm²","125 cm²","100 cm²","250 cm²"],0,"Side 5, so 6 × 25.","Surface area"],
+  ["An isosceles triangle has a vertex angle of 40°. Each base angle is…",["70°","40°","50°","140°"],0,"(180 − 40)/2.","Angles"],
+  ["A dilation centered at the origin with factor 3 maps (2, −4) to…",["(6, −12)","(5, −1)","(2/3, −4/3)","(−6, 12)"],0,"Multiply both coordinates.","Transformations"],
+  ["The diagonal of a square is 10. What is its area?",["50","100","25","70.7"],0,"Side = 10/√2, so area = 100/2.","Quadrilaterals"],
+  ["A tangent from an external point is 12 and the far intersection of a secant is 16 from the point. What is the near one?",["9","4","8","6"],0,"12² = 144 = 16 × x, so x = 9.","Circles"],
+  ["What is the area of an equilateral triangle with side 6?",["9√3","18√3","36√3","6√3"],0,"(√3/4)s² = (√3/4)(36).","Area"]
+];
+BANKS.AP_QUESTIONS.geom=[
+  ["A cone-shaped pile of sand is 3 m high with a base radius of 4 m. How much sand is there, in terms of π?",["16π m³","48π m³","12π m³","36π m³"],0,"⅓π(16)(3) = 16π.","Volume"],
+  ["A ramp must rise 1 m at no more than 5°. What is the minimum horizontal run, roughly?",["11.4 m","5 m","20 m","8.7 m"],0,"tan 5° = 1/run, so run ≈ 1/0.0875.","Trigonometry"],
+  ["A 15 m wire runs from the top of a pole to the ground at 55°. How tall is the pole?",["12.3 m","8.6 m","18.3 m","10.5 m"],0,"sin 55° × 15 ≈ 0.819 × 15.","Trigonometry"],
+  ["A spherical tank of radius 3 m is filled. How many cubic metres does it hold, to the nearest whole?",["113","36","85","151"],0,"⁴⁄₃π(27) = 36π ≈ 113.","Volume"],
+  ["A scale model of a building uses 1:50. The model's volume is 0.4 m³. What is the building's?",["50,000 m³","20 m³","1,000 m³","2,500 m³"],0,"Volume scales by 50³ = 125,000, so 0.4 × 125,000 = 50,000.","Similarity"],
+  ["A field is a trapezoid with parallel sides 40 m and 60 m, 30 m apart. What is its area?",["1,500 m²","1,200 m²","3,000 m²","2,400 m²"],0,"½(100)(30).","Area"],
+  ["A circular track has radius 40 m. How far is one lap, to the nearest metre?",["251 m","126 m","502 m","5,027 m"],0,"2π(40) ≈ 251.","Circles"],
+  ["A rectangular box 2 × 3 × 6 has what space diagonal?",["7","6","11","√11"],0,"√(4 + 9 + 36) = √49.","Coordinate geometry"],
+  ["Two triangles are similar with a perimeter ratio of 5:8. If the smaller has area 50, the larger has area…",["128","80","125","32"],0,"Area ratio is 25:64, so 50 × 64/25.","Similarity"],
+  ["A regular 12-sided polygon: what is each exterior angle?",["30°","150°","36°","12°"],0,"360 ÷ 12.","Polygons"],
+  ["From a lighthouse 60 m high, a boat's angle of depression is 12°. How far away is it, roughly?",["282 m","12.8 m","294 m","61 m"],0,"tan 12° = 60/d, so d ≈ 60/0.2126.","Trigonometry"],
+  ["A cylinder and a sphere have the same radius 6. The cylinder's height equals its diameter. What is the ratio of sphere volume to cylinder volume?",["2:3","1:2","3:4","1:3"],0,"Sphere 288π, cylinder 432π.","Volume"],
+  ["A garden path 1 m wide surrounds a 10 m × 6 m rectangle. What is the path's area?",["36 m²","24 m²","96 m²","60 m²"],0,"12 × 8 − 10 × 6 = 96 − 60.","Area"],
+  ["Point P is (3, 4) and Q is (11, 10). What is the length of PQ?",["10","14","√14","8"],0,"√(64 + 36).","Coordinate geometry"],
+  ["A triangle with sides 7, 24, 25 is…",["Right","Acute","Obtuse","Impossible"],0,"49 + 576 = 625.","Right triangles"],
+  ["An ice cream cone (radius 3, height 12) is topped with a hemisphere of the same radius. What is the total volume in terms of π?",["54π","36π","72π","45π"],0,"Cone 36π plus hemisphere 18π.","Volume"]
+];
+BANKS.SEED_CARDS.geom=[
+  ["Sum of interior angles of an n-gon?","(n − 2) × 180°."],
+  ["Sum of exterior angles of any convex polygon?","360°, always."],
+  ["Complementary vs supplementary?","Complementary sum to 90°; supplementary sum to 180°."],
+  ["What do vertical angles have in common?","They are congruent."],
+  ["Alternate interior angles on parallel lines are…","Congruent."],
+  ["State the Pythagorean theorem.","a² + b² = c² for a right triangle."],
+  ["Side ratios in a 45-45-90 triangle?","1 : 1 : √2."],
+  ["Side ratios in a 30-60-90 triangle?","1 : √3 : 2."],
+  ["What is SOH-CAH-TOA?","sin = opp/hyp, cos = adj/hyp, tan = opp/adj."],
+  ["Area of a triangle?","½bh."],
+  ["Area of a trapezoid?","½(b₁ + b₂)h."],
+  ["Area and circumference of a circle?","A = πr², C = 2πr."],
+  ["Volume of a cylinder, cone, sphere?","πr²h, ⅓πr²h, and ⁴⁄₃πr³."],
+  ["Surface area of a sphere?","4πr²."],
+  ["Name the triangle congruence criteria.","SSS, SAS, ASA, AAS, and HL for right triangles."],
+  ["Why isn't SSA a congruence criterion?","Two different triangles can fit the same two sides and non-included angle."],
+  ["What does AA prove?","Similarity — equal angles fix shape but not size."],
+  ["How do area and volume scale with a scale factor k?","Area by k², volume by k³."],
+  ["Distance formula?","d = √((x₂−x₁)² + (y₂−y₁)²)."],
+  ["Midpoint formula?","((x₁+x₂)/2, (y₁+y₂)/2)."],
+  ["Inscribed angle theorem?","An inscribed angle is half its intercepted arc."],
+  ["An angle inscribed in a semicircle is…","A right angle."],
+  ["A radius drawn to a point of tangency is…","Perpendicular to the tangent line."],
+  ["Properties of a parallelogram?","Opposite sides parallel and congruent; opposite angles congruent; diagonals bisect."],
+  ["What is special about a rhombus's diagonals?","They are perpendicular and bisect the angles."],
+  ["What is special about a rectangle's diagonals?","They are congruent."],
+  ["Name the three rigid motions.","Translation, rotation, and reflection."],
+  ["What does a dilation preserve?","Shape and angle measures, but not size."],
+  ["Reflection over the x-axis maps (x, y) to…","(x, −y)."],
+  ["The triangle inequality says…","Any two sides must sum to more than the third."]
+];
+BANKS.CHALLENGE_CARDS.geom=[
+  ["How do you find the number of sides from an interior angle?","Find the exterior angle (180 − interior), then divide 360 by it."],
+  ["How do you choose between sin, cos, and tan?","Look at which two of opposite, adjacent, and hypotenuse you know."],
+  ["What is the equation of a circle?","(x − h)² + (y − k)² = r², center (h, k)."],
+  ["Area of a sector with central angle θ?","(θ/360) × πr²."],
+  ["Intersecting chords theorem?","The products of the two pieces of each chord are equal."],
+  ["Where do the centroid, orthocenter, incenter, and circumcenter come from?","Medians, altitudes, angle bisectors, and perpendicular bisectors."]
+];
+BANKS.FEYNMAN_TOPICS.geom=["Why the Pythagorean theorem is true","Why interior angles sum to (n−2)·180","Why SSA fails as a congruence test","How area scales with the square of the scale factor","What the inscribed angle theorem says and why","Why a radius meets a tangent at 90°","How the special right triangle ratios arise","What makes a transformation rigid","How to pick the right trig ratio for a problem","Why the triangle inequality must hold","What the centroid means physically","How a two-column proof is structured","Why a cone is one third of a cylinder","How to read a circle's equation"];
+BANKS.RESOURCES.geom=[
+  {type:"Course",title:"Khan Academy — Geometry",note:"Full course including proofs, trig, and solid geometry.",url:"https://www.khanacademy.org/math/geometry"},
+  {type:"Tool",title:"GeoGebra Geometry",note:"Build and drag constructions to see what stays true.",url:"https://www.geogebra.org/geometry"},
+  {type:"Video",title:"Organic Chemistry Tutor — Geometry",note:"Worked-example videos for every major theorem.",url:"https://www.youtube.com/@TheOrganicChemistryTutor"},
+  {type:"Practice",title:"IXL — Geometry",note:"Skill drills covering proofs, circles, and solids.",url:"https://www.ixl.com/math/geometry"},
+  {type:"Reference",title:"Math Open Reference",note:"Interactive definitions of every geometric term and construction.",url:"https://www.mathopenref.com/"},
+  {type:"Practice",title:"Kuta Software — Geometry Worksheets",note:"Free printable practice with answer keys.",url:"https://www.kutasoftware.com/freeige.html"}
+];
+/* ============================ PRECALCULUS ============================ */
+BANKS.QUESTIONS.precalc=[
+  ["What is the domain of f(x) = √(x − 4)?",["x ≥ 4","x > 4","All reals","x ≤ 4"],0,"The radicand must be non-negative."],
+  ["What is the domain of f(x) = ln(x)?",["x > 0","x ≥ 0","All reals","x ≠ 0"],0,"Logarithms are defined only for positive inputs."],
+  ["If f(x) = 2x + 1, what is f⁻¹(x)?",["(x − 1)/2","2x − 1","1/(2x + 1)","(x + 1)/2"],0,"Swap x and y, then solve."],
+  ["A function has an inverse function only if it is…",["One-to-one","Continuous","Increasing","Polynomial"],0,"It must pass the horizontal line test."],
+  ["What is (f ∘ g)(x) if f(x) = x² and g(x) = x + 3?",["(x + 3)²","x² + 3","x³ + 3","x² + 9"],0,"Apply g first, then f."],
+  ["What is the end behavior of f(x) = −x³?",["Up left, down right","Up both ways","Down both ways","Down left, up right"],0,"Odd degree with a negative leading coefficient."],
+  ["How many roots (with multiplicity) does a degree-5 polynomial have?",["5","4","10","Depends"],0,"The Fundamental Theorem of Algebra."],
+  ["Where is the vertical asymptote of f(x) = 1/(x − 3)?",["x = 3","x = −3","y = 3","y = 0"],0,"Where the denominator is zero and the numerator is not."],
+  ["What is the horizontal asymptote of f(x) = (2x² + 1)/(x² − 5)?",["y = 2","y = 0","y = 1/5","None"],0,"Equal degrees: the ratio of leading coefficients."],
+  ["What is the horizontal asymptote of f(x) = (3x)/(x² + 1)?",["y = 0","y = 3","y = 1","None"],0,"The denominator's degree is larger."],
+  ["Convert 180° to radians.",["π","2π","π/2","π/180"],0,"180° is half a full turn."],
+  ["Convert π/3 radians to degrees.",["60°","30°","120°","45°"],0,"π/3 × 180/π."],
+  ["What is sin(π/6)?",["1/2","√3/2","√2/2","1"],0,"The 30° reference value."],
+  ["What is cos(π/3)?",["1/2","√3/2","√2/2","0"],0,"The 60° reference value."],
+  ["What is tan(π/4)?",["1","0","√3","undefined"],0,"At 45° the legs are equal."],
+  ["What is sin²θ + cos²θ?",["1","0","2","tan²θ"],0,"The Pythagorean identity."],
+  ["What is the period of y = sin x?",["2π","π","π/2","4π"],0,"One full cycle around the unit circle."],
+  ["What is the period of y = tan x?",["π","2π","π/2","4π"],0,"Tangent repeats every half turn."],
+  ["What is the amplitude of y = 3sin(2x)?",["3","2","6","1"],0,"Amplitude is |a| in y = a sin(bx)."],
+  ["What is the period of y = sin(4x)?",["π/2","4π","2π","π"],0,"2π/b = 2π/4."],
+  ["Solve 2ˣ = 16.",["x = 4","x = 8","x = 3","x = 32"],0,"2⁴ = 16."],
+  ["Solve log₃ x = 4.",["x = 81","x = 12","x = 64","x = 7"],0,"3⁴ = 81."],
+  ["What is log(ab) equal to?",["log a + log b","log a · log b","log a − log b","(log a)^b"],0,"The product rule for logs."],
+  ["What is log(aⁿ) equal to?",["n log a","(log a)ⁿ","log a + n","n + log a"],0,"The power rule."],
+  ["What is the change of base formula?",["log_b x = ln x / ln b","log_b x = ln b / ln x","log_b x = b ln x","log_b x = x ln b"],0,"Any base can be rewritten in terms of natural logs."],
+  ["What is e approximately?",["2.718","3.142","1.618","2.303"],0,"The base of the natural logarithm."],
+  ["What does f(x) = a·bˣ model when b > 1?",["Exponential growth","Exponential decay","Linear growth","Oscillation"],0,"A base above 1 grows."],
+  ["Which is the inverse of y = eˣ?",["y = ln x","y = e⁻ˣ","y = 1/eˣ","y = x^e"],0,"Natural log undoes the exponential."],
+  ["What is the sum of the first n terms of an arithmetic series?",["n(a₁ + aₙ)/2","na₁","a₁rⁿ","n(a₁ − aₙ)"],0,"Average the first and last terms, times n."],
+  ["What is the sum of an infinite geometric series with |r| < 1?",["a/(1 − r)","a(1 − r)","a/r","ar/(1 − r)"],0,"It converges to this value."],
+  ["Does the series 1 + 1/2 + 1/4 + … converge?",["Yes, to 2","Yes, to 1","No","Yes, to 1.5"],0,"a = 1, r = 1/2, so a/(1 − r) = 2."],
+  ["What is the standard form of a circle?",["(x−h)² + (y−k)² = r²","x² + y² = r","y = ax² + bx + c","x²/a² + y²/b² = 1"],0,"Center (h, k), radius r."],
+  ["Which conic is x²/9 + y²/4 = 1?",["Ellipse","Circle","Hyperbola","Parabola"],0,"A sum of squares with different denominators."],
+  ["Which conic is x²/9 − y²/4 = 1?",["Hyperbola","Ellipse","Parabola","Circle"],0,"A difference of squares."],
+  ["In polar coordinates, what is r?",["Distance from the origin","The angle","The x-coordinate","The slope"],0,"θ is the angle."],
+  ["Convert (r, θ) to rectangular coordinates.",["x = r cos θ, y = r sin θ","x = r sin θ, y = r cos θ","x = r/θ","x = θ cos r"],0,"Project onto each axis."],
+  ["What is i²?",["−1","1","i","0"],0,"That is the definition of the imaginary unit."],
+  ["Simplify (3 + 2i) + (1 − 5i).",["4 − 3i","4 + 3i","2 + 7i","3 − 10i"],0,"Add real and imaginary parts separately."],
+  ["What is the conjugate of 4 − 7i?",["4 + 7i","−4 + 7i","−4 − 7i","7 − 4i"],0,"Flip the sign of the imaginary part."],
+  ["What are the roots of x² + 4 = 0?",["±2i","±2","±4i","No roots"],0,"x² = −4."],
+  ["Which describes an even function?",["f(−x) = f(x)","f(−x) = −f(x)","f(x) = 0","f is increasing"],0,"Even functions are symmetric about the y-axis."],
+  ["Which describes an odd function?",["f(−x) = −f(x)","f(−x) = f(x)","f(0) = 0 only","f is decreasing"],0,"Odd functions have origin symmetry."],
+  ["What is the average rate of change of f on [a, b]?",["(f(b) − f(a))/(b − a)","f(b) − f(a)","f'(a)","(b − a)/(f(b) − f(a))"],0,"The slope of the secant line."],
+  ["What does lim(x→2) of (x² − 4)/(x − 2) equal?",["4","0","Undefined","2"],0,"Factor and cancel to get x + 2."],
+  ["What is the range of y = arcsin x?",["[−π/2, π/2]","[0, π]","All reals","[0, 2π]"],0,"The restricted domain that makes sine invertible."],
+  ["What is the range of y = arccos x?",["[0, π]","[−π/2, π/2]","All reals","[0, 2π]"],0,"Cosine is restricted to the top half."],
+  ["What is the law of sines?",["a/sin A = b/sin B","a² = b² + c²","a sin A = b sin B","a + b = c"],0,"Ratios of sides to the sines of opposite angles are equal."],
+  ["What is the law of cosines?",["c² = a² + b² − 2ab cos C","c² = a² + b²","c = a cos B + b cos A","a/sin A = c/sin C"],0,"A generalisation of the Pythagorean theorem."],
+  ["What is a vector's magnitude if it is ⟨3, 4⟩?",["5","7","12","√7"],0,"√(9 + 16)."],
+  ["What is the dot product of ⟨2, 3⟩ and ⟨4, −1⟩?",["5","11","8","−3"],0,"2(4) + 3(−1)."]
+];
+BANKS.TOPICS.precalc=["Domain & range","Domain & range","Inverse functions","Inverse functions","Composite functions","Polynomials","Polynomials","Rational functions","Rational functions","Rational functions","Radians","Radians","Unit circle","Unit circle","Unit circle","Trig identities","Trig graphs","Trig graphs","Trig graphs","Trig graphs","Exponentials","Logarithms","Logarithms","Logarithms","Logarithms","Exponentials","Exponentials","Inverse functions","Sequences & series","Sequences & series","Sequences & series","Conic sections","Conic sections","Conic sections","Polar coordinates","Polar coordinates","Complex numbers","Complex numbers","Complex numbers","Complex numbers","Function behavior","Function behavior","Rate of change","Limits","Inverse trig","Inverse trig","Law of sines & cosines","Law of sines & cosines","Vectors","Vectors"];
+BANKS.TEST_QUESTIONS.precalc=[
+  ["Domain of f(x) = √(2x − 6)?",["x ≥ 3","x > 3","x ≥ 6","All reals"],0,"2x − 6 ≥ 0.","Domain & range"],
+  ["If f(x) = 3x − 5, what is f⁻¹(x)?",["(x + 5)/3","(x − 5)/3","3x + 5","1/(3x − 5)"],0,"Swap and solve.","Inverse functions"],
+  ["If f(x) = x + 2 and g(x) = x², what is f(g(4))?",["18","36","20","16"],0,"g(4) = 16, then +2.","Composite functions"],
+  ["End behavior of f(x) = x⁴?",["Up both ways","Down both ways","Up left, down right","Down left, up right"],0,"Even degree, positive leading coefficient.","Polynomials"],
+  ["Vertical asymptote of f(x) = 1/(x + 5)?",["x = −5","x = 5","y = 0","y = −5"],0,"Denominator zero.","Rational functions"],
+  ["Horizontal asymptote of f(x) = (4x³)/(2x³ + 7)?",["y = 2","y = 0","y = 4","None"],0,"Leading coefficients: 4/2.","Rational functions"],
+  ["Convert 270° to radians.",["3π/2","2π/3","π/2","5π/4"],0,"270/180 × π.","Radians"],
+  ["Convert 5π/6 to degrees.",["150°","120°","135°","210°"],0,"5/6 × 180.","Radians"],
+  ["What is cos(π/6)?",["√3/2","1/2","√2/2","1"],0,"30° reference.","Unit circle"],
+  ["What is sin(π/2)?",["1","0","1/2","√2/2"],0,"Top of the unit circle.","Unit circle"],
+  ["Amplitude and period of y = 5cos(3x)?",["5 and 2π/3","3 and 2π/5","5 and 3","15 and 2π"],0,"|a| and 2π/b.","Trig graphs"],
+  ["Period of y = tan(2x)?",["π/2","π","2π","π/4"],0,"π/b.","Trig graphs"],
+  ["Solve 3ˣ = 81.",["x = 4","x = 27","x = 3","x = 9"],0,"3⁴ = 81.","Exponentials"],
+  ["Solve log₂ x = 5.",["x = 32","x = 10","x = 25","x = 7"],0,"2⁵ = 32.","Logarithms"],
+  ["Simplify log a − log b.",["log(a/b)","log(ab)","log a / log b","log(a − b)"],0,"Quotient rule.","Logarithms"],
+  ["Rewrite log₅ 20 using natural logs.",["ln20/ln5","ln5/ln20","5 ln 20","ln(20 − 5)"],0,"Change of base.","Logarithms"],
+  ["Inverse of y = ln x?",["y = eˣ","y = 1/ln x","y = e⁻ˣ","y = x^e"],0,"They undo each other.","Inverse functions"],
+  ["Sum of the infinite series 6 + 2 + 2/3 + …?",["9","8","12","6"],0,"a=6, r=1/3, so 6/(2/3).","Sequences & series"],
+  ["Sum of the first 20 terms of 3, 7, 11, …?",["820","800","760","840"],0,"a₂₀ = 79; 20(3 + 79)/2.","Sequences & series"],
+  ["Which conic is 4x² + 9y² = 36?",["Ellipse","Hyperbola","Parabola","Circle"],0,"Divide by 36 for standard ellipse form.","Conic sections"],
+  ["Center and radius of (x + 1)² + (y − 4)² = 16?",["(−1, 4), r = 4","(1, −4), r = 4","(−1, 4), r = 16","(1, 4), r = 4"],0,"Standard circle form.","Conic sections"],
+  ["Convert polar (4, π/2) to rectangular.",["(0, 4)","(4, 0)","(2, 2)","(0, −4)"],0,"x = 4cos(π/2) = 0.","Polar coordinates"],
+  ["Simplify (2 + 3i)(1 − i).",["5 + i","2 − 3i","5 − i","−1 + 5i"],0,"2 − 2i + 3i − 3i² = 5 + i.","Complex numbers"],
+  ["Conjugate of −3 + 8i?",["−3 − 8i","3 − 8i","3 + 8i","8 − 3i"],0,"Flip the imaginary sign.","Complex numbers"],
+  ["Is f(x) = x³ even, odd, or neither?",["Odd","Even","Neither","Both"],0,"f(−x) = −f(x).","Function behavior"],
+  ["Average rate of change of f(x) = x² on [1, 4]?",["5","3","15","9"],0,"(16 − 1)/(4 − 1).","Rate of change"],
+  ["lim(x→3) of (x² − 9)/(x − 3)?",["6","0","3","Undefined"],0,"Cancel to x + 3.","Limits"],
+  ["Range of arctan x?",["(−π/2, π/2)","[0, π]","All reals","[0, 2π]"],0,"The restricted branch.","Inverse trig"],
+  ["A triangle has a = 10, A = 30°, B = 45°. Find b, roughly.",["14.1","7.1","20","12.2"],0,"b = 10 sin45/sin30.","Law of sines & cosines"],
+  ["Magnitude of ⟨5, 12⟩?",["13","17","60","√17"],0,"√(25 + 144).","Vectors"]
+];
+BANKS.CHALLENGE_QUESTIONS.precalc=[
+  ["Solve 2^(x+1) = 8^(x−1).",["x = 2","x = 3","x = 1","x = 4"],0,"2^(x+1) = 2^(3x−3), so x + 1 = 3x − 3.","Exponentials"],
+  ["Solve log(x) + log(x − 3) = 1.",["x = 5","x = 5 or −2","x = 2","x = 10"],0,"x(x−3) = 10 → x = 5 (x = −2 is extraneous).","Logarithms"],
+  ["Simplify (1 − cos²θ)/sin θ.",["sin θ","cos θ","tan θ","1"],0,"1 − cos²θ = sin²θ.","Trig identities"],
+  ["Solve 2sin θ = 1 for 0 ≤ θ < 2π.",["π/6 and 5π/6","π/6 only","π/3 and 2π/3","π/6 and 7π/6"],0,"Sine is positive in quadrants I and II.","Unit circle"],
+  ["Expand sin(2θ).",["2 sin θ cos θ","sin²θ + cos²θ","2 cos²θ − 1","sin θ + cos θ"],0,"The double-angle identity.","Trig identities"],
+  ["Which is cos(2θ)?",["cos²θ − sin²θ","2 sin θ cos θ","1 + 2sin²θ","cos²θ + sin²θ"],0,"One of three equivalent forms.","Trig identities"],
+  ["Find the slant asymptote of f(x) = (x² + 3x + 2)/(x − 1).",["y = x + 4","y = x + 3","y = x − 1","y = x"],0,"Long division gives x + 4 with remainder 6.","Rational functions"],
+  ["A polynomial has roots 2, −1, and 3i. What is its minimum degree with real coefficients?",["4","3","5","6"],0,"3i forces −3i as well.","Polynomials"],
+  ["Find the sum: Σ from k=1 to 5 of 2ᵏ.",["62","32","64","31"],0,"2+4+8+16+32.","Sequences & series"],
+  ["A triangle has sides 7, 9 and included angle 60°. Find the third side.",["√67","8","√130","√193"],0,"49 + 81 − 2(63)(0.5) = 67.","Law of sines & cosines"],
+  ["The dot product of two non-zero vectors is 0. They are…",["Perpendicular","Parallel","Equal","Opposite"],0,"cos 90° = 0.","Vectors"],
+  ["Write (x − 2)² + (y + 1)² = 9 as a general equation.",["x² + y² − 4x + 2y − 4 = 0","x² + y² − 4x + 2y + 4 = 0","x² + y² + 4x − 2y − 4 = 0","x² + y² − 4x + 2y − 9 = 0"],0,"Expand and collect: 4 + 1 − 9 = −4.","Conic sections"],
+  ["What is the multiplicity effect when a root has even multiplicity?",["The graph touches but doesn't cross","The graph crosses","There is an asymptote","The root is imaginary"],0,"Even multiplicity produces a bounce.","Polynomials"],
+  ["Simplify (3 + i)/(2 − i).",["(5 + 5i)/5 = 1 + i","1 − i","5 + 5i","(6 − i)/5"],0,"Multiply by the conjugate: (3+i)(2+i)/5 = (5+5i)/5.","Complex numbers"],
+  ["Given f(x) = x² and its inverse restricted to x ≥ 0, what is f⁻¹(9)?",["3","±3","81","1/9"],0,"The restriction picks the positive root.","Inverse functions"],
+  ["What is lim(x→∞) of (3x² + 2)/(5x² − x)?",["3/5","0","∞","5/3"],0,"Ratio of leading coefficients.","Limits"]
+];
+BANKS.AP_QUESTIONS.precalc=[
+  ["A population of 500 grows 6% per year. Write a model and find the population after 10 years, roughly.",["≈ 896","≈ 800","≈ 1,000","≈ 620"],0,"500(1.06)¹⁰ ≈ 895.6.","Exponentials"],
+  ["A radioactive sample has a half-life of 8 days. What fraction remains after 24 days?",["1/8","1/3","1/16","1/24"],0,"Three half-lives: (1/2)³.","Exponentials"],
+  ["How long does $1,000 take to double at 5% compounded continuously?",["≈ 13.9 years","≈ 20 years","≈ 10 years","≈ 7 years"],0,"t = ln2/0.05 ≈ 13.86.","Logarithms"],
+  ["A Ferris wheel of radius 20 m has its center 22 m up and turns once every 40 s. Write the height model's period.",["40 s","20 s","2π s","80 s"],0,"One full revolution is the period.","Trig graphs"],
+  ["For that Ferris wheel, what are the maximum and minimum heights?",["42 m and 2 m","40 m and 0 m","44 m and 4 m","22 m and 2 m"],0,"Center ± amplitude.","Trig graphs"],
+  ["A tide is modelled by h = 3sin(πt/6) + 5. What is the highest tide?",["8","5","3","11"],0,"Midline 5 plus amplitude 3.","Trig graphs"],
+  ["A surveyor measures a triangle with sides 40 m, 55 m and included angle 72°. What is the area, roughly?",["1,046 m²","2,200 m²","1,100 m²","680 m²"],0,"½ab sin C = ½(40)(55)(0.951).","Law of sines & cosines"],
+  ["A plane flies at 300 km/h heading east with a 40 km/h wind from the south. What is its ground speed, roughly?",["302.7 km/h","340 km/h","260 km/h","320 km/h"],0,"√(300² + 40²).","Vectors"],
+  ["An open box is made from a 20 cm square by cutting x from each corner. What is the volume function?",["V = x(20 − 2x)²","V = x(20 − x)²","V = 20x²","V = (20 − 2x)³"],0,"Base is (20 − 2x) square, height x.","Polynomials"],
+  ["A drug's concentration is C(t) = 5t/(t² + 1). What is its long-run behavior?",["Approaches 0","Approaches 5","Grows without bound","Approaches 1"],0,"Denominator degree is larger.","Rational functions"],
+  ["A ball's height is h(t) = −4.9t² + 20t + 1.5. What is the average rate of change on [0, 2]?",["10.2 m/s","20 m/s","−4.9 m/s","8.1 m/s"],0,"(h(2) − h(0))/2 = (21.9 − 1.5)/2.","Rate of change"],
+  ["A savings plan deposits $200 monthly earning 0.5% per month. Which formula gives the balance after n months?",["200((1.005ⁿ − 1)/0.005)","200(1.005)ⁿ","200n(1.005)","200/0.005"],0,"The geometric series sum for an annuity.","Sequences & series"],
+  ["A satellite dish is a parabola 2 m wide and 0.5 m deep. Where is its focus, measured from the vertex?",["0.5 m","1 m","0.25 m","2 m"],0,"x² = 4py with x = 1, y = 0.5 gives p = 0.5.","Conic sections"],
+  ["Two forces of 30 N and 40 N act at right angles. What is the resultant?",["50 N","70 N","35 N","10 N"],0,"√(900 + 1600).","Vectors"],
+  ["A sound intensity increases by a factor of 100. By how many decibels does it rise?",["20 dB","100 dB","2 dB","10 dB"],0,"10 log(100) = 20.","Logarithms"],
+  ["A wheel of radius 0.35 m turns at 120 rpm. What is a point's linear speed, roughly?",["4.4 m/s","42 m/s","0.7 m/s","13.2 m/s"],0,"ω = 4π rad/s, and v = rω ≈ 4.4.","Radians"]
+];
+BANKS.SEED_CARDS.precalc=[
+  ["How do you find the domain of a square root function?","Set the radicand ≥ 0 and solve."],
+  ["How do you find the domain of a log function?","Set the argument > 0."],
+  ["How do you find an inverse function?","Swap x and y, then solve for y."],
+  ["When does a function have an inverse function?","When it is one-to-one — it passes the horizontal line test."],
+  ["What is (f ∘ g)(x)?","f(g(x)) — apply g first."],
+  ["What determines end behavior of a polynomial?","The degree (even or odd) and the sign of the leading coefficient."],
+  ["Where are vertical asymptotes?","Where the denominator is zero and the numerator is not."],
+  ["Horizontal asymptote rules for rational functions?","Bottom bigger → y = 0; equal degrees → ratio of leading coefficients; top bigger → none (slant instead)."],
+  ["How do you convert degrees to radians?","Multiply by π/180."],
+  ["sin, cos, tan at π/6, π/4, π/3?","(1/2, √3/2, √3/3), (√2/2, √2/2, 1), (√3/2, 1/2, √3)."],
+  ["State the Pythagorean identity.","sin²θ + cos²θ = 1."],
+  ["Period and amplitude of y = a sin(bx)?","Amplitude |a|, period 2π/|b|."],
+  ["Period of y = tan(bx)?","π/|b|."],
+  ["Product rule for logarithms?","log(ab) = log a + log b."],
+  ["Quotient rule for logarithms?","log(a/b) = log a − log b."],
+  ["Power rule for logarithms?","log(aⁿ) = n log a."],
+  ["Change of base formula?","log_b x = ln x / ln b."],
+  ["What are e and ln?","e ≈ 2.718; ln is the logarithm base e, the inverse of eˣ."],
+  ["Sum of a finite arithmetic series?","Sₙ = n(a₁ + aₙ)/2."],
+  ["Sum of an infinite geometric series?","S = a/(1 − r), valid when |r| < 1."],
+  ["Standard form of a circle?","(x − h)² + (y − k)² = r²."],
+  ["How do you tell an ellipse from a hyperbola?","Ellipse adds the squared terms; hyperbola subtracts."],
+  ["Polar to rectangular conversion?","x = r cos θ, y = r sin θ."],
+  ["What is i and what is i²?","The imaginary unit, with i² = −1."],
+  ["How do you divide complex numbers?","Multiply numerator and denominator by the conjugate of the denominator."],
+  ["Even vs odd functions?","Even: f(−x) = f(x). Odd: f(−x) = −f(x)."],
+  ["Average rate of change formula?","(f(b) − f(a))/(b − a)."],
+  ["Ranges of arcsin, arccos, arctan?","[−π/2, π/2], [0, π], and (−π/2, π/2)."],
+  ["State the law of sines.","a/sin A = b/sin B = c/sin C."],
+  ["State the law of cosines.","c² = a² + b² − 2ab cos C."]
+];
+BANKS.CHALLENGE_CARDS.precalc=[
+  ["State the double-angle identities.","sin 2θ = 2 sin θ cos θ; cos 2θ = cos²θ − sin²θ = 2cos²θ − 1 = 1 − 2sin²θ."],
+  ["How do you find a slant asymptote?","Do polynomial long division when the numerator's degree is exactly one higher."],
+  ["Why can log equations produce extraneous solutions?","Because the domain requires positive arguments, which the algebra ignores."],
+  ["What does the multiplicity of a root do to a graph?","Odd multiplicity crosses the axis; even multiplicity touches and turns back."],
+  ["What does a zero dot product mean?","The vectors are perpendicular."],
+  ["How do complex roots come in a real polynomial?","In conjugate pairs — if a + bi is a root, so is a − bi."]
+];
+BANKS.FEYNMAN_TOPICS.precalc=["Why a function needs to be one-to-one to have an inverse","What the unit circle actually encodes","Why sin²θ + cos²θ = 1","How period and amplitude change a sine graph","What a logarithm really asks","Why e shows up in continuous growth","How to find every asymptote of a rational function","What the Fundamental Theorem of Algebra guarantees","Why complex roots come in pairs","What an infinite geometric series converges to","How the law of cosines generalises Pythagoras","What a limit describes","Why arcsin needs a restricted range","How vectors add"];
+BANKS.RESOURCES.precalc=[
+  {type:"Course",title:"Khan Academy — Precalculus",note:"Trig, complex numbers, series, vectors, and conics.",url:"https://www.khanacademy.org/math/precalculus"},
+  {type:"Reference",title:"Paul's Online Notes — Algebra & Trig Review",note:"Precise written notes with worked examples and cheat sheets.",url:"https://tutorial.math.lamar.edu/"},
+  {type:"Video",title:"Professor Leonard — Precalculus",note:"Full-length lecture series, very thorough.",url:"https://www.youtube.com/@ProfessorLeonard"},
+  {type:"Tool",title:"Desmos Graphing Calculator",note:"Explore transformations, conics, and polar graphs live.",url:"https://www.desmos.com/calculator"},
+  {type:"Reference",title:"OpenStax Precalculus",note:"A free, complete textbook with exercises.",url:"https://openstax.org/details/books/precalculus-2e"},
+  {type:"Practice",title:"IXL — Precalculus",note:"Skill-level drills with step-by-step feedback.",url:"https://www.ixl.com/math/precalculus"}
+];
+/* Stamp each practice question with its topic, so topicOf() can read it straight
+   off the question instead of trying to find it by index - randomizeChoices()
+   copies the array, which makes an indexOf lookup miss. */
+Object.keys(BANKS.QUESTIONS).forEach(function(id){
+  var t=BANKS.TOPICS[id]||[];
+  BANKS.QUESTIONS[id].forEach(function(q,i){ if(!q[4]&&t[i]) q[4]=t[i]; });
+});
+/* Merge into the live banks. Object.assign mutates, so the consts stay const. */
+Object.assign(QUESTIONS,BANKS.QUESTIONS);
+Object.assign(TOPICS,BANKS.TOPICS);
+Object.assign(TEST_QUESTIONS,BANKS.TEST_QUESTIONS);
+Object.assign(CHALLENGE_QUESTIONS,BANKS.CHALLENGE_QUESTIONS);
+Object.assign(AP_QUESTIONS,BANKS.AP_QUESTIONS);
+Object.assign(SEED_CARDS,BANKS.SEED_CARDS);
+Object.assign(CHALLENGE_CARDS,BANKS.CHALLENGE_CARDS);
+Object.assign(FEYNMAN_TOPICS,BANKS.FEYNMAN_TOPICS);
+Object.assign(RESOURCES,BANKS.RESOURCES);
+/* ================== end math ladder question banks ================== */
+
 function fyFillTopics(){
   const subj=document.getElementById('fy-subj').value;
   const sel=document.getElementById('fy-topic');
-  const list=FEYNMAN_TOPICS[subj]||[];
+  const list=FEYNMAN_TOPICS[bankOf(subj)]||[];
   sel.innerHTML='<option value="">— suggested topics —</option>'+list.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
 }
 /* Fully worked examples so students have a target to aim for */
@@ -3349,7 +4360,7 @@ function renderFeynman(){
     });
     document.getElementById('fy-concept').addEventListener('input',()=>{document.getElementById('fy-topic').value='';});
     document.getElementById('fy-random').onclick=()=>{
-      const subj=document.getElementById('fy-subj').value;const list=FEYNMAN_TOPICS[subj]||[];
+      const subj=document.getElementById('fy-subj').value;const list=FEYNMAN_TOPICS[bankOf(subj)]||[];
       if(!list.length)return;
       const t=list[Math.floor(Math.random()*list.length)];
       document.getElementById('fy-topic').value=t;
@@ -3447,7 +4458,7 @@ async function crChatSend(){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="cr-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const hist=crChatMsgs.slice(-6).map(m=>(m.who==='me'?'Student':'Helper')+': '+m.text).join('\n');
-    const prompt=`You are Study Buddy, a helpful study coach for a 9th grader. They're working on this ${crName(crCurrent)} assignment titled "${crCurrent.title}": "${crCurrent.desc}". Help with their specific question — give hints, explanations, and steps, but don't just do the work for them. Keep it concise and encouraging.\n\nConversation:\n${hist}\n\nReply as Helper:`;
+    const prompt=`You are Study Buddy, a helpful study coach for a ${gradeLabel()}. They're working on this ${crName(crCurrent)} assignment titled "${crCurrent.title}": "${crCurrent.desc}". Help with their specific question — give hints, explanations, and steps, but don't just do the work for them. Keep it concise and encouraging.\n\nConversation:\n${hist}\n\nReply as Helper:`;
     const r=await aiComplete(prompt,600);
     document.getElementById('cr-typing')?.remove();
     crChatSay(r.trim()||'Could you tell me a bit more about what you\'re stuck on?','coach');
@@ -3718,7 +4729,7 @@ async function aiListModels(){
   return list;
 }
 async function callAI(a,mode){
-  const ask=`You are a helpful study coach for a 9th grader. For this ${crName(a)} assignment titled "${a.title}" with instructions: "${a.desc}", give a ${mode==='summary'?'short plain-language summary of what it asks':mode==='howto'?'clear numbered step-by-step plan to complete it':'list of practical tips to do it well'}. Keep it concise and encouraging.`;
+  const ask=`You are a helpful study coach for a ${gradeLabel()}. For this ${crName(a)} assignment titled "${a.title}" with instructions: "${a.desc}", give a ${mode==='summary'?'short plain-language summary of what it asks':mode==='howto'?'clear numbered step-by-step plan to complete it':'list of practical tips to do it well'}. Keep it concise and encouraging.`;
   return aiComplete(ask,2048);
 }
 /* ---- real Google Classroom connection (OAuth via Google Identity Services) ---- */
@@ -3947,7 +4958,84 @@ function exportICS(grid){
   toast(`Exported ${count} weekly events${skipped?` (${skipped} skipped — unreadable time)`:''} ✓`);
 }
 /* ============================ SETTINGS ============================ */
+/* ---- grade + course editor ------------------------------------------------ */
+function courseRow(c,i){
+  const bank=c.bank?'<span class="gm-xp" title="This course has built-in flashcards, practice questions and tests">built-in questions</span>'
+                   :'<span class="gm-xp lock" title="No built-in bank — use the Study Coach or make your own cards">your own content</span>';
+  return `<div class="row" style="gap:8px;margin-bottom:8px;align-items:center">
+    <input type="color" value="${col(c.id)||'#c67c4e'}" data-cc-color="${i}" title="Course colour"
+           style="width:34px;height:34px;padding:2px;flex:0 0 auto;cursor:pointer">
+    <input type="text" value="${esc(c.name)}" data-cc-name="${i}" style="flex:1;min-width:150px" placeholder="Course name">
+    ${bank}
+    <button class="btn ghost sm" data-cc-del="${i}" title="Remove this course">✕</button>
+  </div>`;
+}
+function renderCourses(){
+  const box=document.getElementById('set-courses');if(!box)return;
+  box.innerHTML=
+    `<label class="fld" style="margin-top:0">Grade level</label>
+     <select id="set-grade" style="max-width:220px">${GRADES.map(g=>`<option value="${g}"${g===DB.grade?' selected':''}>Grade ${g}</option>`).join('')}</select>
+     <div class="section-h">Your courses (${DB.subjects.length})</div>
+     <div id="set-courselist">${DB.subjects.map(courseRow).join('')}</div>
+     <div class="row" style="margin-top:12px">
+       <button class="btn sm sec" id="set-course-add">+ Add a course</button>
+       <button class="btn ghost sm" id="set-course-reset">Reset to Grade ${DB.grade} defaults</button>
+     </div>
+     <p class="sub" style="margin:12px 0 0;font-size:12.5px">Removing a course hides it everywhere, but its flashcards and scores are kept — add a course with the same name back and they return.</p>`;
+
+  document.getElementById('set-grade').onchange=function(){
+    const g=+this.value, wasDefault=JSON.stringify(DB.subjects.map(c=>c.name))===JSON.stringify(coursesForGrade(DB.grade).map(c=>c.name));
+    DB.grade=g;
+    /* Only replace the course list if it was untouched — never overwrite edits. */
+    if(wasDefault)DB.subjects=coursesForGrade(g);
+    applyCourses();save();renderCourses();refreshSubjectUI();
+    toast(wasDefault?`Switched to Grade ${g} courses`:`Grade set to ${g} — your course names were kept`);
+  };
+  box.querySelectorAll('[data-cc-name]').forEach(inp=>{
+    inp.onchange=function(){
+      const v=this.value.trim();if(!v){renderCourses();return;}
+      DB.subjects[+this.dataset.ccName].name=v;applyCourses();save();refreshSubjectUI();
+    };
+  });
+  box.querySelectorAll('[data-cc-color]').forEach(inp=>{
+    inp.onchange=function(){
+      DB.subjects[+this.dataset.ccColor].color=this.value;applyCourses();save();refreshSubjectUI();
+    };
+  });
+  box.querySelectorAll('[data-cc-del]').forEach(b=>{
+    b.onclick=function(){
+      if(DB.subjects.length<=1){toast('Keep at least one course');return;}
+      const c=DB.subjects[+this.dataset.ccDel];
+      DB.subjects.splice(+this.dataset.ccDel,1);
+      applyCourses();save();renderCourses();refreshSubjectUI();
+      toast(`Removed ${c.name} — its cards and scores are kept`);
+    };
+  });
+  document.getElementById('set-course-add').onclick=function(){
+    const n=DB.subjects.length;
+    DB.subjects.push({id:'c'+Date.now().toString(36),name:'New course',
+      color:COURSE_COLORS[n%COURSE_COLORS.length],bank:null,desc:'',topics:[]});
+    applyCourses();save();renderCourses();refreshSubjectUI();
+    const last=document.querySelector('#set-courselist .row:last-child [data-cc-name]');
+    if(last){last.focus();last.select();}
+  };
+  document.getElementById('set-course-reset').onclick=function(){
+    if(!confirm(`Reset your course list to the Grade ${DB.grade} defaults? Cards and scores are kept.`))return;
+    DB.subjects=coursesForGrade(DB.grade);applyCourses();save();renderCourses();refreshSubjectUI();
+    toast('Courses reset');
+  };
+}
+/* Any screen already built from the old course list has to be rebuilt. */
+function refreshSubjectUI(){
+  ['rc-subject','pt-subj','fy-subj','cc-subj','ac-subj','coach-subj','ev-subj','goal-subj'].forEach(id=>{
+    const el=document.getElementById(id);if(el)delete el.dataset.init;
+  });
+  ['fc-tabs','ln-tabs'].forEach(id=>{const el=document.getElementById(id);if(el)delete el.dataset.init;});
+  const sc=document.getElementById('sc-days');if(sc)delete sc.dataset.init;
+}
+
 function renderSettings(){
+  renderCourses();
   document.getElementById('set-name').value=DB.name||'';
   const ps=document.getElementById('set-provider');
   const groups=[];
@@ -4037,15 +5125,15 @@ function prShow(id){['pr-home','pr-practice','pr-setup','pr-test','pr-results'].
 function renderPractice(){
   prShow('pr-home');
   // banner: celebrate unlocked challenge content + explain AP Challenge
-  const masteredNames=SUBJECTS.filter(s=>isMastered(s.id)).map(s=>s.name);
+  const masteredNames=bankCourses().filter(s=>isMastered(s.id)).map(s=>s.name);
   const banner=document.getElementById('pr-banner');
   let bhtml='';
   if(allMastered()){
-    bhtml+=`<div class="card" style="border-left:4px solid var(--warn);margin-bottom:14px"><strong class="nw">🏆 Challenge mode unlocked everywhere!</strong><div class="sub" style="margin:4px 0 0">You've scored 90%+ on every subject. Harder questions and tougher flashcards are now available across the board.</div></div>`;
+    bhtml+=`<div class="card" style="border-left:4px solid var(--warn);margin-bottom:14px"><strong class="nw">🏆 Challenge mode unlocked everywhere!</strong><div class="sub" style="margin:4px 0 0">You've scored 90%+ on every course with a question bank. Harder questions and tougher flashcards are now available across the board.</div></div>`;
   } else if(masteredNames.length){
     bhtml+=`<div class="card" style="border-left:4px solid var(--warn);margin-bottom:14px"><strong class="nw">🔥 Challenge unlocked:</strong> ${masteredNames.map(n=>`<span class="nw">${n}</span>`).join(', ')}<div class="sub" style="margin:4px 0 0">Score 90%+ on a subject's test to unlock its harder questions and flashcards.</div></div>`;
   }
-  const apOpen=SUBJECTS.filter(s=>apUnlocked(s.id)).map(s=>s.name);
+  const apOpen=bankCourses().filter(s=>apUnlocked(s.id)).map(s=>s.name);
   bhtml+=`<div class="card" style="border-left:4px solid var(--ap);margin-bottom:18px"><strong><span class="nw">⚔️ Gauntlet</span> — ${apOpen.length?('unlocked: '+apOpen.map(n=>`<span class="nw">${n}</span>`).join(', ')):'locked'}.</strong><div class="sub" style="margin:4px 0 0">5 brutal word problems per subject. Unlock by scoring 100% on a subject's test <em>and</em> its Challenge.</div></div>`;
   // Final Exam card pinned to the top of Practice & Tests.
   const fAced=gauntletsAced(), fOK=finalUnlocked(), fN=Math.min(FINAL_PULL,FINAL_QUESTIONS.length);
@@ -4055,16 +5143,25 @@ function renderPractice(){
   } else if(fOK){
     finalCard=`<div class="card" style="border-left:4px solid var(--accent2);margin-bottom:14px"><div class="between"><div><strong class="nw">🏆 Final Exam — UNLOCKED</strong><div class="sub" style="margin:4px 0 0">The ultimate test: ${fN} brutal questions spanning every subject, harder than the Challenge and Gauntlet combined. Score 100% for permanent mastery.</div></div><button class="btn" id="pr-final-start">Start Final Exam</button></div></div>`;
   } else {
-    finalCard=`<div class="card" style="border-left:4px solid var(--faint);margin-bottom:14px"><strong class="nw">🔒 Final Exam — locked</strong><div class="sub" style="margin:4px 0 0">The hardest test of all. Unlock it by scoring <strong class="nw">100% on every subject's Gauntlet</strong> — <strong>${fAced}/${SUBJECTS.length}</strong> aced so far.</div></div>`;
+    finalCard=`<div class="card" style="border-left:4px solid var(--faint);margin-bottom:14px"><strong class="nw">🔒 Final Exam — locked</strong><div class="sub" style="margin:4px 0 0">The hardest test of all. Unlock it by scoring <strong class="nw">100% on every subject's Gauntlet</strong> — <strong>${fAced}/${bankCourses().length}</strong> aced so far.</div></div>`;
   }
   bhtml = finalCard + bhtml;
   banner.innerHTML=bhtml;
   const fbtn=document.getElementById('pr-final-start'); if(fbtn)fbtn.onclick=openFinal;
   const g=document.getElementById('pr-grid');
   g.innerHTML=SUBJECTS.map(s=>{
+    if(!hasBank(s.id)){
+      return `<div class="card subj-card" style="border-left-color:${col(s.id)}" data-s="${s.id}">
+        <h3>${esc(s.name)}</h3>
+        <p>No built-in question bank for this course — but you can still practise it. Generate questions with the Study Coach, or make your own flashcards.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn sm" data-mode="coach" data-s="${s.id}">Study Coach →</button>
+          <button class="btn sm sec" data-mode="cards" data-s="${s.id}">Make flashcards</button>
+        </div></div>`;
+    }
     const n=practiceBank(s.id).length;
     const nt=testBank(s.id).length;
-    const nap=(AP_QUESTIONS[s.id]||[]).length;
+    const nap=apBank(s.id).length;
     const best=DB.tests[s.id];
     const apBest=DB.apTests[s.id];
     const mastered=isMastered(s.id);
@@ -4091,6 +5188,8 @@ function renderPractice(){
   }).join('');
   g.querySelectorAll('[data-mode]').forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
+    if(b.dataset.mode==='coach'){const c=subjById(b.dataset.s);jumpCoach(c?c.name:'',b.dataset.s);return;}
+    if(b.dataset.mode==='cards'){go('recall');showFcTab('create');const sel=document.getElementById('cc-subj');if(sel)sel.value=b.dataset.s;return;}
     if(b.dataset.mode==='practice')startPractice(b.dataset.s,false);
     else if(b.dataset.mode==='challenge')startPractice(b.dataset.s,true);
     else if(b.dataset.mode==='ap')openAPTest(b.dataset.s);
@@ -4100,7 +5199,8 @@ function renderPractice(){
 /* --- PRACTICE MODE (instant feedback) --- */
 let pp={subj:null,qs:[],i:0,score:0,answered:false,challenge:false};
 function startPractice(subj,challenge=false){
-  const bank = challenge ? (CHALLENGE_QUESTIONS[subj]||[]) : practiceBank(subj);
+  const bank = challenge ? challengeBank(subj) : practiceBank(subj);
+  if(!bank.length){toast('No built-in questions for this course — try the Study Coach');return;}
   pp={subj,qs:shuffle(bank.slice()).map(randomizeChoices),i:0,score:0,answered:false,challenge};
   prShow('pr-practice');
   document.getElementById('pr-p-title').innerHTML=`<span class="nw">${esc(subjById(subj).name)}</span> · <span class="nw">${challenge?'Challenge 🔥':'Practice'}</span>`;
@@ -4151,6 +5251,7 @@ document.getElementById('pr-p-back').onclick=renderPractice;
 /* --- TEST MODE (timed + scored). Also drives the AP Challenge via tt.ap. --- */
 let tt={subj:null,qs:[],time:0,timer:null,remaining:0,ap:false};
 function openTestSetup(subj){
+  if(!testBank(subj).length){toast('No built-in test for this course — try the Study Coach');return;}
   tt.subj=subj; tt.ap=false;
   prShow('pr-setup');
   document.getElementById('pr-s-title').textContent=subjById(subj).name+' · Practice Test';
@@ -4170,7 +5271,7 @@ document.getElementById('pr-s-start').onclick=()=>{
 // then run through the exact same scoring/storage path as a normal test.
 function openAPTest(subj){
   tt.subj=subj; tt.ap=true;
-  const bank=(AP_QUESTIONS[subj]||[]).slice();
+  const bank=apBank(subj).slice();
   tt.qs=shuffle(bank).slice(0,5).map(q=>({q:randomizeChoices(q),picked:null}));
   tt.time=600; // 10-minute AP-styled limit
   startTest();
@@ -4347,7 +5448,7 @@ document.getElementById('pr-r-progress').onclick=()=>go('progress');
 function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});}
 function renderProgress(){
   document.getElementById('pg-mastery').innerHTML = (DB.finalMastered && DB.showMasteryMsg!==false)
-    ? `<div class="card" style="border-left:4px solid var(--accent2);margin-bottom:18px"><h3 class="nw" style="margin:0 0 6px">🏆 Total Mastery Achieved</h3><div class="sub" style="margin:0;font-size:14px;line-height:1.6">You aced the Final Exam after conquering every Practice set, Test, Challenge, and Gauntlet across all five subjects. There is nothing left to prove here — you have mastered it all. <em>(You can hide this message in Settings.)</em></div></div>`
+    ? `<div class="card" style="border-left:4px solid var(--accent2);margin-bottom:18px"><h3 class="nw" style="margin:0 0 6px">🏆 Total Mastery Achieved</h3><div class="sub" style="margin:0;font-size:14px;line-height:1.6">You aced the Final Exam after conquering every Practice set, Test, Challenge, and Gauntlet across every course with a built-in bank. There is nothing left to prove here — you have mastered it all. <em>(You can hide this message in Settings.)</em></div></div>`
     : '';
   const h=DB.history;
   document.getElementById('pg-empty').style.display=h.length?'none':'block';
@@ -4450,7 +5551,7 @@ function renderResources(){
   }
   const g=document.getElementById('res-grid');g.style.display='';
   g.innerHTML=SUBJECTS.map(s=>{
-    const n=(RESOURCES[s.id]||[]).length;
+    const n=(RESOURCES[bankOf(s.id)]||[]).length;
     return `<div class="card subj-card" style="border-left-color:${col(s.id)}" data-s="${s.id}">
       <h3>${s.name}</h3><p>${s.desc}</p>
       <div class="row" style="margin-top:12px"><span class="tag">${n} resources →</span></div>
@@ -4464,7 +5565,7 @@ function openResources(id){
   document.getElementById('res-detail').style.display='block';
   const nm=document.getElementById('res-name');nm.textContent=s.name;nm.style.color=col(id);
   document.getElementById('res-desc').textContent='Free, hand-picked resources for '+s.name+'. Links open in a new tab.';
-  document.getElementById('res-list').innerHTML=(RESOURCES[id]||[]).map(r=>`
+  document.getElementById('res-list').innerHTML=(RESOURCES[bankOf(id)]||[]).map(r=>`
     <a class="res" href="${r.url}" target="_blank" rel="noopener noreferrer" style="border-left-color:${col(id)}">
       <span class="rtype">${r.type}</span>
       <span class="rmain"><span class="rtitle">${esc(r.title)}</span><span class="rnote">${esc(r.note)}</span></span>
@@ -4518,7 +5619,7 @@ function searchSources(subjName,query,type){
   return [V,K,W,P];
 }
 async function callAISources(subjName,query){
-  const ask=`Suggest up to 4 real, well-known, free online resources for a 9th grader studying ${subjName}, specifically about: "${query}". Prefer YouTube videos, Khan Academy, and reputable educational sites with stable URLs. Return ONLY a JSON array of objects {"title","type","url"} where type is one of Video, Article, Course, Practice, Textbook.`;
+  const ask=`Suggest up to 4 real, well-known, free online resources for a ${gradeLabel()} studying ${subjName}, specifically about: "${query}". Prefer YouTube videos, Khan Academy, and reputable educational sites with stable URLs. Return ONLY a JSON array of objects {"title","type","url"} where type is one of Video, Article, Course, Practice, Textbook.`;
   let raw=await aiComplete(ask,2048);
   raw=raw.replace(/```json|```/g,'').trim();const a=raw.indexOf('['),b=raw.lastIndexOf(']');if(a>=0&&b>a)raw=raw.slice(a,b+1);
   let arr;try{arr=JSON.parse(raw);}catch(e){return [];}
@@ -4667,7 +5768,7 @@ function renderCoachStepBody(){
   }
 }
 async function coachGenQuestions(n,kind){
-  const ask=`Create ${n} multiple-choice questions to ${kind} a 9th grader on the topic "${coach.topic}"${coach.subjName?' ('+coach.subjName+')':''}. Return ONLY a JSON array of objects {"q":"question","choices":["a","b","c","d"],"answer":0,"explain":"why"} where answer is the 0-based index of the correct choice. Keep them clear and factual.`;
+  const ask=`Create ${n} multiple-choice questions to ${kind} a ${gradeLabel()} on the topic "${coach.topic}"${coach.subjName?' ('+coach.subjName+')':''}. Return ONLY a JSON array of objects {"q":"question","choices":["a","b","c","d"],"answer":0,"explain":"why"} where answer is the 0-based index of the correct choice. Keep them clear and factual.`;
   let raw=await aiComplete(ask,1600);
   raw=raw.replace(/```json|```/g,'').trim();const a=raw.indexOf('['),b=raw.lastIndexOf(']');if(a>=0&&b>a)raw=raw.slice(a,b+1);
   const arr=JSON.parse(raw);
@@ -4707,7 +5808,7 @@ async function coachHint(q){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const choices=(q.choices||[]).map((ch,i)=>PR_LETTERS[i]+'. '+ch).join('\n');
-    const prompt=`You are a study coach giving a 9th grader a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1–3 short, warm, encouraging sentences.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
+    const prompt=`You are a study coach giving a ${gradeLabel()} a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1–3 short, warm, encouraging sentences.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
     const r=(await aiComplete(prompt,220)).trim();
     document.getElementById('coach-typing').remove();
     coachSay(r||fallback,'coach');
@@ -4773,7 +5874,7 @@ async function coachReply(fallback,forceFallback){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const hist=coach.messages.slice(-8).map(m=>(m.who==='me'?'Student':'Coach')+': '+m.text).join('\n');
-    const prompt=`You are a warm, encouraging study coach helping a 9th grader study "${coach.topic}". Keep replies short (2-4 sentences), friendly, and helpful. Give hints and explanations, not just answers, unless asked directly.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
+    const prompt=`You are a warm, encouraging study coach helping a ${gradeLabel()} study "${coach.topic}". Keep replies short (2-4 sentences), friendly, and helpful. Give hints and explanations, not just answers, unless asked directly.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
     const r=await aiComplete(prompt,400);
     document.getElementById('coach-typing').remove();
     coachSay(r.trim()||fallback,'coach');
@@ -5076,7 +6177,7 @@ function renderGoalPlan(g,el){
   if(aiBtn)aiBtn.onclick=async()=>{
     aiBtn.textContent='Thinking…';aiBtn.disabled=true;
     const out=document.getElementById('gaiout-'+g.id);
-    try{const plan=await aiComplete(`A 9th grader has this study goal: "${g.title}"${g.subj?' (subject: '+sName+')':''}${g.notes?'. Notes: '+g.notes:''}. Give a short, encouraging, numbered study plan (4-6 steps) to reach it, with specific, practical actions.`,600);
+    try{const plan=await aiComplete(`A ${gradeLabel()} has this study goal: "${g.title}"${g.subj?' (subject: '+sName+')':''}${g.notes?'. Notes: '+g.notes:''}. Give a short, encouraging, numbered study plan (4-6 steps) to reach it, with specific, practical actions.`,600);
       out.innerHTML=`<div class="help-out">${esc(plan)}</div>`;
     }catch(e){out.innerHTML=`<p class="sub">Couldn't generate: ${esc(e.message)}</p>`;}
     aiBtn.textContent='✨ Get an AI study plan';aiBtn.disabled=false;
@@ -5156,7 +6257,7 @@ async function helpSend(forced){
   b.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="hp-typing">…</div>`);b.scrollTop=b.scrollHeight;
   try{
     const hist=helpMsgs.slice(-8).map(m=>(m.who==='me'?'Student':'Helper')+': '+m.text).join('\n');
-    const prompt=`You are Study Buddy, a warm, encouraging study helper for a 9th grader. Answer helpfully and concisely (2-5 sentences). Give hints and clear explanations. If they mention a specific assignment or topic, help them work through it.\n\nConversation:\n${hist}\n\nReply as Helper:`;
+    const prompt=`You are Study Buddy, a warm, encouraging study helper for a ${gradeLabel()}. Answer helpfully and concisely (2-5 sentences). Give hints and clear explanations. If they mention a specific assignment or topic, help them work through it.\n\nConversation:\n${hist}\n\nReply as Helper:`;
     const r=await aiComplete(prompt,500);
     document.getElementById('hp-typing')?.remove();
     helpSay(r.trim()||'Hmm, try asking that a different way?','coach');
@@ -5268,6 +6369,28 @@ function enterApp(){ // local path
   prepareDB();
   enterAppUI();
 }
+/* ---- first run: ask for a grade before anything else ---- */
+function askGrade(after){
+  const bg=document.getElementById('modal-grade'), box=document.getElementById('grade-choices');
+  box.innerHTML=GRADES.map(g=>`<button class="btn sec" data-g="${g}" style="min-width:66px;padding:14px 10px;font-size:16px">${g}</button>`).join('');
+  box.querySelectorAll('[data-g]').forEach(b=>{
+    b.onclick=function(){
+      DB.grade=+this.dataset.g;
+      DB.subjects=coursesForGrade(DB.grade);
+      DB.gradeChosen=true;
+      applyCourses();
+      syncSeedCards();                       /* seed the cards this grade actually uses */
+      DB.seedVersion=SEED_VERSION;
+      save();
+      bg.classList.remove('show');
+      if(window.SBAudio)window.SBAudio.play('quest');
+      toast(`Grade ${DB.grade} — your courses are ready. Change them any time in Settings.`);
+      if(typeof after==='function')after();
+    };
+  });
+  bg.classList.add('show');
+}
+
 function enterAppUI(){
   document.getElementById('landing').style.display='none';
   document.querySelector('.app').style.display='flex';
@@ -5277,7 +6400,9 @@ function enterAppUI(){
      moment later by the game layer, which restores it itself. */
   var last=DB.lastPage;
   go(last&&last!=='arcade'&&document.getElementById('page-'+last)?last:'dashboard');
-  if(!DB.seenIntro){openHelp();DB.seenIntro=true;save();}
+  if(!DB.gradeChosen){
+    askGrade(function(){ if(!DB.seenIntro){openHelp();DB.seenIntro=true;save();} go('dashboard'); });
+  } else if(!DB.seenIntro){openHelp();DB.seenIntro=true;save();}
 }
 function renderSignInButton(){
   const el=document.getElementById('g-signin-btn');if(!el)return;

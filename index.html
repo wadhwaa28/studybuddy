@@ -273,6 +273,10 @@
   #landing .land-tag{font-family:'Nunito',sans-serif;font-size:20px;color:var(--accent);font-weight:700;margin:0 0 18px}
   #landing .land-desc{max-width:600px;color:var(--muted);font-size:17px;line-height:1.7;margin:0 auto 26px}
   #landing .land-cta{display:flex;flex-direction:column;align-items:center;gap:10px}
+  #landing .land-signedin{display:inline-flex;align-items:center;gap:9px;padding:10px 18px;border-radius:999px;
+    border:1px solid var(--accent2);color:var(--accent2);font-size:14px;font-weight:600;background:var(--panel)}
+  #landing .land-signedin .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);flex:none;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--accent2) 25%,transparent)}
   #landing #g-signin-btn{min-height:46px}
   #landing .land-guest{background:none;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer}
   #landing .land-note{color:var(--faint);font-size:12.5px;max-width:460px;margin:8px auto 0;line-height:1.55}
@@ -605,7 +609,7 @@
       <div class="land-feat"><div class="lf-ic">⚯</div><div class="lf-t">Smart flashcards</div><div class="lf-d">Active recall with spaced repetition brings cards back right before you'd forget — plus AI can make cards from your notes.</div></div>
       <div class="land-feat"><div class="lf-ic">❏</div><div class="lf-t">Training Grounds</div><div class="lf-d">Name any topic and your Coach builds a training arc: scout the sources, spar with practice questions, then take on the boss fight.</div></div>
       <div class="land-feat"><div class="lf-ic">✓</div><div class="lf-t">Practice &amp; tests</div><div class="lf-d">Four difficulty tiers that unlock in order, ending in a Gauntlet and a brutal Final Exam. Your weak topics get flagged automatically.</div></div>
-      <div class="land-feat"><div class="lf-ic">◫</div><div class="lf-t">Google Classroom</div><div class="lf-d">Connect your account to pull in your real assignments, then get AI summaries, step-by-step help, and tips for each one.</div></div>
+      <div class="land-feat"><div class="lf-ic">◨</div><div class="lf-t">Coursework</div><div class="lf-d">One board for everything you owe — drag your own cards between columns, and pull in real Google Classroom assignments for AI summaries and step-by-step help.</div></div>
       <div class="land-feat"><div class="lf-ic">◨</div><div class="lf-t">Goals &amp; planner</div><div class="lf-d">Set goals, track homework on a Kanban board, and build a schedule that fits around school, sports, and dinner — export to Google Calendar.</div></div>
       <div class="land-feat"><div class="lf-ic">💬</div><div class="lf-t">AI help anytime</div><div class="lf-d">A help bubble follows you on every page, so you can ask a question or get a hint the moment you're stuck.</div></div>
     </div>
@@ -646,8 +650,7 @@
     <button class="nav-btn" data-page="feynman"><span class="ic">✎</span><span class="lbl">Feynman</span></button>
     <button class="nav-btn" data-page="practice"><span class="ic">✓</span><span class="lbl">Practice & Tests</span></button>
     <button class="nav-btn" data-page="progress"><span class="ic">▰</span><span class="lbl">My Progress</span></button>
-    <button class="nav-btn" data-page="classroom"><span class="ic">◫</span><span class="lbl">Classroom</span></button>
-    <button class="nav-btn" data-page="assignments"><span class="ic">◨</span><span class="lbl">Assignments</span></button>
+    <button class="nav-btn" data-page="coursework"><span class="ic">◨</span><span class="lbl">Coursework</span></button>
     <button class="nav-btn" data-page="schedule"><span class="ic">◵</span><span class="lbl">Schedule</span></button>
     <button class="nav-btn" data-page="settings"><span class="ic">⚙</span><span class="lbl">Settings</span></button>
     <div class="side-foot"><a href="#" id="side-about" style="color:var(--accent);text-decoration:none">ℹ About / Welcome page</a></div>
@@ -681,7 +684,7 @@
       </div>
       <div class="grid g2" style="margin-top:16px">
         <div class="card">
-          <div class="between"><h3 style="margin:0">📌 Due soon</h3><button class="btn sm sec" data-jump="assignments">All assignments</button></div>
+          <div class="between"><h3 style="margin:0">📌 Due soon</h3><button class="btn sm sec" data-jump="coursework">All coursework</button></div>
           <div id="dash-due" style="margin-top:14px"></div>
         </div>
         <div class="card">
@@ -691,7 +694,7 @@
             <button class="dash-act" data-jump="recall"><span class="da-ic">⚯</span><span>Review<br>cards</span></button>
             <button class="dash-act" data-jump="pomodoro"><span class="da-ic">◷</span><span>Focus<br>session</span></button>
             <button class="dash-act" data-jump="practice"><span class="da-ic">✓</span><span>Practice<br>&amp; tests</span></button>
-            <button class="dash-act" data-jump="resources"><span class="da-ic">❏</span><span>Study<br>Coach</span></button>
+            <button class="dash-act" data-jump="resources"><span class="da-ic">❏</span><span>Training<br>Grounds</span></button>
           </div>
         </div>
       </div>
@@ -1067,12 +1070,26 @@
       </div>
     </section>
     <!-- CLASSROOM -->
-    <section class="page" id="page-classroom">
-      <div class="between">
-        <div><h2 class="title">Google Classroom</h2><span id="cr-mode" style="display:none"></span>
-        <p class="sub" style="margin:4px 0 0">Your assignments, with an AI helper for summaries, how-to steps, and tips.</p></div>
-        <button class="btn sec sm" id="cr-connect">Connect Classroom</button>
+    <!-- COURSEWORK — the kanban board and Google Classroom in one place -->
+    <section class="page" id="page-coursework">
+      <h2 class="title">Coursework</h2>
+      <p class="sub">Everything you owe, in one place — your own board, plus anything Google Classroom is holding.</p>
+      <div class="tabs" id="cw-tabs">
+        <button class="active" data-cw="board">My board</button>
+        <button data-cw="classroom">Google Classroom</button>
       </div>
+      <div id="cw-pane-board">
+        <div class="between" style="align-items:center">
+          <p class="sub" style="margin:0">Track homework and projects like a board — drag cards between columns as you go.</p>
+          <button class="btn sm" id="as-add" style="flex:none">+ Add assignment</button>
+        </div>
+        <div class="kanban" id="as-board" style="margin-top:18px"></div>
+      </div>
+      <div id="cw-pane-classroom" style="display:none">
+        <div class="between" style="align-items:center">
+          <p class="sub" style="margin:0">Your Classroom assignments, with an AI helper for summaries, how-to steps, and tips.<span id="cr-mode" style="display:none"></span></p>
+          <button class="btn sec sm" id="cr-connect" style="flex:none">Connect Classroom</button>
+        </div>
       <div class="grid g2" style="margin-top:20px;align-items:start">
         <div class="card">
           <div class="between"><h3 style="margin:0">Assignments</h3><select id="cr-filter" style="max-width:160px"></select></div>
@@ -1101,15 +1118,7 @@
           </div>
         </div>
       </div>
-    </section>
-    <!-- ASSIGNMENTS (KANBAN) -->
-    <section class="page" id="page-assignments">
-      <div class="between">
-        <div><h2 class="title">Assignments</h2>
-        <p class="sub" style="margin:4px 0 0">Track homework and projects like a board — drag cards between columns as you go.</p></div>
-        <button class="btn sm" id="as-add">+ Add assignment</button>
-      </div>
-      <div class="kanban" id="as-board" style="margin-top:20px"></div>
+    </div>
     </section>
     <!-- SCHEDULE -->
     <section class="page" id="page-schedule">
@@ -1312,8 +1321,7 @@
       <div class="help-item"><div class="hi">▰</div><div><h4>My Progress</h4><p>Every test is recorded here with your average, trend, weak topics to review, and strength by subject.</p></div></div>
       <div class="help-item"><div class="hi">✎</div><div><h4>Feynman</h4><p>Learn by explaining a topic simply. Pick or type a topic, explain it plainly, find your gaps, then refine. A worked example shows you the goal.</p></div></div>
       <div class="help-item"><div class="hi">◷</div><div><h4>Pomodoro</h4><p>A focus timer (default 30 min work / 10 min break). Study in sprints; the skip button unlocks only in the last 2 minutes of focus.</p></div></div>
-      <div class="help-item"><div class="hi">◫</div><div><h4>Classroom</h4><p>A demo of Google Classroom assignments with an AI helper that gives summaries, how-to steps, and tips.</p></div></div>
-      <div class="help-item"><div class="hi">◨</div><div><h4>Assignments</h4><p>A Kanban board for homework and projects. Add due dates, priority, status, and notes — and drag cards between columns as you progress.</p></div></div>
+      <div class="help-item"><div class="hi">◨</div><div><h4>Coursework</h4><p>Two tabs: <strong>My board</strong> — a Kanban board for homework and projects, with due dates, priority, status and notes, where you drag cards between columns as you progress — and <strong>Google Classroom</strong>, which pulls in your real assignments and adds an AI helper for summaries, how-to steps, and tips.</p></div></div>
       <div class="help-item"><div class="hi">◵</div><div><h4>Schedule</h4><p>Tell it your daily routine and commitments, and it builds a study plan around them. Click any block to edit it, and export the week to Google Calendar.</p></div></div>
       <div class="help-item"><div class="hi">⚙</div><div><h4>Settings</h4><p>Set your name, add an optional AI key (powers AI flashcards, the assignment helper, and the source finder), and manage your data.</p></div></div>
     </div>
@@ -2987,8 +2995,7 @@ function go(p){
   if(p==='feynman')renderFeynman();
   if(p==='practice')renderPractice();
   if(p==='progress')renderProgress();
-  if(p==='classroom')renderClassroom();
-  if(p==='assignments')renderAssignments();
+  if(p==='coursework')openCoursework();
   if(p==='schedule')initSchedule();
   if(p==='settings')renderSettings();
   window.scrollTo(0,0);
@@ -3064,7 +3071,7 @@ function renderDashDue(){
   const now=new Date();now.setHours(0,0,0,0);
   const soon=(DB.assignments||[]).filter(a=>!isDoneStatus(a.status)&&a.due).map(a=>({a,d:new Date(a.due+'T00:00:00')}))
     .filter(x=>((x.d-now)/86400000)<=10).sort((x,y)=>x.d-y.d).slice(0,4);
-  if(!soon.length){el.innerHTML='<p class="sub" style="margin:0">Nothing due in the next 10 days. 🎉 <a href="#" id="dd-add">Add an assignment?</a></p>';const a=document.getElementById('dd-add');if(a)a.onclick=(e)=>{e.preventDefault();go('assignments');};return;}
+  if(!soon.length){el.innerHTML='<p class="sub" style="margin:0">Nothing due in the next 10 days. 🎉 <a href="#" id="dd-add">Add an assignment?</a></p>';const a=document.getElementById('dd-add');if(a)a.onclick=(e)=>{e.preventDefault();go('coursework');};return;}
   el.innerHTML=soon.map(({a})=>{
     const t=dueInfo(a.due);
     return `<div class="dash-goal"><span class="dg-dot" style="background:${subjDisplayColor(a.subj)}"></span>
@@ -7445,6 +7452,25 @@ function coachFeedback(h,bySubj,weak,avg,trend){
 document.getElementById('pg-clear').onclick=()=>{if(confirm("Clear all test history? (Best scores are kept.)")){DB.history=[];save();renderProgress();toast("History cleared");}};
 /* ============================ RESOURCES ============================ */
 // Learn has two sub-tabs: Browse resources (general) and Study Coach (guided, topic-specific).
+/* Coursework: the kanban board and Google Classroom share one page, the same
+   way Learn holds Browse resources and Training Grounds. */
+function openCoursework(which){
+  const tabs=document.getElementById('cw-tabs');
+  if(!tabs.dataset.init){
+    tabs.dataset.init=1;
+    tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>showCourseworkTab(b.dataset.cw));
+  }
+  showCourseworkTab(which||DB.cwTab||'board');
+}
+function showCourseworkTab(which){
+  if(which!=='board'&&which!=='classroom')which='board';
+  DB.cwTab=which;
+  document.querySelectorAll('#cw-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.cw===which));
+  document.getElementById('cw-pane-board').style.display=which==='board'?'block':'none';
+  document.getElementById('cw-pane-classroom').style.display=which==='classroom'?'block':'none';
+  if(which==='board')renderAssignments();
+  else renderClassroom();
+}
 function openLearn(){
   const tabs=document.getElementById('ln-tabs');
   if(!tabs.dataset.init){
@@ -8380,7 +8406,15 @@ function enterAppUI(){
   renderAccount();
   /* Come back to whatever page you were last on. The Arcade page is built a
      moment later by the game layer, which restores it itself. */
+  /* pages that were merged away — send the account to where the content lives now */
+  if(DB.lastPage==='classroom'){DB.lastPage='coursework';DB.cwTab='classroom';}
+  else if(DB.lastPage==='assignments'){DB.lastPage='coursework';DB.cwTab='board';}
+  else if(DB.lastPage==='leaderboard'){DB.lastPage='arcade';DB.arcTab='leaderboard';}
   var last=DB.lastPage;
+  /* Stash the intent before go() runs: go() writes DB.lastPage as a side effect,
+     so by the time the Arcade layer boots and looks, the value it needs is gone.
+     That is why the Arcade never restored itself. */
+  window.SBRestore=last;
   go(last&&last!=='arcade'&&document.getElementById('page-'+last)?last:'dashboard');
   if(!DB.gradeChosen){
     askGrade(function(){ if(!DB.seenIntro){openHelp();DB.seenIntro=true;save();} go('dashboard'); });
@@ -8389,6 +8423,25 @@ function enterAppUI(){
 function renderSignInButton(){
   const el=document.getElementById('g-signin-btn');if(!el)return;
   const lg=document.getElementById('land-guest');
+  /* Already signed in — this is the welcome page reopened from inside the app,
+     not a sign-in screen. Offering the button again is a trap: clicking it
+     starts a second OAuth round trip for an account you already hold. */
+  const localEmail=(typeof currentEmail==='function')?currentEmail():'';
+  let signedIn=!!fbUser;
+  if(!signedIn && localEmail){try{signedIn=!!(loadUsers()||{})[localEmail];}catch(e){}}
+  if(signedIn){
+    const who = fbUser ? (fbUser.email||'your Google account')
+              : (localEmail==='guest@studybuddy.local' ? 'guest mode' : localEmail);
+    el.innerHTML='<div class="land-signedin"><span class="dot"></span>'+
+      '<span>Signed in as <b>'+esc(who)+'</b></span></div>'+
+      '<button class="btn" id="fb-back-btn" style="padding:12px 26px;font-size:15px;margin-top:12px">Back to studying \u2192</button>';
+    document.getElementById('fb-back-btn').onclick=function(){
+      document.getElementById('landing').style.display='none';
+    };
+    if(lg)lg.style.display='none';
+    return;
+  }
+  if(lg)lg.style.display='';
   if(!fbAuth){
     /* No Firebase available — make "start studying" the primary action rather
        than leaving a sign-in button that cannot do anything. */
@@ -9287,6 +9340,8 @@ window.ccAddToDeck=function(){
 window.go=function(p){
   var page=$('page-arcade');
   if(p==='arcade'){
+    /* record it, or the restore-on-boot below can never fire */
+    if(DB&&typeof DB==='object')DB.lastPage='arcade';
     try{pages.forEach(function(x){x.classList.remove('active');});}catch(e){}
     try{navBtns.forEach(function(b){b.classList.remove('active');});}catch(e){}
     if(page)page.classList.add('active');
@@ -9316,7 +9371,10 @@ function boot(){
   if(!$('arc-pops'))buildChrome();
   if(!$('arc-hud'))buildHUD();
   if(!$('page-arcade'))buildPage();
-  if(DB.lastPage==='arcade')go('arcade');      /* the Arcade page exists only now */
+  /* Come back to the tab you left, including one merged in from an older build. */
+  var VALID_TABS=['quests','leaderboard','badges','shop','stats'];
+  if(VALID_TABS.indexOf(DB.arcTab)>=0)ARC.tab=DB.arcTab;
+  if(window.SBRestore==='arcade')go('arcade'); /* the Arcade page exists only now */
   hookAddCardButton();
   snapshot();
   ARC.ready=true;
@@ -9340,7 +9398,9 @@ function boot(){
     rankOf:rankOf,
     sfx:sfx,
     pop:pop,
-    xpNeeded:xpNeeded
+    xpNeeded:xpNeeded,
+    tab:function(t){ARC.tab=t;go('arcade');},
+    currentTab:function(){return ARC.tab;}
   };
   setInterval(function(){renderHUD();window.SBGame.check();},20000);
 }
@@ -9397,6 +9457,7 @@ function buildPage(){
     '<div id="arc-hero"></div>'+
     '<div class="tabs" id="arc-tabs">'+
       '<button class="active" data-arc="quests">Daily quests</button>'+
+      '<button data-arc="leaderboard">Leaderboard</button>'+
       '<button data-arc="badges">Badges</button>'+
       '<button data-arc="shop">Shop</button>'+
       '<button data-arc="stats">Stats</button>'+
@@ -9404,7 +9465,7 @@ function buildPage(){
     '<div id="arc-body"></div>';
   main.appendChild(sec);
   sec.querySelectorAll('#arc-tabs button').forEach(function(b){
-    b.onclick=function(){ARC.tab=b.dataset.arc;renderPage();};
+    b.onclick=function(){ARC.tab=b.dataset.arc;DB.arcTab=ARC.tab;persist();renderPage();};
   });
 }
 
@@ -9415,6 +9476,14 @@ function renderPage(){
   renderHero();
   var body=$('arc-body');if(!body)return;
   if(ARC.tab==='quests')body.innerHTML=questsHTML();
+  else if(ARC.tab==='leaderboard'){
+    /* The Leaderboard is its own layer; the Arcade just gives it a container
+       and lets it own everything inside. */
+    body.innerHTML='<div id="lb-mount"></div>';
+    if(window.SBLeaderboard)window.SBLeaderboard.open();
+    else body.innerHTML='<p class="sub">The leaderboard could not start.</p>';
+    return;
+  }
   else if(ARC.tab==='badges')body.innerHTML=badgesHTML();
   else if(ARC.tab==='shop')body.innerHTML=shopHTML();
   else body.innerHTML=statsHTML();
@@ -10169,7 +10238,7 @@ window.ppAnswer=function(idx){
 
 <!-- ============ LEADERBOARD — ranks every player by level ============ -->
 <style id="lb-css">
-  #page-leaderboard .lb-you{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--accent);border-radius:14px;padding:16px;margin:0 0 18px}
+  #lb-mount .lb-you{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--accent);border-radius:14px;padding:16px;margin:0 0 18px}
   .lb-row{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px;transition:transform .12s ease}
   .lb-row:hover{transform:translateX(2px)}
   .lb-row.me{border-color:var(--accent);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -10326,16 +10395,59 @@ function fetchBoard(){
 /* ------------------------------------------------------------------ crown  */
 /* Granted the instant this client observes itself in first place. Permanent:
    once crowned, always crowned, however far you later slip. */
+/* What a champion owns. Adding to these lists is all it takes to give every
+   past champion a new reward — reconcileChampion() back-fills them. */
+var CHAMPION_THEMES=['regalia'], CHAMPION_AVATARS=['crown'];
+
+/* Brings a champion's inventory up to whatever the CURRENT build says a
+   champion owns. Idempotent, so it is safe to run on every boot and every
+   fetch, and it is the thing that fixes an account crowned by an older build
+   that granted fewer rewards. Entitlement is a standing state, not a one-time
+   event, so it must be reconciled and never merely granted at the transition. */
+function reconcileChampion(){
+  if(!gameReady())return false;
+  var g=G2();
+  if(!g.crowned)return false;
+  if(!g.owned)g.owned={themes:['base'],avatars:['bear'],items:{}};
+  if(!g.owned.themes)g.owned.themes=['base'];
+  if(!g.owned.avatars)g.owned.avatars=['bear'];
+  var added=[];
+  CHAMPION_THEMES.forEach(function(t){
+    if(g.owned.themes.indexOf(t)<0){g.owned.themes.push(t);added.push((window.SBGame.themes[t]||{}).name||t);}
+  });
+  CHAMPION_AVATARS.forEach(function(a){
+    if(g.owned.avatars.indexOf(a)<0){g.owned.avatars.push(a);added.push('Sovereign');}
+  });
+  if(!added.length)return false;
+  try{window.SBGame.check();}catch(e){}
+  window.SBGame.persist();
+  try{window.SBGame.sfx('buy');}catch(e){}
+  if(typeof toast==='function')toast('\uD83D\uDC51 Champion reward unlocked: '+added.join(' and ')+' \u2014 find it in the Arcade shop');
+  try{window.SBGame.refresh();}catch(e){}
+  render();
+  return true;
+}
+
+/* Is this client currently sitting at #1? If so it is crowned — now, or at any
+   point before. The crown is never taken away. */
 function evaluateCrown(rows){
-  if(!rows.length||!canRank()||!gameReady())return;
+  /* Run first and unconditionally: a standing champion may be owed rewards that
+     did not exist when they won, whether or not they are still on top today. */
+  reconcileChampion();
+  if(!rows||!rows.length||!canRank()||!gameReady())return;
   var uid=cloudUid(), g=G2();
   if(rows[0].uid!==uid)return;
-  if(g.crowned)return;
+  if(g.crowned){
+    /* Already a champion and still on top — nothing new to award, but keep the
+       published row honest so other players see the crown. */
+    rows[0].crowned=true;
+    return;
+  }
   g.crowned=true;
   g.crownedAt=Date.now();
   rows[0].crowned=true;   /* the row we just read predates the crown — don't redraw it stale */
-  if(g.owned.themes.indexOf('regalia')<0)g.owned.themes.push('regalia');
-  if(g.owned.avatars.indexOf('crown')<0)g.owned.avatars.push('crown');
+  CHAMPION_THEMES.forEach(function(t){if(g.owned.themes.indexOf(t)<0)g.owned.themes.push(t);});
+  CHAMPION_AVATARS.forEach(function(a){if(g.owned.avatars.indexOf(a)<0)g.owned.avatars.push(a);});
   try{window.SBGame.sfx('level');}catch(e){}
   try{window.SBGame.check();}catch(e){}   /* fires the Monarch badge */
   window.SBGame.persist();
@@ -10457,77 +10569,82 @@ function render(){
 }
 
 /* ------------------------------------------------------------------- page  */
-function buildPage(){
-  var main=document.querySelector('.main');if(!main||$('page-leaderboard'))return;
-  var sec=document.createElement('section');
-  sec.className='page';sec.id='page-leaderboard';
-  sec.innerHTML=
-    '<div class="between" style="align-items:flex-start">'+
-      '<div><h2 class="title">Leaderboard</h2>'+
-      '<p class="sub">Every player, ranked by level. Level comes from time put in — cards reviewed, sessions finished, quests cleared — so this board measures effort, not ability. Nobody is ranked on their scores.</p></div>'+
-      '<button class="btn ghost sm" id="lb-refresh" style="flex:none;margin-top:4px">↻ Refresh</button>'+
-    '</div>'+
-    '<div id="lb-body" style="margin-top:16px"></div>';
-  main.appendChild(sec);
-
-  var nav=document.querySelector('.nav-btn[data-page="settings"]');
-  var btn=document.createElement('button');
-  btn.className='nav-btn';btn.id='lb-nav';
-  btn.innerHTML='<span class="ic">⛃</span><span class="lbl">Leaderboard</span>';
-  btn.onclick=function(){go('leaderboard');};
-  if(nav)nav.parentNode.insertBefore(btn,nav);
-  else document.querySelector('.sidebar').appendChild(btn);
-
+/* The board lives inside the Arcade as a tab, so this layer only builds the
+   celebration overlay up front and fills in its pane when the tab is opened. */
+function buildChrome2(){
+  if($('lb-crowning'))return;
   var over=document.createElement('div');
   over.id='lb-crowning';over.innerHTML='<div class="box"></div>';
   document.body.appendChild(over);
-
-  $('lb-refresh').onclick=function(){publish(true).then(fetchBoard);};
+}
+/* Paints the tab's shell into the Arcade's body, once per tab open. */
+function mountPane(){
+  var host=$('lb-mount');
+  if(!host)return false;
+  if(!$('lb-body')){
+    host.innerHTML=
+      '<div class="between" style="align-items:flex-start;gap:14px">'+
+        '<p class="sub" style="margin:0">Every player, ranked by level. Level comes from time put in \u2014 cards reviewed, sessions finished, quests cleared \u2014 so this board measures effort, not ability. Nobody is ranked on their scores.</p>'+
+        '<button class="btn ghost sm" id="lb-refresh" style="flex:none">\u21bb Refresh</button>'+
+      '</div>'+
+      '<div id="lb-body" style="margin-top:16px"></div>';
+    $('lb-refresh').onclick=function(){publish(true).then(fetchBoard);};
+  }
+  return true;
 }
 
 /* ------------------------------------------------------------------- boot  */
+function paneVisible(){
+  var pg=$('page-arcade');
+  return !!($('lb-body')&&pg&&pg.classList.contains('active'));
+}
 function open(){
+  if(!mountPane())return;
   LB.open=true;
+  reconcileChampion();
   render();
   if(!canRank())return;
   publish(true).then(function(){return fetchBoard();});
   clearInterval(LB.timer);
-  /* While the page is open, keep checking. This is what makes "held #1 for any
-     amount of time" reachable without the student sitting and staring. */
+  /* While the tab is showing, keep checking. This is what makes "held #1 for
+     any amount of time" reachable without the student sitting and staring. */
   LB.timer=setInterval(function(){
-    if(!document.getElementById('page-leaderboard').classList.contains('active')){clearInterval(LB.timer);LB.open=false;return;}
+    if(!paneVisible()){clearInterval(LB.timer);LB.open=false;return;}
     fetchBoard();
   },45000);
 }
 
 function boot(){
   if(typeof go!=='function'||!document.querySelector('.main'))return setTimeout(boot,250);
-  buildPage();
-  /* The app captured its page/nav NodeLists at load, long before this section
-     existed, so go() cannot see it. Drive the section directly, exactly as the
-     Arcade layer does for its own page. */
-  var origGo=window.go, myNav=$('lb-nav'), myPage=$('page-leaderboard');
-  window.go=function(p){
-    if(p==='leaderboard'){
-      if(DB&&typeof DB==='object')DB.lastPage=p;
-      try{document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active');});}catch(e){}
-      try{document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});}catch(e){}
-      myPage.classList.add('active');
-      myNav.classList.add('active');
-      open();
-      window.scrollTo(0,0);
-      return;
-    }
-    myPage.classList.remove('active');
-    myNav.classList.remove('active');
-    return origGo.apply(this,arguments);
-  };
+  buildChrome2();
   /* Publish quietly in the background so a player appears on the board without
      ever opening it, and so a level-up they earned elsewhere is reflected. */
   setInterval(function(){if(canRank()&&gameReady())publish(false);},60000);
-  setTimeout(function(){if(canRank()&&gameReady())publish(true).then(fetchBoard);},4000);
+
+  /* Standing state, checked on a schedule — not only at the moment you happen
+     to be looking. Reconcile immediately (cheap, local), and re-read the board
+     periodically so reaching #1 registers even if the page is never opened.
+     Slower than the 45s poll used while the page IS open, to stay light on
+     Firestore reads. */
+  setInterval(function(){
+    if(!gameReady())return;
+    reconcileChampion();
+    if(canRank()&&!LB.open)fetchBoard();   /* LB.open means the tab is showing and already polling */
+  },300000);
+
+  /* Cloud sign-in is async and can take a while, so keep looking for it rather
+     than giving up after one try. Once the account is live, publish, read the
+     board, and settle any rewards that are owed. */
+  var tries=0;
+  var startup=setInterval(function(){
+    if(gameReady())reconcileChampion();
+    if(canRank()&&gameReady()){
+      clearInterval(startup);
+      publish(true).then(fetchBoard);
+    } else if(++tries>40) clearInterval(startup);   /* ~2 minutes, then stop */
+  },3000);
   window.SBLeaderboard={publish:publish,fetch:fetchBoard,state:LB,rules:RULES_SNIPPET,
-    evaluate:evaluateCrown,open:open,render:render};
+    evaluate:evaluateCrown,open:open,render:render,reconcile:reconcileChampion};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
 else boot();

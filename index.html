@@ -8508,6 +8508,12 @@ window.addEventListener('load',function(){
   .arc-hud-top{display:flex;align-items:center;gap:9px}
   .arc-av{width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:19px;line-height:1}
   .arc-hud.gold .arc-av{background:linear-gradient(135deg,#f0d79a,#d8b25e);border-color:#c79f47}
+  /* Past champions are marked on the avatar itself rather than by an emoji
+     stuck beside their name — the buddy is the profile picture. */
+  @keyframes sb-champring{0%,100%{box-shadow:0 0 0 0 rgba(255,215,122,.5),0 0 10px rgba(255,215,122,.28)}50%{box-shadow:0 0 0 4px rgba(255,215,122,0),0 0 18px rgba(255,215,122,.5)}}
+  .arc-av.champ,.lb-av.champ{border-color:#ffd77a !important;animation:sb-champring 2.9s ease-in-out infinite}
+  .arc-hero-av.champ{filter:drop-shadow(0 0 12px rgba(255,215,122,.55))}
+  @media (prefers-reduced-motion:reduce){.arc-av.champ,.lb-av.champ{animation:none}}
   .arc-hud-id{flex:1;min-width:0}
   .arc-lvl{font-family:'Fraunces',Georgia,serif;font-size:14px;font-weight:700;line-height:1.15}
   .arc-title{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -8611,10 +8617,111 @@ var THEMES={
   /* Not for sale at any price. The only way in is to hold #1 on the leaderboard,
      which is why `price` is null — the shop renders it locked instead of buyable. */
   regalia:{name:'Regalia',price:null,emoji:'👑',locked:'Held #1 on the leaderboard',
-    swatch:['#17131f','#e8c26a','#c9a2e8'],
-    vars:{'--bg':'#17131f','--bg2':'#1e1829','--panel':'#251d33','--panel2':'#302545','--line':'#3f3159',
-      '--txt':'#f6f0ff','--muted':'#b4a5cc','--faint':'#867899','--accent':'#e8c26a','--accent2':'#c9a2e8',
-      '--warn':'#e8c26a','--bad':'#e0808f','--ap':'#a98ae0','--shadow':'0 6px 28px rgba(232,194,106,.22)'}}
+    ds:'The champion\u2019s skin. Gold on a moving void, shimmering headings, a crown over everything. Nothing else in the shop looks like it, and nothing else ever will.',
+    swatch:['#0b0714','#ffd77a','#7be3ff'],
+    vars:{'--bg':'#0b0714','--bg2':'#120c1f','--panel':'#181029','--panel2':'#221635','--line':'#3a2a55',
+      '--txt':'#fdf7ff','--muted':'#bfa9dd','--faint':'#8b76ab','--accent':'#ffd77a','--accent2':'#7be3ff',
+      '--warn':'#ffd77a','--bad':'#ff7a9c','--ap':'#c69bff','--shadow':'0 8px 34px rgba(255,215,122,.20)'},
+    /* Regalia is not a palette swap. It is the trophy for holding first place,
+       so it ships a whole stylesheet: a living gold-and-void arcade skin that
+       nothing else in the shop is allowed to look like. Mounted by applyTheme(). */
+    css:`
+    @keyframes rg-drift{0%{background-position:0% 50%,100% 50%}50%{background-position:100% 50%,0% 50%}100%{background-position:0% 50%,100% 50%}}
+    @keyframes rg-shimmer{0%{background-position:-220% 0}100%{background-position:220% 0}}
+    @keyframes rg-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,215,122,.55),0 0 16px rgba(255,215,122,.30)}50%{box-shadow:0 0 0 6px rgba(255,215,122,0),0 0 26px rgba(255,215,122,.55)}}
+    @keyframes rg-sweep{0%{transform:translateX(-120%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
+    @keyframes rg-float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-9px) rotate(4deg)}}
+
+    /* the void, slowly moving */
+    body{
+      background:
+        radial-gradient(1100px 620px at 12% -10%, rgba(198,155,255,.20), transparent 60%),
+        radial-gradient(900px 560px at 105% 8%, rgba(123,227,255,.14), transparent 60%),
+        var(--bg) !important;
+      background-size:180% 180%,180% 180% !important;
+      animation:rg-drift 34s ease-in-out infinite;
+    }
+    /* a crown presiding over the whole app */
+    body::before{
+      content:'👑';position:fixed;top:52px;right:38px;font-size:150px;line-height:1;
+      opacity:.05;pointer-events:none;z-index:0;animation:rg-float 13s ease-in-out infinite;
+    }
+    .main,.sidebar{position:relative;z-index:1}
+
+    /* gilded panels */
+    .card,.arc-stat,.lb-row,.arc-shop,.qblock{
+      border-color:rgba(255,215,122,.22) !important;
+      background-image:linear-gradient(180deg,rgba(255,215,122,.05),transparent 42%) !important;
+      box-shadow:inset 0 1px 0 rgba(255,215,122,.14);
+    }
+    .card,.arc-stat{position:relative}
+    .card::after,.arc-stat::after{
+      content:'';position:absolute;inset:0 0 auto 0;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(255,215,122,.8),transparent);
+    }
+
+    /* headings struck in moving gold */
+    .title,#arc-hero h3,#lb-body .lb-you .lb-nm{
+      background:linear-gradient(100deg,#ffd77a 12%,#fff6d8 26%,#ffd77a 40%,#c69bff 62%,#ffd77a 82%);
+      background-size:220% 100%;
+      -webkit-background-clip:text;background-clip:text;
+      -webkit-text-fill-color:transparent;color:transparent;
+      animation:rg-shimmer 7s linear infinite;
+    }
+
+    /* buttons get a sheen that sweeps across on hover */
+    .btn{position:relative;overflow:hidden}
+    .btn:not(.ghost):not(.sec){
+      background:linear-gradient(140deg,#ffd77a,#e8b34e 58%,#ffe9ae) !important;
+      color:#2a1d05 !important;border-color:#ffd77a !important;font-weight:700;
+      box-shadow:0 3px 14px rgba(255,215,122,.30);
+    }
+    .btn:not(.ghost):not(.sec)::after{
+      content:'';position:absolute;top:-40%;bottom:-40%;left:0;width:34%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+      transform:translateX(-120%) skewX(-18deg);
+    }
+    .btn:not(.ghost):not(.sec):hover::after{animation:rg-sweep .75s ease-out}
+    .btn.sec{border-color:rgba(255,215,122,.45) !important;color:#ffd77a !important}
+
+    /* the sidebar reads like a marquee */
+    .nav-btn::before{background:linear-gradient(180deg,#ffd77a,#c69bff) !important}
+    .nav-btn.active{
+      background:linear-gradient(90deg,rgba(255,215,122,.16),transparent) !important;
+      color:#ffe9ae !important;
+      box-shadow:inset 0 0 0 1px rgba(255,215,122,.28);
+    }
+    .nav-btn.active .ic{color:#ffd77a;filter:drop-shadow(0 0 7px rgba(255,215,122,.75))}
+    .brand h1{color:#ffd77a}
+
+    /* XP and progress read as molten gold */
+    .progress>div,.arc-bar>div{
+      background:linear-gradient(90deg,#e8b34e,#ffe9ae,#7be3ff,#ffd77a) !important;
+      background-size:280% 100% !important;
+      animation:rg-shimmer 3.4s linear infinite;
+    }
+    .arc-hud{
+      border-color:rgba(255,215,122,.34) !important;
+      background:linear-gradient(150deg,rgba(255,215,122,.11),rgba(198,155,255,.07)) !important;
+    }
+    .arc-hud .arc-av{
+      background:linear-gradient(135deg,#ffe9ae,#e8b34e) !important;
+      border-color:#ffd77a !important;animation:rg-pulse 2.8s ease-in-out infinite;
+    }
+    .pill,.lb-tier{border-color:rgba(255,215,122,.42) !important}
+    .lb-row.top1{
+      border-color:#ffd77a !important;
+      background:linear-gradient(100deg,rgba(255,215,122,.16),transparent 60%) !important;
+      box-shadow:inset 0 0 0 1px rgba(255,215,122,.5),0 0 26px rgba(255,215,122,.16) !important;
+    }
+    ::selection{background:rgba(255,215,122,.32)}
+
+    @media (prefers-reduced-motion:reduce){
+      body,body::before,.title,#arc-hero h3,.progress>div,.arc-bar>div,.arc-hud .arc-av,
+      #lb-body .lb-you .lb-nm{animation:none !important}
+      .btn:not(.ghost):not(.sec):hover::after{animation:none !important}
+    }
+    `}
 };
 var AVATARS=[
   {id:'bear',    em:'\uD83D\uDC3B',name:'Barley',   price:0,   note:'The original study buddy.'},
@@ -8633,7 +8740,11 @@ var AVATARS=[
   {id:'alien',   em:'\uD83D\uDC7E',name:'Pixel',    price:1100,note:'Came for the arcade, stayed for the XP.'},
   {id:'unicorn', em:'\uD83E\uDD84',name:'Prism',    price:1400,note:'Rare — like a perfect Final Exam.'},
   {id:'wyrm',    em:'\uD83D\uDC09',name:'Wyrm',     price:2000,note:'Only seen on Diamond ranks.'},
-  {id:'oracle',  em:'\uD83D\uDD2E',name:'Oracle',   price:2600,note:'Already knows what is on the test.'}
+  {id:'oracle',  em:'\uD83D\uDD2E',name:'Oracle',   price:2600,note:'Already knows what is on the test.'},
+  /* Not for sale. price:null means the shop renders it locked and buy() refuses it.
+     The only way to wear this one is to have held #1 on the leaderboard. */
+  {id:'crown',   em:'\uD83D\uDC51',name:'Sovereign',price:null,locked:'Held #1 on the leaderboard',
+    note:'Worn only by players who have topped the board. It cannot be bought.'}
 ];
 var POWERUPS=[
   {id:'freeze',em:'🧊',name:'Streak Freeze',price:150,desc:'Miss a day and this is spent automatically to keep your streak alive. Stackable.'},
@@ -8882,6 +8993,12 @@ function applyTheme(id){
   var all={};Object.keys(THEMES).forEach(function(k){var v=THEMES[k].vars;if(v)Object.keys(v).forEach(function(p){all[p]=1;});});
   Object.keys(all).forEach(function(p){root.style.removeProperty(p);});
   if(t.vars)Object.keys(t.vars).forEach(function(p){root.style.setProperty(p,t.vars[p]);});
+  /* A theme may also ship its own stylesheet, not just a palette. Only one is
+     ever mounted, and switching away removes it completely. */
+  var slot=document.getElementById('sb-theme-css');
+  if(!slot){slot=document.createElement('style');slot.id='sb-theme-css';document.head.appendChild(slot);}
+  slot.textContent=t.css||'';
+  document.documentElement.setAttribute('data-theme',key);
 }
 function avatarEmoji(){
   var id=G().equipped.avatar,a=AVATARS.filter(function(x){return x.id===id;})[0];
@@ -9263,8 +9380,8 @@ function renderHUD(){
   hud.innerHTML=
     (claimable?'<span class="arc-dot">'+claimable+'</span>':'')+
     '<div class="arc-hud-top">'+
-      '<div class="arc-av">'+avatarEmoji()+'</div>'+
-      '<div class="arc-hud-id"><div class="arc-lvl">'+(g.crowned?'<span style="color:#e8c26a">\uD83D\uDC51</span> ':'')+'Level '+g.level+'</div><div class="arc-title">'+esc2(titleFor(g.level))+(boosted()?' · ⚡2x':'')+'</div></div>'+
+      '<div class="arc-av'+(g.crowned?' champ':'')+'">'+avatarEmoji()+'</div>'+
+      '<div class="arc-hud-id"><div class="arc-lvl">Level '+g.level+'</div><div class="arc-title">'+esc2(titleFor(g.level))+(boosted()?' · ⚡2x':'')+'</div></div>'+
     '</div>'+
     '<div class="arc-bar"><div style="width:'+pct+'%"></div></div>'+
     '<div class="arc-hud-foot"><span>'+g.xp+' / '+need+' XP</span><span class="arc-coins">'+g.coins+' 🪙</span></div>';
@@ -9312,8 +9429,8 @@ function renderHero(){
     '<div class="card" style="margin:0 0 18px;background:linear-gradient(135deg,var(--panel),var(--panel2))">'+
       '<div class="between">'+
         '<div class="row" style="gap:14px">'+
-          '<div style="font-size:44px;line-height:1">'+avatarEmoji()+'</div>'+
-          '<div><h3 style="margin:0;font-size:22px">'+(g.crowned?'<span style="color:#e8c26a" title="Held #1 on the leaderboard">\uD83D\uDC51</span> ':'')+'Level '+g.level+' · '+esc2(titleFor(g.level))+'</h3>'+
+          '<div class="arc-hero-av'+(g.crowned?' champ':'')+'" style="font-size:44px;line-height:1">'+avatarEmoji()+'</div>'+
+          '<div><h3 style="margin:0;font-size:22px">Level '+g.level+' · '+esc2(titleFor(g.level))+'</h3>'+
             '<div class="sub" style="margin:2px 0 0">'+g.xp+' / '+need+' XP to level '+(g.level+1)+'</div></div>'+
         '</div>'+
         '<div class="row">'+
@@ -9372,7 +9489,7 @@ function shopHTML(){
     return '<div class="arc-shop">'+
       '<div class="sw">'+t.swatch.map(function(c){return '<i style="background:'+c+'"></i>';}).join('')+'</div>'+
       '<div class="nm">'+t.emoji+' '+esc2(t.name)+'</div>'+
-      '<div class="ds">Restyles the whole app — every page, card and button.</div>'+
+      '<div class="ds">'+esc2(t.ds||'Restyles the whole app — every page, card and button.')+'</div>'+
       (on?'<button class="btn sm sec" disabled>Equipped</button>'
         :owned?'<button class="btn sm" data-arcequip="theme|'+k+'">Use this theme</button>'
         :t.price==null?'<button class="btn sm sec" disabled title="'+esc2(t.locked||'Locked')+'">🔒 '+esc2(t.locked||'Locked')+'</button>'
@@ -9386,6 +9503,7 @@ function shopHTML(){
       '<div class="ds">'+esc2(a.note||'Your study buddy in the sidebar and on level-up.')+'</div>'+
       (on?'<button class="btn sm sec" disabled>Equipped</button>'
         :owned?'<button class="btn sm" data-arcequip="avatar|'+a.id+'">Equip</button>'
+        :a.price==null?'<button class="btn sm sec" disabled title="'+esc2(a.locked||'Locked')+'">\uD83D\uDD12 '+esc2(a.locked||'Locked')+'</button>'
         :'<button class="btn sm" data-arcbuy="avatar|'+a.id+'"><span class="arc-price">'+a.price+' 🪙</span></button>')+
     '</div>';
   }).join('');
@@ -10079,6 +10197,11 @@ window.ppAnswer=function(idx){
   #lb-crowning .big{font-size:64px;line-height:1;animation:lb-crownin .6s cubic-bezier(.2,1.3,.4,1) both}
   #lb-crowning h3{margin:14px 0 6px;font-size:23px}
   #lb-crowning p{color:var(--muted);font-size:14px;margin:0 0 18px;line-height:1.6}
+  .lb-spoils{display:flex;flex-direction:column;gap:9px;text-align:left}
+  .lb-spoil{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid rgba(255,215,122,.4);border-radius:12px;background:rgba(255,215,122,.07)}
+  .lb-spoil .ic{font-size:24px;width:30px;text-align:center;flex:none;color:#ffd77a}
+  .lb-spoil b{display:block;font-size:14px}
+  .lb-spoil span{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
 </style>
 
 <script id="lb-js">
@@ -10212,6 +10335,7 @@ function evaluateCrown(rows){
   g.crownedAt=Date.now();
   rows[0].crowned=true;   /* the row we just read predates the crown — don't redraw it stale */
   if(g.owned.themes.indexOf('regalia')<0)g.owned.themes.push('regalia');
+  if(g.owned.avatars.indexOf('crown')<0)g.owned.avatars.push('crown');
   try{window.SBGame.sfx('level');}catch(e){}
   try{window.SBGame.check();}catch(e){}   /* fires the Monarch badge */
   window.SBGame.persist();
@@ -10224,14 +10348,22 @@ function showCrowning(){
   box.querySelector('.box').innerHTML=
     '<div class="big">👑</div>'+
     '<h3>You took first place</h3>'+
-    '<p>The crown is yours permanently — it stays on your name even if someone passes you. '+
-    'It also unlocks <strong>Regalia</strong>, a theme that cannot be bought at any price.</p>'+
+    '<p>Two things are yours permanently, and neither can be bought at any price:</p>'+
+    '<div class="lb-spoils">'+
+      '<div class="lb-spoil"><div class="ic">👑</div><div><b>Sovereign</b><span>A crown to wear as your buddy</span></div></div>'+
+      '<div class="lb-spoil"><div class="ic">✦</div><div><b>Regalia</b><span>The champion&rsquo;s arcade skin</span></div></div>'+
+    '</div>'+
+    '<p style="margin:16px 0 18px">They stay yours even if someone passes you tomorrow.</p>'+
     '<div class="row" style="justify-content:center">'+
-      '<button class="btn" id="lb-wear">Wear Regalia</button>'+
+      '<button class="btn" id="lb-wear">Wear both</button>'+
       '<button class="btn sec" id="lb-later">Later</button>'+
     '</div>';
   box.classList.add('show');
-  $('lb-wear').onclick=function(){window.SBGame.equip('theme','regalia');box.classList.remove('show');render();};
+  $('lb-wear').onclick=function(){
+    window.SBGame.equip('avatar','crown');
+    window.SBGame.equip('theme','regalia');
+    box.classList.remove('show');render();
+  };
   $('lb-later').onclick=function(){box.classList.remove('show');};
 }
 
@@ -10245,10 +10377,10 @@ function rowHTML(r,pos,meUid){
   var cls='lb-row'+(r.uid===meUid?' me':'')+(pos<=3?' top'+pos:'');
   return '<div class="'+cls+'">'+
     '<div class="lb-pos">'+pos+'</div>'+
-    '<div class="lb-av">'+esc3(r.avatar)+'</div>'+
+    '<div class="lb-av'+(r.crowned?' champ':'')+'" title="'+(r.crowned?'Has held #1':'')+'">'+esc3(r.avatar)+'</div>'+
     '<div class="lb-id">'+
-      '<div class="lb-nm">'+(r.crowned?'<span class="lb-crown" title="Held #1 on the leaderboard">👑</span>':'')+
-        esc3(r.name)+(r.uid===meUid?' <span style="color:var(--accent);font-weight:600;font-size:12px">· you</span>':'')+'</div>'+
+      '<div class="lb-nm">'+esc3(r.name)+
+        (r.uid===meUid?' <span style="color:var(--accent);font-weight:600;font-size:12px">· you</span>':'')+'</div>'+
       '<div class="lb-sub">'+tierChip(r.level)+'</div>'+
     '</div>'+
     '<div class="lb-lvl"><div class="n">'+r.level+'</div><div class="l">Level</div></div>'+
@@ -10267,10 +10399,10 @@ function selfCardHTML(){
   return '<div class="lb-you">'+
     '<div class="between" style="align-items:center;gap:14px">'+
       '<div style="display:flex;align-items:center;gap:13px;min-width:0">'+
-        '<div class="lb-av" style="width:46px;height:46px;font-size:25px">'+(window.SBGame.avatar?window.SBGame.avatar():'🐻')+'</div>'+
+        '<div class="lb-av'+(g.crowned?' champ':'')+'" style="width:46px;height:46px;font-size:25px">'+(window.SBGame.avatar?window.SBGame.avatar():'🐻')+'</div>'+
         '<div style="min-width:0">'+
-          '<div class="lb-nm" style="font-size:16px">'+(g.crowned?'<span class="lb-crown">👑</span>':'')+esc3(publicName())+'</div>'+
-          '<div class="lb-sub">'+tierChip(g.level)+' · Level '+g.level+'</div>'+
+          '<div class="lb-nm" style="font-size:16px">'+esc3(publicName())+'</div>'+
+          '<div class="lb-sub">'+tierChip(g.level)+' · Level '+g.level+(g.crowned?' · <span style="color:#ffd77a;font-weight:700">Champion</span>':'')+'</div>'+
         '</div>'+
       '</div>'+
       '<div style="text-align:right;flex:none"><div id="lb-place" style="font-size:26px;font-weight:800;line-height:1">'+place+'</div>'+

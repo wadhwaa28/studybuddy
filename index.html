@@ -8350,7 +8350,7 @@ async function onAuthChange(user){
       else {
         DB=defaultDB();DB.name=(user.displayName||'').split(' ')[0]||'';
         // one-time migration of any local data into this new cloud account
-        try{const legacy=JSON.parse(localStorage.getItem(LS));if(legacy&&legacy.cards){Object.assign(DB,legacy);if(user.displayName)DB.name=(user.displayName||'').split(' ')[0];}}catch(e){}
+        try{const legacy=JSON.parse(localStorage.getItem(LS));if(legacy&&legacy.cards){Object.assign(DB,legacy);if(user.displayName)DB.name=window.SBNames?window.SBNames.safe((user.displayName||'').split(' ')[0],DB.name||''):((user.displayName||'').split(' ')[0]);}}catch(e){}
       }
     }catch(e){toast('Couldn’t load your data ('+e.message+') — starting fresh.');DB=defaultDB();}
     prepareDB();
@@ -8803,7 +8803,7 @@ var POWERUPS=[
   {id:'freeze',em:'🧊',name:'Streak Freeze',price:150,desc:'Miss a day and this is spent automatically to keep your streak alive. Stackable.'},
   {id:'boost',em:'⚡',name:'Double XP · 30 min',price:250,desc:'Every point of XP counts double for the next 30 minutes. Save it for a big study session.'},
   {id:'reroll',em:'🎲',name:'Quest Reroll',price:100,desc:'Throw out today’s daily quests and draw three fresh ones.'},
-  {id:'golden',em:'🏆',name:'Golden Buddy',price:3000,desc:'Pure flex. Plates your sidebar badge in gold, permanently.'}
+  {id:'golden',em:'\u25C8',name:'Golden Buddy',price:3000,desc:'Retires the bear and wakes up a sharper helper: it reads the page you are on, names your weakest topics from your own history, and hands you one-tap actions to fix them. Switch back to the classic buddy any time.'}
 ];
 
 var BADGES=[
@@ -8885,6 +8885,7 @@ function initGame(){
   if(!g.owned.avatars)g.owned.avatars=['bear'];
   if(!g.owned.items)g.owned.items={};
   if(!g.equipped)g.equipped={theme:'base',avatar:'bear'};
+  if(!g.equipped.helper)g.equipped.helper=(g.owned.items&&g.owned.items.golden)?'gold':'classic';
   if(g.crowned==null)g.crowned=false;          /* set once, never cleared — see the Leaderboard layer */
   if(g.freezes==null)g.freezes=1;              /* everyone starts with one */
   if(g.boostUntil==null)g.boostUntil=0;
@@ -9027,13 +9028,19 @@ function buy(kind,id){
   else if(id==='freeze'){g.freezes++;if(typeof toast==='function')toast('🧊 Streak Freeze added — you now have '+g.freezes);}
   else if(id==='boost'){g.boostUntil=Date.now()+30*60*1000;if(typeof toast==='function')toast('⚡ Double XP active for 30 minutes!');}
   else if(id==='reroll'){g.quests={date:today(),list:rollQuests(String(Date.now()))};if(typeof toast==='function')toast('🎲 New quests drawn');}
-  else if(id==='golden'){g.owned.items.golden=1;if(typeof celebrate==='function')celebrate('Golden Buddy! 🏆');}
+  else if(id==='golden'){
+    g.owned.items.golden=1;
+    g.equipped.helper='gold';
+    if(typeof celebrate==='function')celebrate('Golden Buddy is awake \u25C8');
+    try{if(window.SBBuddy)window.SBBuddy.apply();}catch(e){}
+  }
   sfx(kind==='power'?'buy':'equip');
   checkBadges();renderHUD();renderPage();persist();
 }
 function equip(kind,id){
   var g=G();
   if(kind==='theme'){g.equipped.theme=id;applyTheme(id);}
+  else if(kind==='helper'){g.equipped.helper=id;try{if(window.SBBuddy)window.SBBuddy.apply();}catch(e){}}
   else {g.equipped.avatar=id;}
   renderHUD();renderPage();persist();
 }
@@ -9436,7 +9443,7 @@ function renderHUD(){
   var hud=$('arc-hud');if(!hud||!DB.game)return;
   var g=G(),need=xpNeeded(g.level),pct=Math.min(100,Math.round(g.xp/need*100));
   var claimable=ensureQuests().filter(function(q){return !q.claimed&&q.prog>=q.goal;}).length;
-  hud.classList.toggle('gold',!!(g.owned.items&&g.owned.items.golden));
+  hud.classList.toggle('gold',g.equipped.helper==='gold');
   hud.innerHTML=
     (claimable?'<span class="arc-dot">'+claimable+'</span>':'')+
     '<div class="arc-hud-top">'+
@@ -9582,7 +9589,10 @@ function shopHTML(){
     return '<div class="arc-shop">'+
       '<div class="em">'+p.em+'</div><div class="nm">'+esc2(p.name)+'</div>'+
       '<div class="ds">'+esc2(p.desc)+esc2(extra)+'</div>'+
-      (ownedGold?'<button class="btn sm sec" disabled>Owned</button>'
+      (ownedGold
+        ? (g.equipped.helper==='gold'
+            ? '<button class="btn sm" data-arcequip="helper|classic">Switch to the classic bear</button>'
+            : '<button class="btn sm" data-arcequip="helper|gold">Wake the Golden Buddy</button>')
         :'<button class="btn sm" data-arcbuy="power|'+p.id+'"><span class="arc-price">'+p.price+' 🪙</span></button>')+
     '</div>';
   }).join('');
@@ -10645,6 +10655,633 @@ function boot(){
   },3000);
   window.SBLeaderboard={publish:publish,fetch:fetchBoard,state:LB,rules:RULES_SNIPPET,
     evaluate:evaluateCrown,open:open,render:render,reconcile:reconcileChampion};
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
+
+})();
+</script>
+
+
+<!-- ============ GOLDEN BUDDY — the upgraded study helper ============ -->
+<style id="gb-css">
+  /* ---- the buddy mark ---- */
+  #help-fab.gb{background:linear-gradient(145deg,#1d1526,#2a1f38)}
+  #help-fab.gb::after{
+    content:'';position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
+    background:conic-gradient(from 0deg,#ffd77a,#c69bff,#7be3ff,#ffd77a);
+    opacity:.55;filter:blur(6px);z-index:-1;animation:gb-spin 6s linear infinite;
+  }
+  #help-fab.gb .gb-mark{width:40px;height:40px}
+  #help-fab.gb.open .gb-mark{display:none}   /* the base rule loses to .gb .gb-mark, so restate it */
+  #help-fab.gb.open::after{opacity:.3}
+  #help-fab.gb .gb-core{animation:gb-breathe 2.6s ease-in-out infinite;transform-origin:32px 30px}
+  #help-fab.gb .gb-ring{animation:gb-orbit 9s linear infinite;transform-origin:32px 30px}
+  @keyframes gb-spin{to{transform:rotate(360deg)}}
+  @keyframes gb-breathe{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+  @keyframes gb-orbit{to{transform:rotate(360deg)}}
+
+  /* ---- the redesigned panel ---- */
+  .help-panel.gb{width:372px;border-color:#4a3a66;background:#181029;
+    box-shadow:0 18px 50px rgba(0,0,0,.45),0 0 0 1px rgba(255,215,122,.18)}
+  .help-panel.gb header{
+    background:linear-gradient(135deg,#2a1f38,#1d1526 60%);
+    border-bottom:1px solid rgba(255,215,122,.28);color:#fdf7ff;padding:13px 15px;gap:12px}
+  .help-panel.gb header .gb-av{width:38px;height:38px;flex:none;border-radius:11px;
+    background:linear-gradient(150deg,#2f2342,#231a33);border:1px solid rgba(255,215,122,.4);
+    display:grid;place-items:center}
+  .help-panel.gb header .gb-av svg{width:28px;height:28px}
+  .help-panel.gb header .hp-title{color:#ffd77a;letter-spacing:.2px}
+  .help-panel.gb header .hp-sub{color:#bfa9dd;opacity:1}
+  .help-panel.gb .hp-body{background:#120c1f}
+  .help-panel.gb .cbub.coach{background:#241a36;color:#f2ebff;border:1px solid #382a52}
+  .help-panel.gb .cbub.me{background:linear-gradient(140deg,#ffd77a,#e8b34e);color:#2a1d05}
+  .help-panel.gb .hp-foot{border-top:1px solid #33254c;background:#181029}
+  .help-panel.gb .hp-foot input{background:#120c1f;border-color:#3a2a55;color:#fdf7ff}
+  .help-panel.gb .hp-foot input::placeholder{color:#8b76ab}
+
+  /* ---- live briefing strip ---- */
+  .gb-brief{display:flex;gap:7px;padding:9px 11px;background:#1d1430;border-bottom:1px solid #33254c}
+  .gb-stat{flex:1;text-align:center;padding:6px 4px;border-radius:9px;background:#241a36;border:1px solid #382a52}
+  .gb-stat .n{font-size:15px;font-weight:800;color:#ffd77a;line-height:1;font-variant-numeric:tabular-nums}
+  .gb-stat .l{font-size:9.5px;color:#a892c9;text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+  .gb-stat.hot .n{color:#7be3ff}
+
+  /* ---- one-tap actions ---- */
+  .gb-acts{display:flex;flex-wrap:wrap;gap:6px;padding:9px 11px 2px}
+  .gb-act{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;
+    background:#241a36;border:1px solid rgba(255,215,122,.32);color:#ffe9ae;font-size:12px;
+    font-weight:600;cursor:pointer;transition:.14s;font-family:inherit}
+  .gb-act:hover{background:#2f2342;border-color:#ffd77a;transform:translateY(-1px)}
+  .gb-act .i{font-size:13px;line-height:1}
+  .gb-note{padding:6px 12px 10px;color:#8b76ab;font-size:11px}
+  @media (prefers-reduced-motion:reduce){
+    #help-fab.gb::after,#help-fab.gb .gb-core,#help-fab.gb .gb-ring{animation:none}
+  }
+</style>
+
+<script id="gb-js">
+/* ============================================================================
+   STUDY BUDDY · GOLDEN BUDDY
+   The 3,000-coin power-up used to tint the sidebar badge gold. It now replaces
+   the helper itself with a version that actually knows something: which page
+   you are on, what is due, and which topics you keep missing — read from your
+   own history, not invented. Everything it claims is checkable in the app.
+
+   The classic bear stays available; this is an equippable helper, not a
+   one-way door. Written as a wrapper layer so it can be pulled out whole.
+   ========================================================================== */
+(function(){
+'use strict';
+
+function $(id){return document.getElementById(id);}
+function esc4(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function G3(){return (window.SBGame&&window.SBGame.state)?window.SBGame.state():null;}
+function isGold(){var g=G3();return !!(g&&g.owned&&g.owned.items&&g.owned.items.golden&&g.equipped.helper==='gold');}
+
+/* ---------------------------------------------------------------- artwork */
+/* The classic buddy is a soft bear holding a book. This one is deliberately
+   not a recoloured bear: a faceted construct with an open book at its base and
+   a core that breathes, built from the same geometric language as the nav. */
+var GOLD_MARK=
+ '<svg class="gb-mark" viewBox="0 0 64 64" aria-hidden="true">'+
+   '<defs>'+
+     '<linearGradient id="gbg" x1="0" y1="0" x2="1" y2="1">'+
+       '<stop offset="0" stop-color="#ffe9ae"/><stop offset="55%" stop-color="#ffd77a"/><stop offset="100%" stop-color="#e8b34e"/>'+
+     '</linearGradient>'+
+     '<linearGradient id="gbg2" x1="0" y1="0" x2="0" y2="1">'+
+       '<stop offset="0" stop-color="#c69bff"/><stop offset="100%" stop-color="#7be3ff"/>'+
+     '</linearGradient>'+
+   '</defs>'+
+   /* orbiting ring */
+   '<ellipse class="gb-ring" cx="32" cy="30" rx="20" ry="7.5" fill="none" stroke="url(#gbg2)" stroke-width="1.6" opacity=".75"/>'+
+   /* faceted head */
+   '<path d="M32 12 L45 21 L45 35 L32 44 L19 35 L19 21 Z" fill="url(#gbg)"/>'+
+   '<path d="M32 12 L45 21 L32 28 Z" fill="#fff8e4" opacity=".8"/>'+
+   '<path d="M19 21 L32 28 L32 44 L19 35 Z" fill="#000" opacity=".22"/>'+
+   '<path d="M32 12 L45 21 L45 35 L32 44 L19 35 L19 21 Z" fill="none" stroke="#fff6d8" stroke-width=".9" opacity=".55"/>'+
+   /* eyes + a level, friendly mouth */
+   '<circle cx="27.5" cy="27" r="2.1" fill="#2a1d05"/><circle cx="36.5" cy="27" r="2.1" fill="#2a1d05"/>'+
+   '<path d="M28 33.5 Q32 36.5 36 33.5" fill="none" stroke="#2a1d05" stroke-width="1.9" stroke-linecap="round"/>'+
+   /* breathing core */
+   '<circle class="gb-core" cx="32" cy="30" r="15" fill="none" stroke="#fff6d8" stroke-width="1.1" opacity=".5"/>'+
+   /* open book at the base, carried over from the classic buddy */
+   '<path d="M32 47 C28 45 22.5 45 18 46.5 L18 56 C22.5 54.5 28 54.5 32 56.5 Z" fill="url(#gbg)"/>'+
+   '<path d="M32 47 C36 45 41.5 45 46 46.5 L46 56 C41.5 54.5 36 54.5 32 56.5 Z" fill="#e8b34e"/>'+
+ '</svg>';
+
+var CLASSIC_MARK=
+ '<svg viewBox="0 0 64 64" aria-hidden="true">'+
+   '<circle cx="32" cy="21" r="9" fill="#fdfaf3"/>'+
+   '<circle cx="29" cy="20" r="1.5" fill="#3f382f"/><circle cx="35" cy="20" r="1.5" fill="#3f382f"/>'+
+   '<path d="M29 23.5 Q32 26.5 35 23.5" fill="none" stroke="#3f382f" stroke-width="1.8" stroke-linecap="round"/>'+
+   '<path d="M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z" fill="#fdfaf3"/>'+
+   '<path d="M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z" fill="#f1e8d8"/>'+
+ '</svg>';
+
+/* --------------------------------------------------------------- the data */
+/* Everything below is read from the student's own saved history. Nothing here
+   is guessed — if the buddy names a weak topic, they missed it on a real test. */
+function safeDue(){try{return (typeof dueCount==='function')?dueCount():0;}catch(e){return 0;}}
+function streakDays(){return (DB&&DB.streak&&DB.streak.count)||0;}
+function weakTopics(n){
+  var counts={};
+  ((DB&&DB.history)||[]).forEach(function(t){
+    (t.missed||[]).forEach(function(top){counts[top]=(counts[top]||0)+1;});
+  });
+  return Object.keys(counts).map(function(k){return {topic:k,n:counts[k]};})
+    .sort(function(a,b){return b.n-a.n;}).slice(0,n||3);
+}
+function dueAssignments(){
+  var now=new Date(); now.setHours(0,0,0,0);
+  return ((DB&&DB.assignments)||[]).filter(function(a){
+    if(!a.due)return false;
+    if(typeof isDoneStatus==='function'&&isDoneStatus(a.status))return false;
+    var d=new Date(a.due+'T00:00:00');
+    return (d-now)/86400000<=3;
+  });
+}
+function untestedCourses(){
+  return (typeof SUBJECTS!=='undefined'?SUBJECTS:[]).filter(function(c){
+    return (typeof hasBank==='function'&&hasBank(c.id)) && !((DB.tests||{})[c.id]);
+  });
+}
+function pageName(){
+  var el=document.querySelector('.page.active');
+  if(!el)return '';
+  return (el.id||'').replace('page-','');
+}
+var PAGE_LABEL={dashboard:'the dashboard',goals:'your goals',resources:'Learn',recall:'Flashcards',
+  pomodoro:'the focus timer',feynman:'Feynman',practice:'Practice & Tests',progress:'My Progress',
+  coursework:'Coursework',schedule:'your schedule',arcade:'the Arcade',settings:'Settings'};
+
+/* A compact briefing the AI can actually reason over. */
+function briefing(){
+  var g=G3(), weak=weakTopics(3), asg=dueAssignments();
+  var lines=[];
+  lines.push('Page they are on: '+(PAGE_LABEL[pageName()]||pageName()||'unknown'));
+  if(g)lines.push('Level '+g.level+' ('+(window.SBGame.title?window.SBGame.title(g.level):'')+'), '+g.coins+' coins');
+  lines.push('Day streak: '+streakDays());
+  lines.push('Flashcards due right now: '+safeDue());
+  lines.push('Courses: '+((typeof SUBJECTS!=='undefined'?SUBJECTS:[]).map(function(c){return c.name;}).join(', ')||'none'));
+  if(weak.length)lines.push('Topics they keep missing on tests: '+weak.map(function(w){return w.topic+' ('+w.n+'x)';}).join(', '));
+  else lines.push('No recurring weak topics recorded yet.');
+  if(asg.length)lines.push('Assignments due within 3 days: '+asg.map(function(a){return a.title;}).join(', '));
+  var ut=untestedCourses();
+  if(ut.length)lines.push('Courses never tested: '+ut.map(function(c){return c.name;}).join(', '));
+  return lines.join('\n');
+}
+
+/* ------------------------------------------------------------- the greeting */
+/* Leads with the single most useful thing, rather than a generic hello. */
+function greeting(){
+  var due=safeDue(), weak=weakTopics(1), asg=dueAssignments(), st=streakDays(), pg=pageName();
+  if(asg.length)
+    return 'You have '+asg.length+' assignment'+(asg.length===1?'':'s')+' due in the next few days — '+
+           asg.slice(0,2).map(function(a){return '“'+a.title+'”';}).join(' and ')+
+           '. Want to plan the work, or shall we study something first?';
+  if(due>=20)
+    return due+' cards are due. That is a real session, not a quick one — I would start there and let the rest wait.';
+  if(weak.length)
+    return 'Looking at your test history, '+weak[0].topic+' has caught you out '+weak[0].n+' time'+(weak[0].n===1?'':'s')+
+           '. That is the highest-value thing to fix right now'+
+           (due>0?', ahead of the '+due+' card'+(due===1?'':'s')+' also waiting.':'.');
+  if(due>0)
+    return due+' card'+(due===1?'':'s')+' due. Small session, then we can dig into something harder.';
+  if(st>=3)
+    return st+' days in a row. Nothing is overdue, so this is a good moment to push into a Gauntlet rather than coast.';
+  var ut=untestedCourses();
+  if(ut.length)
+    return 'Nothing is due. You have never tested '+ut[0].name+' — that is the fastest way to find out what you actually do not know.';
+  return 'Nothing is overdue and nothing is on fire. What do you want to work on? I can see your courses, your streak and every topic you have missed.';
+}
+
+/* --------------------------------------------------------- one-tap actions */
+/* Each action does something real: it navigates, or it starts a session. */
+function actions(){
+  var out=[], due=safeDue(), weak=weakTopics(1), asg=dueAssignments(), pg=pageName();
+  if(due>0)out.push({i:'⦯',t:'Review '+due+' due card'+(due===1?'':'s'),go:function(){go('recall');}});
+  if(weak.length){
+    var c=(typeof SUBJECTS!=='undefined'?SUBJECTS:[]).filter(function(x){return (typeof hasBank==='function')&&hasBank(x.id);})[0];
+    out.push({i:'⚑',t:'Drill '+weak[0].topic,go:function(){
+      go('practice');
+      if(c&&typeof startPractice==='function')setTimeout(function(){startPractice(c.id);},60);
+    }});
+  }
+  if(asg.length)out.push({i:'◨',t:'Open coursework',go:function(){go('coursework');}});
+  if(pg!=='pomodoro')out.push({i:'◷',t:'Start a focus block',go:function(){go('pomodoro');}});
+  var ut=untestedCourses();
+  if(ut.length)out.push({i:'✓',t:'Test '+ut[0].name,go:function(){
+    go('practice');
+    if(typeof openTestSetup==='function')setTimeout(function(){openTestSetup(ut[0].id);},60);
+  }});
+  if(out.length<3)out.push({i:'✎',t:'Explain something (Feynman)',go:function(){go('feynman');}});
+  return out.slice(0,4);
+}
+
+/* ------------------------------------------------------------------ render */
+function briefHTML(){
+  var g=G3(), due=safeDue(), st=streakDays();
+  var need=g?(window.SBGame.xpNeeded?window.SBGame.xpNeeded(g.level):100):0;
+  return '<div class="gb-brief">'+
+    '<div class="gb-stat'+(due>0?' hot':'')+'"><div class="n">'+due+'</div><div class="l">Due</div></div>'+
+    '<div class="gb-stat"><div class="n">'+st+'</div><div class="l">Streak</div></div>'+
+    '<div class="gb-stat"><div class="n">'+(g?g.level:1)+'</div><div class="l">Level</div></div>'+
+    '<div class="gb-stat"><div class="n">'+(g?Math.max(0,need-g.xp):0)+'</div><div class="l">XP to go</div></div>'+
+  '</div>';
+}
+function paintActions(){
+  var host=$('gb-acts');if(!host)return;
+  var acts=actions();
+  host.innerHTML=acts.map(function(a,i){
+    return '<button class="gb-act" data-gb="'+i+'"><span class="i">'+a.i+'</span>'+esc4(a.t)+'</button>';
+  }).join('');
+  host.querySelectorAll('[data-gb]').forEach(function(b){
+    b.onclick=function(){
+      var a=acts[+b.dataset.gb];
+      if(!a)return;
+      try{window.SBGame.sfx('tap');}catch(e){}
+      closePanel();
+      a.go();
+    };
+  });
+}
+function closePanel(){
+  var p=$('help-panel'),fab=$('help-fab');
+  if(p)p.classList.remove('show');
+  if(fab)fab.classList.remove('open');
+}
+
+/* Swaps the mark and panel chrome to match the equipped helper. */
+function apply(){
+  var fab=$('help-fab'), panel=$('help-panel');
+  if(!fab||!panel)return;
+  var gold=isGold();
+  fab.classList.toggle('gb',gold);
+  panel.classList.toggle('gb',gold);
+  var x=fab.querySelector('.fab-x');
+  fab.innerHTML=(gold?GOLD_MARK:CLASSIC_MARK)+'<span class="fab-x">✕</span>';
+  fab.title=gold?'Ask the Golden Buddy':'Ask Study Buddy for help';
+  var head=panel.querySelector('header');
+  if(head){
+    head.innerHTML=(gold?'<div class="gb-av">'+GOLD_MARK+'</div>':'')+
+      '<div style="flex:1"><div class="hp-title">'+(gold?'Golden Buddy':'Study Buddy Helper')+'</div>'+
+      '<div class="hp-sub">'+(gold?'Reads your page, your history, and what is due':'Ask me anything about your studying')+'</div></div>';
+  }
+  /* the briefing strip belongs to the gold helper only */
+  var old=$('gb-brief-wrap');if(old)old.remove();
+  if(gold){
+    var wrap=document.createElement('div');
+    wrap.id='gb-brief-wrap';
+    wrap.innerHTML=briefHTML();
+    panel.insertBefore(wrap,$('hp-body'));
+  }
+}
+
+/* ------------------------------------------------------------- the wiring */
+function boot(){
+  if(!$('help-fab')||typeof openHelpPanel!=='function')return setTimeout(boot,250);
+
+  apply();
+  /* The account loads asynchronously — on a reload this layer boots before
+     DB.game exists, so the first apply() sees no equipped helper and falls back
+     to the bear. Settle once the game state actually turns up. */
+  var settle=setInterval(function(){
+    if(G3()){apply();clearInterval(settle);}
+  },200);
+  setTimeout(function(){clearInterval(settle);},20000);
+
+  /* Opening the panel: the gold helper greets with a real briefing and offers
+     actions drawn from live state, so it is different every time it matters. */
+  var origOpen=window.openHelpPanel;
+  window.openHelpPanel=function(){
+    var wasOpen=$('help-panel').classList.contains('show');
+    if(!isGold())return origOpen.apply(this,arguments);
+    var p=$('help-panel'), fab=$('help-fab');
+    var opening=!wasOpen;
+    p.classList.toggle('show',opening);
+    fab.classList.toggle('open',opening);
+    if(!opening)return;
+    var wrap=$('gb-brief-wrap');
+    if(wrap)wrap.innerHTML=briefHTML();          /* live numbers on every open */
+    var b=$('hp-body');
+    if(!b.dataset.gbGreeted){
+      b.dataset.gbGreeted='1';
+      helpSay(greeting(),'coach');
+      b.insertAdjacentHTML('beforeend','<div class="gb-acts" id="gb-acts"></div>'+
+        '<div class="gb-note">These read your real history — due cards, missed topics, upcoming work.</div>');
+      paintActions();
+    } else {
+      /* refresh the actions to match wherever they are now */
+      var host=$('gb-acts');
+      if(host){b.appendChild(host.parentNode===b?host:host);paintActions();}
+    }
+    setTimeout(function(){var i=$('hp-input');if(i)i.focus();},50);
+  };
+
+  /* Answering: hand the model the same briefing, so its replies are about this
+     student's actual data rather than generic study advice. */
+  var origSend=window.helpSend;
+  window.helpSend=function(forced){
+    if(!isGold())return origSend.apply(this,arguments);
+    var inp=$('hp-input');
+    var t=(forced||inp.value).trim();
+    if(!t)return;
+    if(!forced)inp.value='';
+    helpSay(t,'me');
+    var chips=$('gb-acts');if(chips)chips.remove();
+    var note=document.querySelector('.gb-note');if(note)note.remove();
+    if(typeof coachHasAI!=='function'||!coachHasAI()){
+      var weak=weakTopics(2), due=safeDue();
+      helpSay('I need an AI key in Settings to answer that properly. What I can tell you from your own data: '+
+        (due?due+' cards are due. ':'nothing is due right now. ')+
+        (weak.length?'You keep missing '+weak.map(function(w){return w.topic;}).join(' and ')+'.':'No recurring weak topics yet.'),'coach');
+      return;
+    }
+    var b=$('hp-body');
+    b.insertAdjacentHTML('beforeend','<div class="cbub coach typing" id="hp-typing">…</div>');
+    b.scrollTop=b.scrollHeight;
+    var hist=(typeof helpMsgs!=='undefined'?helpMsgs:[]).slice(-8)
+      .map(function(m){return (m.who==='me'?'Student':'Buddy')+': '+m.text;}).join('\n');
+    var prompt='You are the Golden Buddy, the upgraded study helper inside Study Buddy, working with a '+
+      (typeof gradeLabel==='function'?gradeLabel():'student')+'.\n\n'+
+      'WHAT YOU CAN SEE ABOUT THEM RIGHT NOW:\n'+briefing()+'\n\n'+
+      'Use these facts when they are relevant — naming their real weak topic or what is actually due is the '+
+      'whole point of you. Never invent a number or a topic that is not listed above. If nothing above bears on '+
+      'the question, just answer the question well.\n'+
+      'Voice: sharp, warm, concrete. No emoji. 2-5 sentences. Give hints and explanations, not just answers.\n\n'+
+      'Conversation:\n'+hist+'\n\nReply as Buddy:';
+    aiComplete(prompt,500).then(function(r){
+      var ty=$('hp-typing');if(ty)ty.remove();
+      helpSay((r||'').trim()||'Ask me that a different way?','coach');
+    }).catch(function(e){
+      var ty=$('hp-typing');if(ty)ty.remove();
+      helpSay('That call failed ('+e.message+'). Check your key in Settings.','coach');
+    });
+  };
+  $('hp-send').onclick=function(){window.helpSend();};
+  $('hp-input').addEventListener('keydown',function(e){if(e.key==='Enter')window.helpSend();});
+
+  window.SBBuddy={apply:apply,greeting:greeting,actions:actions,briefing:briefing,
+    weak:weakTopics,isGold:isGold};
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
+
+})();
+</script>
+
+
+<!-- ============ NAME RULES — keeps display names appropriate ============ -->
+<script id="nm-js">
+/* ============================================================================
+   STUDY BUDDY · NAME RULES
+   Display names are no longer private: they publish to a leaderboard every
+   other student can read. This gates every path a name can arrive by —
+   the Settings field, a Google display name, and the leaderboard publisher.
+
+   The word list is stored as 32-bit FNV-1a hashes, never plaintext. This is a
+   single-file app: anything written here is one "view source" away from a
+   curious twelve-year-old, and a scrollable list of slurs is not something to
+   ship into a classroom. Hashing costs nothing and removes that.
+
+   Two tiers, because naive substring matching is how filters end up rejecting
+   people from Scunthorpe:
+     EXACT — matched only as a whole name or a whole token. Short words, and any
+             root that occurs inside ordinary English.
+     SUB   — matched anywhere inside the name. Every root here was checked
+             against 13,872 real word tokens taken from this app's own text and
+             collides with none of them.
+   ========================================================================== */
+(function(){
+'use strict';
+
+var NM_EXACT=[
+  35318560,35446703,179613742,263501837,336076151,336914794,353171791,373809855,444481715,
+  477198310,486633437,494814572,561894952,568910705,579833512,628166785,825071621,832668954,
+  846393306,872452564,905463349,919192496,929300338,958105440,1044181779,1236949327,1397479969,
+  1413536787,1492342066,1579491469,1583139347,1598329683,1631846163,1681537406,1698156692,
+  1750869843,1761706157,1780401646,1825958011,1911768552,2063483987,2090526271,2100819610,
+  2113294878,2123226675,2150367198,2185256537,2235558830,2255206520,2285825857,2319446925,
+  2340636264,2374926977,2447652168,2454085049,2473124150,2491417249,2597914442,2645780115,
+  2673616935,2686129127,2709568071,2743865285,2761596009,2798283979,2848616836,2873231291,
+  2885938328,2985822365,3004352723,3020594454,3104482549,3148373210,3244908130,3247388863,
+  3376970419,3486636859,3525777895,3567767415,3587743858,3610473989,3623185321,3685727517,
+  3691556361,3755027623,3810591328,3812657123,3879240466,3934708178,3981844376,3993778410,
+  4019600622,4022571063,4035825995,4064161250,4137990222,4183830597,4236827229,4249104160,
+  4253324943];
+var NM_SUB=[
+  6642589,66728524,79971382,146879533,169666247,185183923,213890739,284019734,327661360,364087993,
+  394036361,412842610,423377501,499110262,502958269,520191850,551573376,601369519,608640602,
+  617948377,641486548,796120850,964974138,1035391414,1060927161,1079816166,1110234139,1179685305,
+  1198053958,1284531621,1320365041,1356362998,1358834610,1418208120,1456765026,1712115919,
+  1898018408,1943413478,1949394539,1956499686,1964290241,1974075704,2000021598,2072921189,
+  2090110549,2094384677,2108761896,2128345842,2170560880,2180385177,2197349758,2230718034,
+  2283036957,2302528950,2401174130,2444789715,2460286864,2489751471,2503881367,2505785029,
+  2523928442,2526558697,2558568317,2562532229,2653397599,2758825305,2792189898,2816072225,
+  2824268595,2856985190,2916843581,2940369014,2969104895,3017509295,3017570559,3114006918,
+  3125845923,3140861799,3168946342,3353062156,3460957018,3469872745,3538622501,3568969356,
+  3593076544,3601806851,3624582092,3634523446,3646700319,3656079069,3666295138,3671836917,
+  3739672974,3758695880,3817221915,3866578250,3874188116,3909764211,3929425262,3938945542,
+  3939881463,3947871341,4045218491,4156672710,4232634760,4244962838,4250961641];
+var NM_OK=[
+  488825175,559719044,1006037481,1952023000,2060749122,2974706942,3897642455,4289838446];
+
+var NM_MIN=2, NM_MAX=20;
+
+/* Names that would let someone pose as the app or an adult running it. */
+var NM_IMPERSONATE=['admin','administrator','moderator','mod','staff','official','support',
+  'studybuddy','system','owner','root','server','bot','teacher','principal','null','undefined',
+  'anonymous','deleted','guest'];
+
+function fnv1a(s){
+  var h=0x811c9dc5;
+  for(var i=0;i<s.length;i++){
+    h^=s.charCodeAt(i);
+    h=(h+((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24)))>>>0;   /* h * 16777619, 32-bit */
+  }
+  return h>>>0;
+}
+var LEET={'0':'o','1':'i','3':'e','4':'a','5':'s','6':'g','7':'t','8':'b','9':'g',
+          '@':'a','$':'s','!':'i','|':'l','+':'t'};
+/* Strip accents, fold leetspeak, drop everything that is not a letter. */
+function base(s){
+  s=String(s||'').toLowerCase();
+  try{s=s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'');}catch(e){}
+  var out='';
+  for(var i=0;i<s.length;i++){
+    var c=s[i]; if(LEET[c])c=LEET[c];
+    if(c>='a'&&c<='z')out+=c;
+  }
+  return out;
+}
+/* Several readings of the same string, so stretched letters (fuuuck), v-for-u
+   (fvck) and the I/l homoglyph (HeIl) all collapse onto the same root. */
+function variants(s){
+  var b=base(s); if(!b)return [];
+  var set={};
+  function add(v){if(v)set[v]=1;}
+  add(b); add(b.replace(/(.)\1+/g,'$1')); add(b.replace(/(.)\1{2,}/g,'$1$1'));
+  [['v','u'],['i','l'],['l','i']].forEach(function(p){
+    var w=b.split(p[0]).join(p[1]);
+    add(w); add(w.replace(/(.)\1+/g,'$1'));
+  });
+  return Object.keys(set);
+}
+function inList(list,h){
+  var lo=0,hi=list.length-1;
+  while(lo<=hi){var mid=(lo+hi)>>1;if(list[mid]===h)return true;if(list[mid]<h)lo=mid+1;else hi=mid-1;}
+  return false;
+}
+function hitsExact(tok){
+  var v=variants(tok);
+  for(var i=0;i<v.length;i++)if(inList(NM_EXACT,fnv1a(v[i])))return true;
+  return false;
+}
+function hitsSub(str){
+  var v=variants(str);
+  for(var k=0;k<v.length;k++){
+    var s=v[k];
+    for(var i=0;i<s.length;i++){
+      for(var j=i+3;j<=Math.min(i+16,s.length);j++){
+        if(inList(NM_SUB,fnv1a(s.substring(i,j))))return true;
+      }
+    }
+  }
+  return false;
+}
+function allowed(tok){
+  var v=variants(tok);
+  for(var i=0;i<v.length;i++)if(inList(NM_OK,fnv1a(v[i])))return true;
+  return false;
+}
+function isFoul(name){
+  var toks=String(name).split(/[\s._\-']+/).filter(function(t){return base(t);});
+  var live=[];
+  for(var i=0;i<toks.length;i++){
+    if(allowed(toks[i]))continue;              /* Therapist, Peninsula, Penistone... */
+    if(hitsExact(toks[i]))return true;
+    live.push(base(toks[i]));
+  }
+  if(hitsSub(live.join('')))return true;       /* catches a word split across tokens */
+  for(var j=0;j<live.length;j++)if(hitsSub(live[j]))return true;
+  return hitsExact(toks.map(base).join(''));   /* whole name run together */
+}
+
+/* --------------------------------------------------------------- the gate */
+/* Returns {ok:true,name} with the cleaned name, or {ok:false,reason} with a
+   message safe to show. Profanity gets a deliberately flat reason — echoing
+   what someone typed back at them just turns the field into a toy. */
+function checkName(raw){
+  var n=String(raw==null?'':raw).replace(/\s+/g,' ').trim();
+  if(!n)                       return {ok:false,reason:'Enter a name.'};
+  if(n.length<NM_MIN)          return {ok:false,reason:'A bit longer, please \u2014 at least '+NM_MIN+' characters.'};
+  if(n.length>NM_MAX)          return {ok:false,reason:'Keep it to '+NM_MAX+' characters or fewer.'};
+  if(!/^[\p{L}\p{M}0-9 .'\-]+$/u.test(n))
+                               return {ok:false,reason:'Letters, spaces, hyphens and apostrophes only.'};
+  if((n.match(/\p{L}/gu)||[]).length<2)
+                               return {ok:false,reason:'Names need at least two letters.'};
+  if((n.match(/[0-9]/g)||[]).length>3)
+                               return {ok:false,reason:'That is a lot of numbers \u2014 try mostly letters.'};
+  if(/\d{4,}/.test(n))         return {ok:false,reason:'Please do not put numbers like that in your name.'};
+  if(/(https?:|www\.|\.com|\.net|\.org|\.io|@)/i.test(n))
+                               return {ok:false,reason:'No links or email addresses \u2014 this name is public.'};
+  if(/(.)\1{3,}/.test(n))      return {ok:false,reason:'Too many repeated characters.'};
+  var flat=base(n);
+  for(var i=0;i<NM_IMPERSONATE.length;i++){
+    if(flat===NM_IMPERSONATE[i])return {ok:false,reason:'That name is reserved. Pick another.'};
+  }
+  if(isFoul(n))                return {ok:false,reason:'That name is not allowed here. Try another.'};
+  return {ok:true,name:n};
+}
+
+/* A name that must not fail — used where there is no one to ask, such as a
+   Google display name at sign-in or the leaderboard publisher. */
+function safeName(raw,fallback){
+  var r=checkName(raw);
+  if(r.ok)return r.name;
+  /* Only ever retry by trimming. Deleting characters from a rejected name can
+     manufacture a near-miss that slips through — n1gger became ngger, which
+     matched nothing. A name that fails is replaced, never repaired. */
+  var trimmed=String(raw==null?'':raw).replace(/\s+/g,' ').trim().slice(0,NM_MAX);
+  if(trimmed!==String(raw==null?'':raw)){
+    var r2=checkName(trimmed);
+    if(r2.ok)return r2.name;
+  }
+  return fallback||'Player';
+}
+
+/* ------------------------------------------------------------- the wiring */
+function boot(){
+  var input=document.getElementById('set-name'), save=document.getElementById('set-save-name');
+  if(!input||!save)return setTimeout(boot,300);
+
+  input.setAttribute('maxlength',String(NM_MAX));
+  var msg=document.createElement('div');
+  msg.id='nm-msg';
+  msg.style.cssText='font-size:12.5px;margin-top:7px;min-height:17px;line-height:1.4';
+  save.parentNode.insertBefore(msg,save);
+
+  function review(){
+    var v=input.value;
+    if(!v.trim()){msg.textContent='';msg.style.color='';save.disabled=false;return;}
+    var r=checkName(v);
+    msg.textContent = r.ok ? 'Looks good.' : r.reason;
+    msg.style.color = r.ok ? 'var(--accent2)' : 'var(--bad)';
+    save.disabled = !r.ok;
+    save.style.opacity = r.ok ? '' : '.55';
+  }
+  input.addEventListener('input',review);
+
+  save.onclick=function(){
+    var r=checkName(input.value);
+    if(!r.ok){
+      msg.textContent=r.reason; msg.style.color='var(--bad)';
+      if(typeof toast==='function')toast(r.reason);
+      return;
+    }
+    DB.name=r.name;
+    input.value=r.name;
+    review();
+    save();  /* placeholder, replaced below */
+  };
+  /* save() is the app's own persist function and shares this name — bind the
+     real one rather than shadowing it inside the handler. */
+  var appSave=window.save;
+  save.onclick=function(){
+    var r=checkName(input.value);
+    if(!r.ok){
+      msg.textContent=r.reason; msg.style.color='var(--bad)';
+      if(typeof toast==='function')toast(r.reason);
+      return;
+    }
+    DB.name=r.name; input.value=r.name; review();
+    appSave();
+    if(typeof toast==='function')toast('Saved \u2713');
+    try{if(window.SBLeaderboard)window.SBLeaderboard.publish(true);}catch(e){}
+    try{if(typeof renderAccount==='function')renderAccount();}catch(e){}
+  };
+
+  /* An account created before these rules existed may be carrying a name that
+     would not pass now. Clean it once, quietly, rather than leaving it on a
+     public board. */
+  var settle=setInterval(function(){
+    if(typeof DB==='undefined'||!DB||!DB.cards)return;   /* DB is a script-level let, not a window property */
+    clearInterval(settle);
+    if(DB.name){
+      var r=checkName(DB.name);
+      if(!r.ok){
+        DB.name=safeName(DB.name,'');
+        try{appSave();}catch(e){}
+        if(!DB.name&&typeof toast==='function')toast('Please pick a new display name in Settings.');
+      }
+    }
+    if(document.getElementById('set-name'))input.value=DB.name||'';
+    review();
+  },300);
+  setTimeout(function(){clearInterval(settle);},20000);
+
+  window.SBNames={check:checkName,safe:safeName,max:NM_MAX};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
 else boot();

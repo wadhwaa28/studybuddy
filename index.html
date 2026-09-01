@@ -237,6 +237,11 @@
   .coach-chat{max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px}
   .cbub{max-width:88%;padding:9px 13px;border-radius:13px;font-size:14px;line-height:1.5;white-space:pre-wrap}
   .cbub.coach{background:var(--panel2);align-self:flex-start;border-bottom-left-radius:4px}
+  /* Training Grounds — the coach speaks with the same geometric mark the Arcade uses */
+  .coach-emblem{color:var(--accent);font-size:15px;vertical-align:-1px}
+  .coach-steps .cs{position:relative;overflow:hidden}
+  .coach-steps .cs.active{box-shadow:inset 0 0 0 1px var(--accent)}
+  .coach-steps .cs.done{background:color-mix(in srgb,var(--accent2) 12%,transparent)}
   .cbub.me{background:var(--accent);color:#2a1a10;align-self:flex-end;border-bottom-right-radius:4px}
   .cbub.typing{color:var(--muted);font-style:italic}
   /* clickable/colored stats + dashboard hero */
@@ -598,7 +603,7 @@
     <p class="land-h2-sub">Six tools that work together to help you learn, remember, and stay on top of your work.</p>
     <div class="land-feats">
       <div class="land-feat"><div class="lf-ic">⚯</div><div class="lf-t">Smart flashcards</div><div class="lf-d">Active recall with spaced repetition brings cards back right before you'd forget — plus AI can make cards from your notes.</div></div>
-      <div class="land-feat"><div class="lf-ic">❏</div><div class="lf-t">Study Coach</div><div class="lf-d">Type any topic and get a guided plan: sources to learn from, practice questions, and a test — with an AI coach that checks in.</div></div>
+      <div class="land-feat"><div class="lf-ic">❏</div><div class="lf-t">Training Grounds</div><div class="lf-d">Name any topic and your Coach builds a training arc: scout the sources, spar with practice questions, then take on the boss fight.</div></div>
       <div class="land-feat"><div class="lf-ic">✓</div><div class="lf-t">Practice &amp; tests</div><div class="lf-d">Four difficulty tiers that unlock in order, ending in a Gauntlet and a brutal Final Exam. Your weak topics get flagged automatically.</div></div>
       <div class="land-feat"><div class="lf-ic">◫</div><div class="lf-t">Google Classroom</div><div class="lf-d">Connect your account to pull in your real assignments, then get AI summaries, step-by-step help, and tips for each one.</div></div>
       <div class="land-feat"><div class="lf-ic">◨</div><div class="lf-t">Goals &amp; planner</div><div class="lf-d">Set goals, track homework on a Kanban board, and build a schedule that fits around school, sports, and dinner — export to Google Calendar.</div></div>
@@ -705,7 +710,7 @@
       <h2 class="title">Learn</h2>
       <div class="tabs" id="ln-tabs">
         <button class="active" data-ln="browse">Browse resources</button>
-        <button data-ln="coach">Study Coach</button>
+        <button data-ln="coach">Training Grounds</button>
       </div>
       <div id="ln-pane-browse">
       <p class="sub">Hand-picked free articles, textbooks, videos, and practice sites. Pick a subject to see its links — all open in a new tab.</p>
@@ -733,27 +738,27 @@
       </div><!-- /ln-pane-browse -->
       <!-- STUDY COACH sub-tab -->
       <div id="ln-pane-coach" style="display:none">
-        <p class="sub">Name a specific topic and I'll build a step-by-step plan — learn from sources, practice, then take a test — with a coach checking in the whole way.</p>
+        <p class="sub">Name a topic and your Coach builds a three-stage training arc — <strong>Scout</strong> the sources, <strong>Spar</strong> with practice, then take the <strong>Boss Fight</strong>. Clear stages to bank XP.</p>
         <div id="coach-goalchips" style="margin-bottom:12px"></div>
         <div class="card" id="coach-setup">
-          <label class="fld" style="margin-top:0">What do you want to study?</label>
+          <label class="fld" style="margin-top:0">What are we training on?</label>
           <div class="row">
             <input type="text" id="coach-topic" placeholder="e.g. the Civil War, quadratics, photosynthesis" style="flex:1;min-width:180px">
             <select id="coach-subj" style="max-width:170px"></select>
-            <button class="btn" id="coach-start">Build my plan</button>
+            <button class="btn" id="coach-start">Start the arc ◈</button>
           </div>
           <p class="sub" id="coach-ainote" style="margin:10px 0 0;font-size:12px"></p>
         </div>
         <div id="coach-plan" style="display:none;margin-top:16px">
-          <div class="between"><h3 id="coach-title" style="margin:0"></h3><button class="btn ghost sm" id="coach-restart">↺ New topic</button></div>
+          <div class="between"><h3 id="coach-title" style="margin:0"></h3><button class="btn ghost sm" id="coach-restart">↺ New arc</button></div>
           <div class="coach-steps" id="coach-steps" style="margin-top:12px"></div>
           <div class="card" id="coach-stepbody"></div>
         </div>
         <div class="card" id="coach-chatwrap" style="display:none;margin-top:16px;border-left:4px solid var(--accent2)">
-          <h3 style="margin:0 0 8px">💬 Your study coach</h3>
+          <h3 style="margin:0 0 8px"><span class="coach-emblem">◈</span> Coach</h3>
           <div id="coach-chat" class="coach-chat"></div>
           <div class="row" style="margin-top:10px">
-            <input type="text" id="coach-msg" placeholder="Ask your coach anything about this topic…" style="flex:1">
+            <input type="text" id="coach-msg" placeholder="Ask Coach anything — hints, explanations, whatever's stuck…" style="flex:1">
             <button class="btn sm" id="coach-send">Send</button>
           </div>
         </div>
@@ -1300,8 +1305,8 @@
     </div>
     <div style="margin-top:14px">
       <div class="help-item"><div class="hi">▦</div><div><h4>Dashboard</h4><p>Your home base — today's study plan, day streak, cards due, and focus sessions at a glance.</p></div></div>
-      <div class="help-item"><div class="hi">⚑</div><div><h4>My Goals</h4><p>Write what you're working toward (e.g. “Get an A in Algebra 2”). Each goal gets a step-by-step path, and your goals power personalized picks in Learn and the Study Coach.</p></div></div>
-      <div class="help-item"><div class="hi">❏</div><div><h4>Learn</h4><p>Two tabs: <strong>Browse resources</strong> — hand-picked links per subject plus a source finder — and <strong>Study Coach</strong>, where you name a topic (like “the Civil War”) and get a guided plan: sources → practice → a test, with an AI coach checking in and answering questions the whole way.</p></div></div>
+      <div class="help-item"><div class="hi">⚑</div><div><h4>My Goals</h4><p>Write what you're working toward (e.g. “Get an A in Algebra 2”). Each goal gets a step-by-step path, and your goals power personalized picks in Learn and the Training Grounds.</p></div></div>
+      <div class="help-item"><div class="hi">❏</div><div><h4>Learn</h4><p>Two tabs: <strong>Browse resources</strong> — hand-picked links per subject plus a source finder — and <strong>Training Grounds</strong>, where you name a topic (like “the Civil War”) and run a training arc: Scout → Spar → Boss Fight, with your Coach checking in, dropping hints, and paying out XP for every stage you clear.</p></div></div>
       <div class="help-item"><div class="hi">⚯</div><div><h4>Flashcards</h4><p>Everything card-related in one place, with four tabs: <strong>Review</strong> (active recall + spaced repetition, now with a live progress counter and an end-of-session score), <strong>Subjects</strong> (browse each course's topics and cards), <strong>Create / Import</strong> (type your own cards or turn notes/files into cards with AI), and <strong>Weak Topics</strong> (the cards you missed, grouped by subject, with feedback on what to work on).</p></div></div>
       <div class="help-item"><div class="hi">✓</div><div><h4>Practice &amp; Tests</h4><p>Instant-feedback practice plus timed scored tests. Four difficulty tiers unlock in order: hit 90% on a test to open the <strong>Challenge</strong>; score 100% on both to open the <strong>Gauntlet ⚔️</strong>; ace every Gauntlet to unlock the ultra-hard <strong>Final Exam 🏆</strong>.</p></div></div>
       <div class="help-item"><div class="hi">▰</div><div><h4>My Progress</h4><p>Every test is recorded here with your average, trend, weak topics to review, and strength by subject.</p></div></div>
@@ -1399,7 +1404,7 @@
    course may draw on. They are deliberately separate: a 7th-grader's
    "Pre-Algebra" is the same course slot as a 9th-grader's "Algebra 2", but
    only the latter has matching built-in questions. Courses without a bank
-   still work — AI practice, the Study Coach, and the student's own cards.
+   still work — AI practice, the Training Grounds, and the student's own cards.
    --------------------------------------------------------------------------- */
 const BANK_IDS = ["alg","ela","sci","spa","his",             // the five original banks
                   "math6","prealg","alg1","geom","precalc",  // math, grades 6-12
@@ -7073,7 +7078,7 @@ function renderPractice(){
         <h3>${esc(s.name)}</h3>
         <p>No built-in question bank for this course — but you can still practise it. Generate questions with the Study Coach, or make your own flashcards.</p>
         <div class="row" style="margin-top:12px">
-          <button class="btn sm" data-mode="coach" data-s="${s.id}">Study Coach →</button>
+          <button class="btn sm" data-mode="coach" data-s="${s.id}">Train this ◈</button>
           <button class="btn sm sec" data-mode="cards" data-s="${s.id}">Make flashcards</button>
         </div></div>`;
     }
@@ -7634,9 +7639,9 @@ function coachStart(){
   document.getElementById('coach-setup').style.display='none';
   document.getElementById('coach-plan').style.display='block';
   document.getElementById('coach-chatwrap').style.display='block';
-  document.getElementById('coach-title').textContent='Studying: '+topic;
+  document.getElementById('coach-title').textContent='Training arc · '+topic;
   document.getElementById('coach-chat').innerHTML='';
-  coachSay(`Hi! I'm your coach for “${topic}.” We'll go in three steps: first learn the basics from a few sources, then practice, then a test. Take your time on step 1 — and tell me if anything's confusing.`,'coach');
+  coachSay(`Alright — “${topic}.” Here's the arc: we Scout the ground first, then Spar until it's automatic, then you take the Boss Fight. Three stages, XP on every one. Stage one is reading, so take your time and tell me the second something stops making sense.`,'coach');
   coachGoStep(1);
 }
 function coachGoStep(n){
@@ -7645,7 +7650,7 @@ function coachGoStep(n){
   renderCoachStepBody();
 }
 function renderCoachSteps(){
-  const labels=['1 · Learn the basics','2 · Practice','3 · Test'];
+  const labels=['1 · Scout','2 · Spar','3 · Boss Fight'];
   document.getElementById('coach-steps').innerHTML=labels.map((l,i)=>{
     const s=i+1;const cls=s===coach.step?'active':(s<coach.step?'done':'');
     return `<div class="cs ${cls}">${l}${s<coach.step?' ✓':''}</div>`;
@@ -7656,22 +7661,22 @@ function renderCoachStepBody(){
   if(coach.step===1){
     const links=searchSources(coach.subjName||'',coach.topic,'any');
     body.innerHTML=`<h3 style="margin:0 0 4px">Step 1 · Learn the basics</h3>
-      <p class="sub" style="margin:0 0 12px">Start with these to build a foundation on <strong>${esc(coach.topic)}</strong>. Skim them, then move on.</p>
+      <p class="sub" style="margin:0 0 12px">Scout the ground on <strong>${esc(coach.topic)}</strong>. Work through these, then move up when you can explain the basics without looking.</p>
       <div id="coach-sources"></div>
-      <div class="row" style="margin-top:14px"><button class="btn" id="coach-to2">I've read these — practice →</button></div>`;
+      <div class="row" style="margin-top:14px"><button class="btn" id="coach-to2">Scouted — start sparring →</button></div>`;
     const box=document.getElementById('coach-sources');
     box.innerHTML=links.map(r=>`<a class="res" href="${r.url}" target="_blank" rel="noopener noreferrer"><span class="rtype">${esc(r.type)}</span><span class="rmain"><span class="rtitle">${esc(r.title)}</span><span class="rnote">${esc(r.note||'')}</span></span><span class="rarrow">↗</span></a>`).join('');
     if(coachHasAI()){
       const extra=document.createElement('p');extra.className='sub';extra.style.cssText='margin:6px 0 0;font-size:12px';extra.textContent='Looking for more specific sources…';box.appendChild(extra);
       callAISources(coach.subjName||'general studies',coach.topic).then(ai=>{extra.remove();ai.slice(0,3).forEach(r=>{box.insertAdjacentHTML('beforeend',`<a class="res" href="${r.url}" target="_blank" rel="noopener noreferrer" style="border-left-color:var(--warn)"><span class="rtype">${esc(r.type||'Link')}</span><span class="rmain"><span class="rtitle">${esc(r.title)} <span class="badge b-med">AI</span></span><span class="rnote">AI-suggested — check the link opens.</span></span><span class="rarrow">↗</span></a>`);});}).catch(()=>extra.remove());
     }
-    document.getElementById('coach-to2').onclick=()=>{coachGoStep(2);coachSay(`Nice work getting the basics. Now let's practice — try these questions. Stuck on one? Just ask me for a hint.`,'coach');};
+    document.getElementById('coach-to2').onclick=()=>{coachClear(1);coachGoStep(2);coachSay(`Ground scouted. Now we spar — these questions are meant to be missed a few times, that's the point. Ask me for a hint whenever you want one; I won't hand you the answer.`,'coach');};
   }
   else if(coach.step===2){
     if(!coach.practice.length){
       body.innerHTML=`<h3 style="margin:0 0 4px">Step 2 · Practice</h3>
-        <p class="sub" style="margin:0 0 12px">${coachHasAI()?'I\'ll make practice questions on <strong>'+esc(coach.topic)+'</strong> so you can check your understanding.':'Practice generation needs an AI key (add one in Settings). You can still skip ahead, or add your own cards in Flashcards.'}</p>
-        <div class="row">${coachHasAI()?'<button class="btn" id="coach-genp">Generate practice questions ✨</button>':''}<button class="btn sec" id="coach-skip2">Skip to test →</button></div>`;
+        <p class="sub" style="margin:0 0 12px">${coachHasAI()?'I\'ll throw practice questions at you on <strong>'+esc(coach.topic)+'</strong> until it sticks.':'Sparring needs an AI key (add one in Settings). You can skip to the boss fight, or build your own deck in Flashcards.'}</p>
+        <div class="row">${coachHasAI()?'<button class="btn" id="coach-genp">Rack them up ✨</button>':''}<button class="btn sec" id="coach-skip2">Skip to the boss →</button></div>`;
       if(coachHasAI())document.getElementById('coach-genp').onclick=coachGenPractice;
       document.getElementById('coach-skip2').onclick=()=>coachGoStep(3);
     } else coachRenderPractice();
@@ -7679,8 +7684,8 @@ function renderCoachStepBody(){
   else {
     if(!coach.test.length){
       body.innerHTML=`<h3 style="margin:0 0 4px">Step 3 · Test</h3>
-        <p class="sub" style="margin:0 0 12px">${coachHasAI()?'When you feel ready, I\'ll build a short test on <strong>'+esc(coach.topic)+'</strong> covering everything.':'Test generation needs an AI key (add one in Settings).'}</p>
-        <div class="row">${coachHasAI()?'<button class="btn" id="coach-gent">I\'m ready — generate my test ✨</button>':''}</div>`;
+        <p class="sub" style="margin:0 0 12px">${coachHasAI()?'When you\'re ready, I\'ll build the boss fight on <strong>'+esc(coach.topic)+'</strong> — everything we covered, no warnings.':'The boss fight needs an AI key (add one in Settings).'}</p>
+        <div class="row">${coachHasAI()?'<button class="btn" id="coach-gent">I\'m ready — face the boss ⚔️</button>':''}</div>`;
       if(coachHasAI())document.getElementById('coach-gent').onclick=coachGenTest;
     } else coachRenderTest();
   }
@@ -7701,12 +7706,12 @@ async function coachGenPractice(){
 }
 function coachRenderPractice(){
   const q=coach.practice[coach.pIdx],body=document.getElementById('coach-stepbody');
-  body.innerHTML=`<div class="between"><h3 style="margin:0">Step 2 · Practice</h3><span class="pill">${coach.pIdx+1}/${coach.practice.length} · score ${coach.pScore}</span></div>
+  body.innerHTML=`<div class="between"><h3 style="margin:0">Stage 2 · Spar</h3><span class="pill">${coach.pIdx+1}/${coach.practice.length} · score ${coach.pScore}</span></div>
     <div style="font-size:16px;font-weight:600;margin:14px 0 12px">${esc(q.q)}</div>
     <div id="coach-choices"></div>
     <div class="help-out" id="coach-fb" style="display:none"></div>
     <div class="row" style="margin-top:14px;justify-content:space-between">
-      <button class="btn ghost sm" id="coach-hint">💡 Ask for a hint</button>
+      <button class="btn ghost sm" id="coach-hint">💡 Ask Coach for a hint</button>
       <button class="btn" id="coach-pnext" style="display:none"></button>
     </div>`;
   const ch=document.getElementById('coach-choices');
@@ -7726,7 +7731,7 @@ async function coachHint(q){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const choices=(q.choices||[]).map((ch,i)=>PR_LETTERS[i]+'. '+ch).join('\n');
-    const prompt=`You are a study coach giving a ${gradeLabel()} a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1–3 short, warm, encouraging sentences.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
+    const prompt=`You are Coach in Study Buddy's Training Grounds, giving a ${gradeLabel()} a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1-3 short sentences in Coach's voice: direct, warm, a little wry, no emoji.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
     const r=(await aiComplete(prompt,220)).trim();
     document.getElementById('coach-typing').remove();
     coachSay(r||fallback,'coach');
@@ -7740,7 +7745,7 @@ function coachAnswerP(idx){
   const fb=document.getElementById('coach-fb');fb.style.display='block';fb.textContent=(idx===q.answer?'✓ Correct. ':'✗ Not quite. ')+(q.explain||'');
   const nb=document.getElementById('coach-pnext');nb.style.display='inline-block';nb.textContent=(coach.pIdx+1>=coach.practice.length)?'Finish practice':'Next →';
   nb.onclick=()=>{
-    if(coach.pIdx+1>=coach.practice.length){coachSay(`Great practicing — you got ${coach.pScore}/${coach.practice.length}. Ready for the test? Head to step 3 when you are.`,'coach');coachGoStep(3);}
+    if(coach.pIdx+1>=coach.practice.length){coachSparDone();coachGoStep(3);}
     else {coach.pIdx++;coachRenderPractice();}
   };
 }
@@ -7748,16 +7753,16 @@ async function coachGenTest(){
   const btn=document.getElementById('coach-gent');btn.textContent='Building your test…';btn.disabled=true;
   try{coach.test=(await coachGenQuestions(8,'test')).map(q=>({q,picked:null}));
     if(!coach.test.length)throw new Error('no questions');
-    coachSay(`Your test on “${coach.topic}” is ready. Answer everything, then submit. Say “hint” anytime and I'll help.`,'coach');
+    coachSay(`Boss is up. Everything we trained on “${coach.topic}” — answer it all, then finish the fight. Shout if you need me.`,'coach');
     coachRenderTest();
   }catch(e){toast('Could not generate: '+e.message);btn.textContent='I\'m ready — generate my test ✨';btn.disabled=false;}
 }
 function coachRenderTest(){
   coach.tested=false; // fresh test can be submitted once
   const body=document.getElementById('coach-stepbody');
-  body.innerHTML=`<h3 style="margin:0 0 12px">Step 3 · Test on ${esc(coach.topic)}</h3>
+  body.innerHTML=`<h3 style="margin:0 0 12px">Stage 3 · Boss Fight · ${esc(coach.topic)}</h3>
     <div id="coach-test-qs"></div>
-    <div class="row"><button class="btn" id="coach-submit">Submit test</button></div>
+    <div class="row"><button class="btn" id="coach-submit">Finish the fight ⚔️</button></div>
     <div id="coach-results" style="margin-top:14px"></div>`;
   document.getElementById('coach-test-qs').innerHTML=coach.test.map((item,qi)=>`
     <div class="qblock" id="cq-${qi}"><div class="qn">${qi+1}. ${esc(item.q.q)}</div>
@@ -7769,15 +7774,74 @@ function coachSubmitTest(){
   if(coach.tested)return; // only grade once — stop repeat submissions spamming the score
   coach.tested=true;
   const sb=document.getElementById('coach-submit');
-  if(sb){sb.disabled=true;sb.textContent='Submitted ✓';}
+  if(sb){sb.disabled=true;sb.textContent='Fight over ✓';}
   let correct=0;
   coach.test.forEach((x,qi)=>{const ok=x.picked===x.q.answer;if(ok)correct++;
     document.querySelectorAll('#cq-'+qi+' .choice').forEach((b,i)=>{b.setAttribute('disabled','');if(i===x.q.answer)b.classList.add('correct');else if(i===x.picked)b.classList.add('wrong');});});
   const pct=Math.round(correct/coach.test.length*100);
   document.getElementById('coach-results').innerHTML=`<div class="card" style="text-align:center"><div style="font-size:34px;font-weight:700;color:${pct>=70?'var(--accent2)':pct>=50?'var(--warn)':'var(--bad)'}">${pct}%</div><div class="sub">${correct} of ${coach.test.length} correct on ${esc(coach.topic)}</div></div>`;
-  const verdict = pct>=80?'Excellent — you really know this! 🎉':pct>=60?'Solid work. Want to review the ones you missed? Ask me about any of them.':'Good effort — let\'s go back over the tricky parts. Ask me anything.';
-  coachSay(`You scored ${pct}% (${correct}/${coach.test.length}) on “${coach.topic}.” ${verdict}`,'coach');
+  const verdict = pct>=80?'Boss down. You actually know this one — that is not luck at that score.':pct>=60?'Boss survived, but so did you. Ask me about the ones you dropped and we run it back.':'Boss won this round. That is information, not failure — tell me which ones felt worst and we drill those.';
+  coachSay(`${pct}% (${correct}/${coach.test.length}) on “${coach.topic}.” ${verdict}`,'coach');
+  coachBossReward(pct,correct);
   if(pct>=80)celebrate();
+}
+/* ---- Training Grounds rewards ------------------------------------------
+   Clearing a stage pays XP, like everything else in the app. Two guards keep
+   it honest: a stage pays only once per topic per day, and all coach XP is
+   capped daily. Otherwise you could farm it by spinning up topics forever,
+   and XP you can farm is XP that means nothing. */
+const COACH_DAY_CAP=120;
+function coachLedger(){
+  const g=(window.SBGame&&window.SBGame.state)?window.SBGame.state():null;
+  if(!g)return null;
+  if(!g.coach||g.coach.date!==dstr())g.coach={date:dstr(),xp:0,done:{}};
+  if(!g.coach.done)g.coach.done={};
+  return g.coach;
+}
+function coachKey(stage){return stage+'|'+String(coach.topic||'').toLowerCase().replace(/\s+/g,' ').trim().slice(0,60);}
+/* Pays out unless this stage/topic already paid today or the daily cap is spent.
+   Returns the XP actually granted, so callers can tell the student the truth. */
+function coachPay(stage,xp,coins,label){
+  const led=coachLedger();
+  if(!led)return 0;
+  const k=coachKey(stage);
+  if(led.done[k])return 0;
+  const room=Math.max(0,COACH_DAY_CAP-(led.xp||0));
+  if(room<=0)return 0;
+  const give=Math.min(xp,room);
+  led.done[k]=1; led.xp=(led.xp||0)+give;
+  window.SBGame.award(give,coins,label);
+  return give;
+}
+function coachCapNote(){
+  const led=coachLedger();
+  if(!led)return '';
+  return (led.xp>=COACH_DAY_CAP)?' (daily training XP is maxed — the reps still count)':'';
+}
+/* Stage 1 cleared. */
+function coachClear(stage){
+  if(stage!==1)return;
+  const got=coachPay('scout',12,3,'scouted');
+  if(got)coachSay(`+${got} XP for scouting.${coachCapNote()}`,'coach');
+}
+/* Stage 2 cleared — pay by how much of the sparring actually landed. */
+function coachSparDone(){
+  const n=coach.practice.length||1, sc=coach.pScore;
+  const xp=Math.min(24,Math.round(sc/n*20)+4);
+  const got=coachPay('spar',xp,Math.round(sc/2),'sparring');
+  const line = sc===n ? `Clean sweep — ${sc}/${n}. The boss is not going to enjoy this.`
+             : sc>=Math.ceil(n*0.6) ? `${sc}/${n}. Good enough to move up; the misses tell us what to watch.`
+             : `${sc}/${n}. Rough, and useful — now we know exactly where the gaps are.`;
+  coachSay(got?`${line} +${got} XP.${coachCapNote()}`:line,'coach');
+}
+/* Stage 3 cleared. */
+function coachBossReward(pct,correct){
+  const xp=Math.round(pct/100*40)+10;
+  const got=coachPay('boss',xp,Math.round(pct/10),'boss fight');
+  if(got)coachSay(`+${got} XP banked for the fight.${coachCapNote()}`,'coach');
+  const g=(window.SBGame&&window.SBGame.state)?window.SBGame.state():null;
+  if(g&&pct>=80){g.stats.coachBosses=(g.stats.coachBosses||0)+1;}
+  if(window.SBGame&&window.SBGame.check)window.SBGame.check();
 }
 // ---- coach chat ----
 function coachSay(text,who){
@@ -7792,7 +7856,7 @@ async function coachReply(fallback,forceFallback){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const hist=coach.messages.slice(-8).map(m=>(m.who==='me'?'Student':'Coach')+': '+m.text).join('\n');
-    const prompt=`You are a warm, encouraging study coach helping a ${gradeLabel()} study "${coach.topic}". Keep replies short (2-4 sentences), friendly, and helpful. Give hints and explanations, not just answers, unless asked directly.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
+    const prompt=`You are Coach in Study Buddy's Training Grounds, working with a ${gradeLabel()} on "${coach.topic}". Voice: a good trainer — direct, warm, a little wry, never syrupy and never a drill sergeant. You talk about training, reps, and stages rather than homework. You treat mistakes as information. Keep replies short (2-4 sentences). Give hints and explanations, not answers, unless they ask outright. Never use emoji.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
     const r=await aiComplete(prompt,400);
     document.getElementById('coach-typing').remove();
     coachSay(r.trim()||fallback,'coach');
@@ -8409,9 +8473,18 @@ function renderSyncUI(){
         s==='ok'?true:s==='error'?false:null,
         s==='ok'?('saved '+new Date(fbSync.at).toLocaleTimeString()):s==='saving'?'saving…':s==='error'?'failed':'nothing yet');
     row('Data size', null, fbSync.bytes?(Math.round(fbSync.bytes/1024)+' KB of 1024 KB'):'—');
+    const lb=window.SBLeaderboard;
+    const lbs=lb?lb.state.state:'idle';
+    row('Leaderboard', lbs==='ok'?true:lbs==='error'?false:null,
+        lbs==='ok'?(lb.state.rows.length+' players ranked'):lbs==='error'?'failed':lbs==='loading'?'loading…':'not fetched yet');
   }
   box.innerHTML=rows.join('')+
     (fbSync.err?'<div class="help-out" style="border-color:var(--bad);margin-top:12px">⚠️ '+esc(fbSync.err)+'</div>':'')+
+    ((window.SBLeaderboard&&window.SBLeaderboard.state.err)
+      ? '<div class="help-out" style="border-color:var(--bad);margin-top:12px">⚠️ Leaderboard: '+esc(window.SBLeaderboard.state.err)+'</div>':'')+
+    (fbUser?'<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">Firestore security rules (paste these in the Firebase console)</summary>'+
+      '<p class="sub" style="margin:8px 0 0;font-size:12.5px">The leaderboard needs its own collection: readable by any signed-in player, writable only by its owner. Your private study data stays locked to you.</p>'+
+      '<pre class="lb-rules">'+esc(window.SBLeaderboard?window.SBLeaderboard.rules:'')+'</pre></details>':'')+
     (!fbUser&&fbAuth?'<p class="sub" style="margin:12px 0 0;font-size:12.5px">You’re in guest mode — everything saves in this browser only. Sign in from the welcome page to sync across devices.</p>':'')+
     (isFileUrl()
       ? '<p class="sub" style="margin:12px 0 0;font-size:12.5px">This page is open from a <code>file://</code> path. Firebase Auth requires an <code>http(s)</code> origin — the browser reports a file page’s origin as <code>null</code>, which Google can never authorize. Deploy the site (or serve it at <code>http://localhost</code>) and sign-in will work.</p>'
@@ -8534,7 +8607,14 @@ var THEMES={
   forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#6f9e5a','#c39a4e'],vars:{'--bg':'#eef3e9','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
   ocean:{name:'Ocean',price:250,emoji:'🌊',swatch:['#eef4f8','#57a3c7','#63bda6'],vars:{'--bg':'#eef4f8','--bg2':'#e3edf4','--panel':'#f9fcfe','--panel2':'#dfeaf2','--line':'#c7dae6','--txt':'#26333d','--muted':'#64798a','--faint':'#93a6b4','--accent':'#57a3c7','--accent2':'#63bda6','--warn':'#dcae52','--bad':'#d1706a','--ap':'#9498d6'}},
   sakura:{name:'Sakura',price:350,emoji:'🌸',swatch:['#fdf1f3','#e79ab0','#9ac9b8'],vars:{'--bg':'#fdf1f3','--bg2':'#f9e6ea','--panel':'#fffafb','--panel2':'#f7e2e7','--line':'#f0cdd5','--txt':'#45343a','--muted':'#8d7480','--faint':'#b79ba5','--accent':'#e79ab0','--accent2':'#9ac9b8','--warn':'#e0b569','--bad':'#d4757d','--ap':'#b195d3'}},
-  neon:{name:'Neon Arcade',price:800,emoji:'👾',swatch:['#0d0b1a','#ff9edb','#5ef1c0'],vars:{'--bg':'#0d0b1a','--bg2':'#141130','--panel':'#1a1740','--panel2':'#242052','--line':'#342f6b','--txt':'#f2eeff','--muted':'#a79fd6','--faint':'#7d75ab','--accent':'#ff9edb','--accent2':'#5ef1c0','--warn':'#ffd166','--bad':'#ff6b8b','--ap':'#9d7bff','--shadow':'0 6px 26px rgba(120,60,220,.4)'}}
+  neon:{name:'Neon Arcade',price:800,emoji:'👾',swatch:['#0d0b1a','#ff9edb','#5ef1c0'],vars:{'--bg':'#0d0b1a','--bg2':'#141130','--panel':'#1a1740','--panel2':'#242052','--line':'#342f6b','--txt':'#f2eeff','--muted':'#a79fd6','--faint':'#7d75ab','--accent':'#ff9edb','--accent2':'#5ef1c0','--warn':'#ffd166','--bad':'#ff6b8b','--ap':'#9d7bff','--shadow':'0 6px 26px rgba(120,60,220,.4)'}},
+  /* Not for sale at any price. The only way in is to hold #1 on the leaderboard,
+     which is why `price` is null — the shop renders it locked instead of buyable. */
+  regalia:{name:'Regalia',price:null,emoji:'👑',locked:'Held #1 on the leaderboard',
+    swatch:['#17131f','#e8c26a','#c9a2e8'],
+    vars:{'--bg':'#17131f','--bg2':'#1e1829','--panel':'#251d33','--panel2':'#302545','--line':'#3f3159',
+      '--txt':'#f6f0ff','--muted':'#b4a5cc','--faint':'#867899','--accent':'#e8c26a','--accent2':'#c9a2e8',
+      '--warn':'#e8c26a','--bad':'#e0808f','--ap':'#a98ae0','--shadow':'0 6px 28px rgba(232,194,106,.22)'}}
 };
 var AVATARS=[
   {id:'bear',    em:'\uD83D\uDC3B',name:'Barley',   price:0,   note:'The original study buddy.'},
@@ -8595,6 +8675,7 @@ var BADGES=[
   {id:'level_25',ic:'🥇',name:'Level 25',ds:'Reach level 25',ck:function(s,db,g){return g.level>=25;}},
   {id:'quests_10',ic:'📜',name:'Questmaster',ds:'Claim 10 daily quests',ck:function(s){return s.questsDone>=10;}},
   {id:'tycoon',ic:'💰',name:'Tycoon',ds:'Hold 1,000 coins at once',ck:function(s){return s.maxCoins>=1000;}},
+  {id:'monarch',ic:'👑',name:'Monarch',ds:'Hold #1 on the leaderboard',ck:function(s,db,g){return !!g.crowned;}},
   {id:'night_owl',ic:'🌜',name:'Night Owl',ds:'Study after 11pm',ck:function(s){return !!s.nightOwl;}},
   {id:'early_bird',ic:'🌅',name:'Early Bird',ds:'Study before 7am',ck:function(s){return !!s.earlyBird;}}
 ];
@@ -8640,6 +8721,7 @@ function initGame(){
   if(!g.owned.avatars)g.owned.avatars=['bear'];
   if(!g.owned.items)g.owned.items={};
   if(!g.equipped)g.equipped={theme:'base',avatar:'bear'};
+  if(g.crowned==null)g.crowned=false;          /* set once, never cleared — see the Leaderboard layer */
   if(g.freezes==null)g.freezes=1;              /* everyone starts with one */
   if(g.boostUntil==null)g.boostUntil=0;
   if(g.sound==null)g.sound=true;
@@ -8773,6 +8855,7 @@ function buy(kind,id){
   else if(kind==='avatar'){item=AVATARS.filter(function(a){return a.id===id;})[0];price=item.price;}
   else {item=POWERUPS.filter(function(p){return p.id===id;})[0];price=item.price;}
   if(!item)return;
+  if(price==null){if(typeof toast==='function')toast('That one is not for sale — it has to be earned.');return;}
   if(g.coins<price){if(typeof toast==='function')toast('Not enough coins — you need '+(price-g.coins)+' more 🪙');return;}
   g.coins-=price;g.stats.purchases++;
   if(kind==='theme'){g.owned.themes.push(id);equip('theme',id);}
@@ -9125,7 +9208,22 @@ function boot(){
   /* let the rest of the app force a badge re-check (streak badges need no XP event) */
   window.SBGame={
     check:function(){try{if(ARC.ready&&checkBadges())persist();}catch(e){}},
-    refresh:function(){try{renderHUD();}catch(e){}}
+    refresh:function(){try{renderHUD();renderPage();}catch(e){}},
+    /* Exposed so the other layers (Training Grounds, Leaderboard) can pay out
+       and read game state without reaching into this closure. */
+    ready:function(){return ARC.ready;},
+    state:G,
+    award:function(xp,coins,label){if(ARC.ready)award(xp,coins,label);},
+    persist:persist,
+    themes:THEMES,
+    applyTheme:applyTheme,
+    equip:equip,
+    avatar:avatarEmoji,
+    title:titleFor,
+    rankOf:rankOf,
+    sfx:sfx,
+    pop:pop,
+    xpNeeded:xpNeeded
   };
   setInterval(function(){renderHUD();window.SBGame.check();},20000);
 }
@@ -9166,7 +9264,7 @@ function renderHUD(){
     (claimable?'<span class="arc-dot">'+claimable+'</span>':'')+
     '<div class="arc-hud-top">'+
       '<div class="arc-av">'+avatarEmoji()+'</div>'+
-      '<div class="arc-hud-id"><div class="arc-lvl">Level '+g.level+'</div><div class="arc-title">'+esc2(titleFor(g.level))+(boosted()?' · ⚡2x':'')+'</div></div>'+
+      '<div class="arc-hud-id"><div class="arc-lvl">'+(g.crowned?'<span style="color:#e8c26a">\uD83D\uDC51</span> ':'')+'Level '+g.level+'</div><div class="arc-title">'+esc2(titleFor(g.level))+(boosted()?' · ⚡2x':'')+'</div></div>'+
     '</div>'+
     '<div class="arc-bar"><div style="width:'+pct+'%"></div></div>'+
     '<div class="arc-hud-foot"><span>'+g.xp+' / '+need+' XP</span><span class="arc-coins">'+g.coins+' 🪙</span></div>';
@@ -9215,7 +9313,7 @@ function renderHero(){
       '<div class="between">'+
         '<div class="row" style="gap:14px">'+
           '<div style="font-size:44px;line-height:1">'+avatarEmoji()+'</div>'+
-          '<div><h3 style="margin:0;font-size:22px">Level '+g.level+' · '+esc2(titleFor(g.level))+'</h3>'+
+          '<div><h3 style="margin:0;font-size:22px">'+(g.crowned?'<span style="color:#e8c26a" title="Held #1 on the leaderboard">\uD83D\uDC51</span> ':'')+'Level '+g.level+' · '+esc2(titleFor(g.level))+'</h3>'+
             '<div class="sub" style="margin:2px 0 0">'+g.xp+' / '+need+' XP to level '+(g.level+1)+'</div></div>'+
         '</div>'+
         '<div class="row">'+
@@ -9277,6 +9375,7 @@ function shopHTML(){
       '<div class="ds">Restyles the whole app — every page, card and button.</div>'+
       (on?'<button class="btn sm sec" disabled>Equipped</button>'
         :owned?'<button class="btn sm" data-arcequip="theme|'+k+'">Use this theme</button>'
+        :t.price==null?'<button class="btn sm sec" disabled title="'+esc2(t.locked||'Locked')+'">🔒 '+esc2(t.locked||'Locked')+'</button>'
         :'<button class="btn sm" data-arcbuy="theme|'+k+'"><span class="arc-price">'+t.price+' 🪙</span></button>')+
     '</div>';
   }).join('');
@@ -9945,6 +10044,361 @@ window.ppAnswer=function(idx){
   }
   return r;
 };
+
+})();
+</script>
+
+
+<!-- ============ LEADERBOARD — ranks every player by level ============ -->
+<style id="lb-css">
+  #page-leaderboard .lb-you{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--accent);border-radius:14px;padding:16px;margin:0 0 18px}
+  .lb-row{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px;transition:transform .12s ease}
+  .lb-row:hover{transform:translateX(2px)}
+  .lb-row.me{border-color:var(--accent);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--accent)}
+  .lb-row.top1{border-color:#e8c26a;box-shadow:inset 0 0 0 1px #e8c26a}
+  .lb-pos{width:42px;flex:none;text-align:center;font-weight:800;font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .lb-row.top1 .lb-pos,.lb-row.top2 .lb-pos,.lb-row.top3 .lb-pos{font-size:19px}
+  .lb-row.top1 .lb-pos{color:#e8c26a}
+  .lb-row.top2 .lb-pos{color:#a8b0bb}
+  .lb-row.top3 .lb-pos{color:#c08a52}
+  .lb-av{width:38px;height:38px;flex:none;display:grid;place-items:center;font-size:21px;border-radius:11px;background:var(--panel2);border:1px solid var(--line)}
+  .lb-id{flex:1;min-width:0}
+  .lb-nm{font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lb-sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .lb-lvl{flex:none;text-align:right}
+  .lb-lvl .n{font-size:20px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .lb-lvl .l{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+  .lb-crown{color:#e8c26a;font-size:14px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
+  .lb-tier{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid currentColor;opacity:.95}
+  .lb-note{border:1px dashed var(--line);border-radius:12px;padding:18px;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .lb-rules{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre;overflow-x:auto;margin-top:10px}
+  @keyframes lb-crownin{0%{transform:scale(.3) rotate(-25deg);opacity:0}60%{transform:scale(1.15) rotate(6deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+  #lb-crowning{position:fixed;inset:0;background:rgba(10,8,16,.72);display:none;place-items:center;z-index:9999;backdrop-filter:blur(3px)}
+  #lb-crowning.show{display:grid}
+  #lb-crowning .box{background:var(--panel);border:1px solid #e8c26a;border-radius:20px;padding:34px 30px;text-align:center;max-width:400px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  #lb-crowning .big{font-size:64px;line-height:1;animation:lb-crownin .6s cubic-bezier(.2,1.3,.4,1) both}
+  #lb-crowning h3{margin:14px 0 6px;font-size:23px}
+  #lb-crowning p{color:var(--muted);font-size:14px;margin:0 0 18px;line-height:1.6}
+</style>
+
+<script id="lb-js">
+/* ============================================================================
+   STUDY BUDDY · LEADERBOARD
+   Ranks every player by LEVEL — how much studying they have banked — and never
+   by how well they score. Test results, accuracy and grades are deliberately
+   absent from the public record: this board is about showing up, not ability.
+
+   Storage is a second, deliberately tiny Firestore collection. The private
+   users/{uid} document holds everything and stays private; leaderboard/{uid}
+   holds only what a rank needs — display name, avatar, level, XP, crown.
+
+   A crown is granted the moment a client sees itself at #1, and is never taken
+   away, which is what "held the top spot for any amount of time" means.
+   ========================================================================== */
+(function(){
+'use strict';
+
+function $(id){return document.getElementById(id);}
+function esc3(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function G2(){return (window.SBGame&&window.SBGame.state)?window.SBGame.state():null;}
+function gameReady(){return !!(window.SBGame&&window.SBGame.state&&DB&&DB.game);}
+
+var LB={rows:[],me:null,state:'idle',err:'',at:0,timer:null,open:false,publishedSig:''};
+
+/* --------------------------------------------------------------- identity  */
+/* Cloud accounts only. A guest lives in one browser's localStorage, so there
+   is no identity to rank and nothing to stop one person filling the board. */
+function cloudUid(){return (typeof fbUser!=='undefined'&&fbUser)?fbUser.uid:null;}
+function store(){return (typeof fbStore!=='undefined')?fbStore:null;}
+function canRank(){return !!(cloudUid()&&store());}
+
+/* The name shown publicly. First name only, and never the email address. */
+function publicName(){
+  var n=(DB&&DB.name)||'';
+  if(!n&&typeof fbUser!=='undefined'&&fbUser&&fbUser.displayName)n=fbUser.displayName;
+  n=String(n).trim().split(/\s+/)[0]||'Player';
+  return n.slice(0,20);
+}
+
+/* ---------------------------------------------------------------- publish  */
+/* Writes only what a leaderboard row needs. Debounced, and skipped entirely
+   when nothing a viewer can see has changed. */
+function publish(force){
+  if(!canRank()||!gameReady())return Promise.resolve(false);
+  var g=G2();
+  var row={
+    name:publicName(),
+    avatar:(window.SBGame.avatar?window.SBGame.avatar():'🐻'),
+    level:g.level|0,
+    xp:g.xp|0,
+    crowned:!!g.crowned,
+    updatedAt:Date.now()
+  };
+  var sig=[row.name,row.avatar,row.level,row.xp,row.crowned].join('|');
+  if(!force&&sig===LB.publishedSig)return Promise.resolve(false);
+  LB.publishedSig=sig;
+  return store().collection('leaderboard').doc(cloudUid()).set(row,{merge:true})
+    .then(function(){return true;})
+    .catch(function(e){
+      LB.err=lbErr(e);
+      console.warn('[StudyBuddy] leaderboard publish failed',e);
+      return false;
+    });
+}
+
+function lbErr(e){
+  var c=(e&&e.code)||'',m=(e&&e.message)||String(e);
+  if(/permission-denied/.test(c))return 'Firestore is refusing the leaderboard. Its security rules need a leaderboard/{uid} block — the exact rules are in Settings → Sync & diagnostics.';
+  if(/unauthenticated/.test(c))return 'You are signed out as far as Firestore is concerned. Sign out and back in.';
+  if(/failed-precondition/.test(c))return 'Firestore wants an index for this query. Open the link in the browser console once and it will build it.';
+  if(/unavailable|network/.test(c))return 'Could not reach Firestore — you may be offline.';
+  return m;
+}
+
+/* ------------------------------------------------------------------ fetch  */
+var TOP_N=100;
+function fetchBoard(){
+  if(!canRank())return Promise.resolve([]);
+  LB.state='loading'; render();
+  return store().collection('leaderboard')
+    .orderBy('level','desc').orderBy('xp','desc').limit(TOP_N).get()
+    .then(function(snap){
+      var rows=[];
+      snap.forEach(function(d){
+        var v=d.data()||{};
+        rows.push({
+          uid:d.id,
+          name:String(v.name||'Player').slice(0,20),
+          avatar:String(v.avatar||'🐻').slice(0,4),
+          level:Math.max(1,v.level|0),
+          xp:Math.max(0,v.xp|0),
+          crowned:!!v.crowned
+        });
+      });
+      LB.rows=rows; LB.state='ok'; LB.err=''; LB.at=Date.now();
+      evaluateCrown(rows);
+      render();
+      return rows;
+    })
+    .catch(function(e){
+      /* An ordered query needs a composite index. Fall back to ordering by
+         level alone, which Firestore serves from the single-field index, and
+         break ties on xp locally — the board still works while the index builds. */
+      if(/failed-precondition|index/i.test((e&&e.code)+' '+(e&&e.message))){
+        return store().collection('leaderboard').orderBy('level','desc').limit(TOP_N).get()
+          .then(function(snap){
+            var rows=[];
+            snap.forEach(function(d){var v=d.data()||{};rows.push({uid:d.id,name:String(v.name||'Player').slice(0,20),avatar:String(v.avatar||'🐻').slice(0,4),level:Math.max(1,v.level|0),xp:Math.max(0,v.xp|0),crowned:!!v.crowned});});
+            rows.sort(function(a,b){return (b.level-a.level)||(b.xp-a.xp);});
+            LB.rows=rows; LB.state='ok'; LB.err=''; LB.at=Date.now();
+            evaluateCrown(rows); render();
+            return rows;
+          })
+          .catch(function(e2){LB.state='error';LB.err=lbErr(e2);render();return [];});
+      }
+      LB.state='error'; LB.err=lbErr(e); render(); return [];
+    });
+}
+
+/* ------------------------------------------------------------------ crown  */
+/* Granted the instant this client observes itself in first place. Permanent:
+   once crowned, always crowned, however far you later slip. */
+function evaluateCrown(rows){
+  if(!rows.length||!canRank()||!gameReady())return;
+  var uid=cloudUid(), g=G2();
+  if(rows[0].uid!==uid)return;
+  if(g.crowned)return;
+  g.crowned=true;
+  g.crownedAt=Date.now();
+  rows[0].crowned=true;   /* the row we just read predates the crown — don't redraw it stale */
+  if(g.owned.themes.indexOf('regalia')<0)g.owned.themes.push('regalia');
+  try{window.SBGame.sfx('level');}catch(e){}
+  try{window.SBGame.check();}catch(e){}   /* fires the Monarch badge */
+  window.SBGame.persist();
+  publish(true);
+  showCrowning();
+}
+
+function showCrowning(){
+  var box=$('lb-crowning');if(!box)return;
+  box.querySelector('.box').innerHTML=
+    '<div class="big">👑</div>'+
+    '<h3>You took first place</h3>'+
+    '<p>The crown is yours permanently — it stays on your name even if someone passes you. '+
+    'It also unlocks <strong>Regalia</strong>, a theme that cannot be bought at any price.</p>'+
+    '<div class="row" style="justify-content:center">'+
+      '<button class="btn" id="lb-wear">Wear Regalia</button>'+
+      '<button class="btn sec" id="lb-later">Later</button>'+
+    '</div>';
+  box.classList.add('show');
+  $('lb-wear').onclick=function(){window.SBGame.equip('theme','regalia');box.classList.remove('show');render();};
+  $('lb-later').onclick=function(){box.classList.remove('show');};
+}
+
+/* ----------------------------------------------------------------- render  */
+function tierChip(level){
+  var r=(window.SBGame&&window.SBGame.rankOf)?window.SBGame.rankOf(level):null;
+  if(!r)return '';
+  return '<span class="lb-tier" style="color:'+r.c+'">'+esc3(r.name)+'</span>';
+}
+function rowHTML(r,pos,meUid){
+  var cls='lb-row'+(r.uid===meUid?' me':'')+(pos<=3?' top'+pos:'');
+  return '<div class="'+cls+'">'+
+    '<div class="lb-pos">'+pos+'</div>'+
+    '<div class="lb-av">'+esc3(r.avatar)+'</div>'+
+    '<div class="lb-id">'+
+      '<div class="lb-nm">'+(r.crowned?'<span class="lb-crown" title="Held #1 on the leaderboard">👑</span>':'')+
+        esc3(r.name)+(r.uid===meUid?' <span style="color:var(--accent);font-weight:600;font-size:12px">· you</span>':'')+'</div>'+
+      '<div class="lb-sub">'+tierChip(r.level)+'</div>'+
+    '</div>'+
+    '<div class="lb-lvl"><div class="n">'+r.level+'</div><div class="l">Level</div></div>'+
+  '</div>';
+}
+
+function selfCardHTML(){
+  if(!gameReady())return '';
+  var g=G2(),uid=cloudUid();
+  var idx=-1;
+  for(var i=0;i<LB.rows.length;i++){if(LB.rows[i].uid===uid){idx=i;break;}}
+  var place=idx>=0?('#'+(idx+1)):(LB.state==='ok'?'unranked':'—');
+  var sub=idx>=0
+    ? (idx===0?'First place. The crown is already yours.':'You are '+(LB.rows[idx-1].level-g.level<=0?'level-tied with':(LB.rows[idx-1].level-g.level)+' level'+((LB.rows[idx-1].level-g.level)===1?'':'s')+' behind')+' the player above you.')
+    : (LB.state==='ok'?'Outside the top '+TOP_N+' for now. Every session moves you up.':'');
+  return '<div class="lb-you">'+
+    '<div class="between" style="align-items:center;gap:14px">'+
+      '<div style="display:flex;align-items:center;gap:13px;min-width:0">'+
+        '<div class="lb-av" style="width:46px;height:46px;font-size:25px">'+(window.SBGame.avatar?window.SBGame.avatar():'🐻')+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="lb-nm" style="font-size:16px">'+(g.crowned?'<span class="lb-crown">👑</span>':'')+esc3(publicName())+'</div>'+
+          '<div class="lb-sub">'+tierChip(g.level)+' · Level '+g.level+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex:none"><div id="lb-place" style="font-size:26px;font-weight:800;line-height:1">'+place+'</div>'+
+      '<div class="l" style="color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-top:3px">Your place</div></div>'+
+    '</div>'+
+    (sub?'<p class="sub" style="margin:12px 0 0">'+esc3(sub)+'</p>':'')+
+  '</div>';
+}
+
+var RULES_SNIPPET=
+'rules_version = \'2\';\n'+
+'service cloud.firestore {\n'+
+'  match /databases/{database}/documents {\n'+
+'    match /users/{uid} {\n'+
+'      allow read, write: if request.auth != null && request.auth.uid == uid;\n'+
+'    }\n'+
+'    match /leaderboard/{uid} {\n'+
+'      allow read: if request.auth != null;\n'+
+'      allow write: if request.auth != null && request.auth.uid == uid;\n'+
+'    }\n'+
+'  }\n'+
+'}';
+
+function render(){
+  var body=$('lb-body');if(!body)return;
+  if(!canRank()){
+    body.innerHTML='<div class="lb-note">'+
+      '<strong>The leaderboard needs a cloud account.</strong><br>'+
+      'You are signed in as a guest, so your progress lives only in this browser — there is no account for other players to rank you against. '+
+      'Sign in with Google from the sign-in screen and your level joins the board automatically.'+
+      '<p class="sub" style="margin:12px 0 0">Everything you have earned so far carries over.</p>'+
+    '</div>';
+    return;
+  }
+  if(LB.state==='loading'&&!LB.rows.length){
+    body.innerHTML='<div class="lb-note">Loading the board…</div>';return;
+  }
+  if(LB.state==='error'){
+    body.innerHTML='<div class="lb-note" style="border-color:var(--bad);border-style:solid">'+
+      '<strong>The leaderboard could not load.</strong><br>'+esc3(LB.err)+
+      (/security rules|refusing/i.test(LB.err)?'<div class="lb-rules">'+esc3(RULES_SNIPPET)+'</div>':'')+
+    '</div>';
+    return;
+  }
+  var uid=cloudUid();
+  body.innerHTML=selfCardHTML()+
+    (LB.rows.length
+      ? LB.rows.map(function(r,i){return rowHTML(r,i+1,uid);}).join('')
+      : '<div class="lb-note">Nobody is on the board yet. Study anything and you will be first.</div>')+
+    '<p class="sub" style="margin:14px 0 0;font-size:12px">Ranked by level only — never by test scores or grades. '+
+    (LB.at?'Updated '+new Date(LB.at).toLocaleTimeString()+'. ':'')+'Top '+TOP_N+' shown.</p>';
+}
+
+/* ------------------------------------------------------------------- page  */
+function buildPage(){
+  var main=document.querySelector('.main');if(!main||$('page-leaderboard'))return;
+  var sec=document.createElement('section');
+  sec.className='page';sec.id='page-leaderboard';
+  sec.innerHTML=
+    '<div class="between" style="align-items:flex-start">'+
+      '<div><h2 class="title">Leaderboard</h2>'+
+      '<p class="sub">Every player, ranked by level. Level comes from time put in — cards reviewed, sessions finished, quests cleared — so this board measures effort, not ability. Nobody is ranked on their scores.</p></div>'+
+      '<button class="btn ghost sm" id="lb-refresh" style="flex:none;margin-top:4px">↻ Refresh</button>'+
+    '</div>'+
+    '<div id="lb-body" style="margin-top:16px"></div>';
+  main.appendChild(sec);
+
+  var nav=document.querySelector('.nav-btn[data-page="settings"]');
+  var btn=document.createElement('button');
+  btn.className='nav-btn';btn.id='lb-nav';
+  btn.innerHTML='<span class="ic">⛃</span><span class="lbl">Leaderboard</span>';
+  btn.onclick=function(){go('leaderboard');};
+  if(nav)nav.parentNode.insertBefore(btn,nav);
+  else document.querySelector('.sidebar').appendChild(btn);
+
+  var over=document.createElement('div');
+  over.id='lb-crowning';over.innerHTML='<div class="box"></div>';
+  document.body.appendChild(over);
+
+  $('lb-refresh').onclick=function(){publish(true).then(fetchBoard);};
+}
+
+/* ------------------------------------------------------------------- boot  */
+function open(){
+  LB.open=true;
+  render();
+  if(!canRank())return;
+  publish(true).then(function(){return fetchBoard();});
+  clearInterval(LB.timer);
+  /* While the page is open, keep checking. This is what makes "held #1 for any
+     amount of time" reachable without the student sitting and staring. */
+  LB.timer=setInterval(function(){
+    if(!document.getElementById('page-leaderboard').classList.contains('active')){clearInterval(LB.timer);LB.open=false;return;}
+    fetchBoard();
+  },45000);
+}
+
+function boot(){
+  if(typeof go!=='function'||!document.querySelector('.main'))return setTimeout(boot,250);
+  buildPage();
+  /* The app captured its page/nav NodeLists at load, long before this section
+     existed, so go() cannot see it. Drive the section directly, exactly as the
+     Arcade layer does for its own page. */
+  var origGo=window.go, myNav=$('lb-nav'), myPage=$('page-leaderboard');
+  window.go=function(p){
+    if(p==='leaderboard'){
+      if(DB&&typeof DB==='object')DB.lastPage=p;
+      try{document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active');});}catch(e){}
+      try{document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});}catch(e){}
+      myPage.classList.add('active');
+      myNav.classList.add('active');
+      open();
+      window.scrollTo(0,0);
+      return;
+    }
+    myPage.classList.remove('active');
+    myNav.classList.remove('active');
+    return origGo.apply(this,arguments);
+  };
+  /* Publish quietly in the background so a player appears on the board without
+     ever opening it, and so a level-up they earned elsewhere is reflected. */
+  setInterval(function(){if(canRank()&&gameReady())publish(false);},60000);
+  setTimeout(function(){if(canRank()&&gameReady())publish(true).then(fetchBoard);},4000);
+  window.SBLeaderboard={publish:publish,fetch:fetchBoard,state:LB,rules:RULES_SNIPPET,
+    evaluate:evaluateCrown,open:open,render:render};
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
 
 })();
 </script>

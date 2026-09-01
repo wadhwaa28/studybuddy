@@ -1210,12 +1210,23 @@
           <label class="fld">Your name</label>
           <input type="text" id="set-name" placeholder="What should we call you?">
           <button class="btn sm" id="set-save-name" style="margin-top:12px">Save</button>
-          <div class="section-h">Data</div>
-          <p class="sub" style="margin:0 0 12px">Signed in, your work syncs to your Google account. As a guest it stays in this browser. You can reset card progress or wipe all data.</p>
+          <div class="section-h">Your data</div>
+          <p class="sub" style="margin:0 0 12px">Signed in, your work syncs to your Google account. As a guest it stays in this browser. Your record of progress is the point of this app, so it is easy to keep and deliberately hard to lose.</p>
           <div class="row">
-            <button class="btn sec sm" id="set-reset-srs">Reset card schedule</button>
-            <button class="btn ghost sm" id="set-wipe">Erase all data</button>
+            <button class="btn sec sm" id="set-export">Download my data</button>
+            <button class="btn ghost sm" id="set-reset-srs">Reset card schedule</button>
           </div>
+          <p class="sub" style="margin:10px 0 0;font-size:12px">A download gives you every test, card and streak as a file you keep — useful before a fresh start, or just to have your own copy.</p>
+          <details id="set-danger" style="margin-top:16px">
+            <summary style="cursor:pointer;font-size:13px;color:var(--muted)">Leaving, or handing this device on?</summary>
+            <div class="card" style="margin-top:10px;border-color:var(--bad);background:transparent">
+              <p class="sub" style="margin:0 0 10px">Erasing removes this account from this browser and, if you are signed in, from the cloud and the leaderboard too. Every test score, card and streak goes with it, and it cannot be undone.</p>
+              <p class="sub" style="margin:0 0 10px"><strong>This is not how you reset your stats.</strong> If you want a clean slate but want to keep the record, download your data first, or clear just your test history from My&nbsp;Progress.</p>
+              <label class="fld">Type <strong>ERASE</strong> to confirm</label>
+              <input type="text" id="set-wipe-confirm" placeholder="ERASE" autocomplete="off" style="max-width:180px">
+              <button class="btn sm" id="set-wipe" style="margin-top:10px;background:var(--bad);border-color:var(--bad);color:#fff" disabled>Erase everything</button>
+            </div>
+          </details>
         </div>
         <div class="card">
           <h3 style="margin:0 0 4px">Live AI (optional)</h3>
@@ -7041,7 +7052,58 @@ document.getElementById('set-save-ai').onclick=()=>{
 };
 document.getElementById('set-save-gcid').onclick=()=>{DB.settings.gcid=document.getElementById('set-gcid').value.trim();save();toast("Client ID saved ✓");};
 document.getElementById('set-reset-srs').onclick=()=>{if(confirm("Reset all card scheduling (keeps the cards)?")){DB.cards.forEach(c=>{c.ease=2.5;c.interval=0;c.reps=0;c.due=0;});save();toast("Card schedule reset");}};
-document.getElementById('set-wipe').onclick=()=>{if(confirm("Erase ALL data and start fresh? This cannot be undone.")){localStorage.removeItem(LS);location.reload();}};
+/* Export first. A growth record you can keep is what makes an erase button
+   defensible at all — otherwise the only options are hoard or lose. */
+document.getElementById('set-export').onclick=()=>{
+  try{
+    const payload={exported:new Date().toISOString(),app:'Study Buddy',name:DB.name||'',
+                   grade:DB.grade||null,data:DB};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='study-buddy-'+(DB.name||'data').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+dstr()+'.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+    toast('Downloaded ✓');
+  }catch(e){toast('Could not export: '+e.message);}
+};
+/* The erase button stays disabled until ERASE is typed. A single confirm() is
+   too easy to click through for something this final. */
+(function(){
+  const inp=document.getElementById('set-wipe-confirm'), btn=document.getElementById('set-wipe');
+  if(!inp||!btn)return;
+  inp.addEventListener('input',()=>{
+    const ready=inp.value.trim().toUpperCase()==='ERASE';
+    btn.disabled=!ready; btn.style.opacity=ready?'':'.5';
+  });
+  btn.style.opacity='.5';
+})();
+document.getElementById('set-wipe').onclick=async ()=>{
+  const inp=document.getElementById('set-wipe-confirm');
+  if(!inp||inp.value.trim().toUpperCase()!=='ERASE')return;
+  const btn=document.getElementById('set-wipe');
+  btn.disabled=true; btn.textContent='Erasing…';
+  /* The old version removed a legacy key that modern accounts do not use, so it
+     looked destructive and did nothing. Clear every place an account actually
+     lives — including the public leaderboard row, which would otherwise outlive
+     the account it belonged to. */
+  try{if(window.SBLeaderboard&&window.SBLeaderboard.remove)await window.SBLeaderboard.remove();}catch(e){}
+  try{
+    if(typeof fbUser!=='undefined'&&fbUser){
+      try{localStorage.removeItem('sb_cache_'+fbUser.uid);}catch(e){}
+      if(typeof fbStore!=='undefined'&&fbStore){
+        try{await fbStore.collection('users').doc(fbUser.uid).delete();}catch(e){}
+      }
+      try{if(fbAuth)await fbAuth.signOut();}catch(e){}
+    }
+    const email=currentEmail();
+    if(email){const u=loadUsers();delete u[email];saveUsers(u);}
+    localStorage.removeItem(SESS_KEY);
+    localStorage.removeItem(LS);          /* legacy key, for accounts old enough to have it */
+    localStorage.removeItem('sb_theme');
+  }catch(e){}
+  location.reload();
+};
 /* ============================ PRACTICE & TESTS ============================ */
 const PR_LETTERS=['A','B','C','D','E'];
 // Randomize the position of the answer choices for ONE question, returning a fresh
@@ -10661,7 +10723,15 @@ function boot(){
   /* Printed once for whoever set the project up; not shown anywhere in the UI. */
   try{if(console&&console.info)console.info('[StudyBuddy] Leaderboard Firestore rules available as SBLeaderboard.rules');}catch(e){}
   window.SBLeaderboard={publish:publish,fetch:fetchBoard,state:LB,rules:RULES_SNIPPET,
-    evaluate:evaluateCrown,open:open,render:render,reconcile:reconcileChampion};
+    evaluate:evaluateCrown,open:open,render:render,reconcile:reconcileChampion,
+    /* Erasing an account has to take its public row with it, or a deleted
+       player keeps a name and a level on a board everyone can read. */
+    remove:function(){
+      if(!canRank())return Promise.resolve(false);
+      return store().collection('leaderboard').doc(cloudUid()).delete()
+        .then(function(){LB.publishedSig='';return true;})
+        .catch(function(e){console.warn('[StudyBuddy] leaderboard row not removed',e);return false;});
+    }};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
 else boot();

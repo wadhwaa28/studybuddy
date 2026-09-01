@@ -6902,11 +6902,15 @@ function courseRow(c,i){
 }
 function renderCourses(){
   const box=document.getElementById('set-courses');if(!box)return;
+  /* DB.subjects is empty until a grade is chosen, and SUBJECTS is the live list
+     every other screen reads — use it, so opening Settings first cannot throw. */
+  if(!DB.subjects||!DB.subjects.length)DB.subjects=coursesForGrade(DB.grade||DEFAULT_GRADE);
+  const courses=DB.subjects;
   box.innerHTML=
     `<label class="fld" style="margin-top:0">Grade level</label>
      <select id="set-grade" style="max-width:220px">${GRADES.map(g=>`<option value="${g}"${g===DB.grade?' selected':''}>Grade ${g}</option>`).join('')}</select>
-     <div class="section-h">Your courses (${DB.subjects.length})</div>
-     <div id="set-courselist">${DB.subjects.map(courseRow).join('')}</div>
+     <div class="section-h">Your courses (${courses.length})</div>
+     <div id="set-courselist">${courses.map(courseRow).join('')}</div>
      <div class="row" style="margin-top:12px">
        <button class="btn sm sec" id="set-course-add">+ Add a course</button>
        <button class="btn ghost sm" id="set-course-reset">Reset to Grade ${DB.grade} defaults</button>
@@ -8535,9 +8539,10 @@ function renderSyncUI(){
     (fbSync.err?'<div class="help-out" style="border-color:var(--bad);margin-top:12px">⚠️ '+esc(fbSync.err)+'</div>':'')+
     ((window.SBLeaderboard&&window.SBLeaderboard.state.err)
       ? '<div class="help-out" style="border-color:var(--bad);margin-top:12px">⚠️ Leaderboard: '+esc(window.SBLeaderboard.state.err)+'</div>':'')+
-    (fbUser?'<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">Firestore security rules (paste these in the Firebase console)</summary>'+
-      '<p class="sub" style="margin:8px 0 0;font-size:12.5px">The leaderboard needs its own collection: readable by any signed-in player, writable only by its owner. Your private study data stays locked to you.</p>'+
-      '<pre class="lb-rules">'+esc(window.SBLeaderboard?window.SBLeaderboard.rules:'')+'</pre></details>':'')+
+    /* The Firestore rules used to be printed here. They are backend configuration
+       for whoever runs the project, not a setting a student has any use for, so
+       they now appear only in the leaderboard's own error card — at the moment
+       they are actually actionable — and in the console via SBLeaderboard.rules. */
     (!fbUser&&fbAuth?'<p class="sub" style="margin:12px 0 0;font-size:12.5px">You’re in guest mode — everything saves in this browser only. Sign in from the welcome page to sync across devices.</p>':'')+
     (isFileUrl()
       ? '<p class="sub" style="margin:12px 0 0;font-size:12.5px">This page is open from a <code>file://</code> path. Firebase Auth requires an <code>http(s)</code> origin — the browser reports a file page’s origin as <code>null</code>, which Google can never authorize. Deploy the site (or serve it at <code>http://localhost</code>) and sign-in will work.</p>'
@@ -10653,6 +10658,8 @@ function boot(){
       publish(true).then(fetchBoard);
     } else if(++tries>40) clearInterval(startup);   /* ~2 minutes, then stop */
   },3000);
+  /* Printed once for whoever set the project up; not shown anywhere in the UI. */
+  try{if(console&&console.info)console.info('[StudyBuddy] Leaderboard Firestore rules available as SBLeaderboard.rules');}catch(e){}
   window.SBLeaderboard={publish:publish,fetch:fetchBoard,state:LB,rules:RULES_SNIPPET,
     evaluate:evaluateCrown,open:open,render:render,reconcile:reconcileChampion};
 }
@@ -11650,9 +11657,12 @@ var NM_RESERVED=['admin','administrator','moderator','mod','staff','official','s
   'studybuddy','system','owner','root','server','bot','teacher','principal','null','undefined',
   'anonymous','deleted','guest','everyone','here','all'];
 
+/* Off by default. Strict mode is the version with the hard guarantee, but it
+   only accepts dictionary names, which turns away perfectly reasonable handles.
+   That is a deliberate trade for a classroom to opt into, not a default. */
 function nmStrictOn(){
   try{var g=window.SBGame&&window.SBGame.state?window.SBGame.state():null;
-      return !g||g.strictNames!==false;}catch(e){return true;}
+      return !!(g&&g.strictNames===true);}catch(e){return false;}
 }
 function checkName(raw,opts){
   opts=opts||{};
@@ -11661,13 +11671,23 @@ function checkName(raw,opts){
   if(!n)              return {ok:false,reason:'Enter a name.'};
   if(n.length<NM_MIN) return {ok:false,reason:'A bit longer, please.'};
   if(n.length>NM_MAX) return {ok:false,reason:'Keep it to '+NM_MAX+' characters or fewer.'};
-  /* Digits are allowed only as one or two trailing characters (Alex07). A digit
-     inside a word is almost always leetspeak, so rejecting it here removes that
-     whole evasion class before the matcher is even reached. */
-  if(!/^[\p{L}\p{M}]+(?:[ '\-][\p{L}\p{M}]+)*[0-9]{0,2}$/u.test(n))
-                      return {ok:false,reason:"Letters, spaces, hyphens and apostrophes only (numbers only at the end)."};
+  /* Digits are allowed anywhere after the first character. Restricting them to
+     the end was meant to pre-empt leetspeak, but it rejects ordinary handles
+     like Wadhwaa28Dev — and it was never load-bearing: nmDeep() already folds
+     digits to the letters they imitate, so n1gger is caught by the matcher
+     either way. The name must still start with a letter and be mostly letters. */
+  if(!/^[\p{L}\p{M}][\p{L}\p{M}0-9]*(?:[ '\-][\p{L}\p{M}0-9]+)*$/u.test(n))
+                      return {ok:false,reason:'Letters, numbers, spaces, hyphens and apostrophes only \u2014 starting with a letter.'};
   if((n.match(/\p{L}/gu)||[]).length<2)  return {ok:false,reason:'Names need at least two letters.'};
-  if((n.match(/[0-9]/g)||[]).length>2)   return {ok:false,reason:'Too many numbers — use mostly letters.'};
+  var digits=(n.match(/[0-9]/g)||[]).length;
+  if(digits>4)          return {ok:false,reason:'Too many numbers \u2014 use mostly letters.'};
+  /* One run of digits is a handle (Wadhwaa28Dev, Alex07). Digits sprinkled
+     singly between letters is leetspeak spelling a word out, so scattered runs
+     are refused while a real handle is untouched. */
+  if((n.match(/[0-9]+/g)||[]).length>2)
+                        return {ok:false,reason:'Keep numbers together, not scattered through the name.'};
+  if(digits>=(n.match(/\p{L}/gu)||[]).length)
+                        return {ok:false,reason:'Names should be mostly letters.'};
   if(/(.)\1{2,}/u.test(n))               return {ok:false,reason:'Too many repeated characters.'};
   var flat=nmDeep(n);
   if(!flat)           return {ok:false,reason:'Please use letters.'};
@@ -11741,7 +11761,7 @@ function boot(){
   var help=document.createElement('p');
   help.className='sub';
   help.style.cssText='margin:8px 0 0;font-size:12px';
-  help.textContent='Strict mode only accepts names from a built-in dictionary, so nothing inappropriate can get through at all. Turn it off to type an unusual name.';
+  help.innerHTML='Names are always filtered. <strong>Strict mode</strong> goes further: it only accepts names from a built-in dictionary, so nothing inappropriate can get through at all \u2014 at the cost of turning away unusual names and handles. Use <em>Suggest a name</em> if yours is not recognised.';
   row.parentNode.insertBefore(help,row.nextSibling);
 
   function review(){

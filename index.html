@@ -9187,7 +9187,12 @@ var THEMES={
       background:conic-gradient(from 0deg,transparent,rgba(53,240,224,.22),transparent 40%,rgba(177,77,255,.24),transparent 72%);
       filter:blur(22px);animation:sg-ring 26s linear infinite;
     }
-    .main,.sidebar{position:relative;z-index:1}
+    /* Lift both above the fixed background layers — but only .main needs a
+       position for z-index to apply. The sidebar is already position:sticky,
+       and setting position:relative here un-pinned it, so it scrolled away and
+       visibly ended partway down the page. */
+    .main{position:relative;z-index:1}
+    .sidebar{z-index:1}
     .card,.arc-stat,.lb-row,.arc-shop,.qblock{
       border-color:rgba(177,77,255,.20) !important;
       background-image:linear-gradient(180deg,rgba(177,77,255,.05),transparent 45%) !important;
@@ -9318,7 +9323,12 @@ var THEMES={
       background:linear-gradient(100deg,transparent,rgba(255,244,214,.20),transparent);
       animation:rg-pass 15s ease-in-out infinite;
     }
-    .main,.sidebar{position:relative;z-index:1}
+    /* Lift both above the fixed background layers — but only .main needs a
+       position for z-index to apply. The sidebar is already position:sticky,
+       and setting position:relative here un-pinned it, so it scrolled away and
+       visibly ended partway down the page. */
+    .main{position:relative;z-index:1}
+    .sidebar{z-index:1}
 
     /* gilded panels, with corner brackets drawn in */
     /* Sheer panels. The fabric and the crown are meant to sit behind the app,
@@ -9453,8 +9463,8 @@ var AVATARS=[
   {id:'oracle',  em:'\uD83D\uDD2E',name:'Oracle',   price:2600,note:'Already knows what is on the test.'},
   /* Not for sale. price:null means the shop renders it locked and buy() refuses it.
      The only way to wear this one is to have held #1 on the leaderboard. */
-  {id:'crown',   em:'\uD83D\uDC51',name:'Sovereign',price:null,locked:'Held #1 on the leaderboard',
-    note:'Worn only by players who have topped the board. It cannot be bought.'}
+  {id:'crown',   em:'\uD83D\uDC51',name:'Sovereign',price:null,locked:'Finish in the top 10',
+    note:'Worn only by players who have reached the top ten of the leaderboard. It cannot be bought.'}
 ];
 var POWERUPS=[
   {id:'freeze',em:'🧊',name:'Streak Freeze',price:150,desc:'Miss a day and this is spent automatically to keep your streak alive. Stackable.'},
@@ -9543,7 +9553,8 @@ function initGame(){
   if(!g.owned.items)g.owned.items={};
   if(!g.equipped)g.equipped={theme:'base',avatar:'bear'};
   if(!g.equipped.helper)g.equipped.helper=(g.owned.items&&g.owned.items.golden)?'gold':'classic';
-  if(g.crowned==null)g.crowned=false;          /* set once, never cleared — see the Leaderboard layer */
+  if(g.crowned==null)g.crowned=false;          /* ever held #1 — set once, never cleared */
+  if(g.top10==null)g.top10=false;              /* ever reached the top ten — likewise */
   if(g.freezes==null)g.freezes=1;              /* everyone starts with one */
   if(g.boostUntil==null)g.boostUntil=0;
   if(g.sound==null)g.sound=true;
@@ -11133,85 +11144,118 @@ function fetchBoard(){
    once crowned, always crowned, however far you later slip. */
 /* What a champion owns. Adding to these lists is all it takes to give every
    past champion a new reward — reconcileChampion() back-fills them. */
-var CHAMPION_THEMES=['regalia'], CHAMPION_AVATARS=['crown'];
+/* Two honours, two bars. Finishing in the top ten is a real achievement and
+   many players can hold it at once, so it unlocks the Sovereign buddy. First
+   place is singular, so it keeps Regalia to itself. Reaching #1 implies the
+   top ten, so it grants both. Neither is ever taken away. */
+var TOP10_AVATARS=['crown'];
+var CHAMPION_THEMES=['regalia'];
+var HONOUR_CUT=10;
 
-/* Brings a champion's inventory up to whatever the CURRENT build says a
-   champion owns. Idempotent, so it is safe to run on every boot and every
-   fetch, and it is the thing that fixes an account crowned by an older build
-   that granted fewer rewards. Entitlement is a standing state, not a one-time
-   event, so it must be reconciled and never merely granted at the transition. */
+/* Brings an account's inventory up to whatever the CURRENT build says its
+   honours are worth. Idempotent, so it is safe on every boot and every fetch,
+   and it back-fills an account that earned an honour before the reward existed.
+   Entitlement is a standing state, not a one-time event. */
 function reconcileChampion(){
   if(!gameReady())return false;
   var g=G2();
-  if(!g.crowned)return false;
   if(!g.owned)g.owned={themes:['base'],avatars:['bear'],items:{}};
   if(!g.owned.themes)g.owned.themes=['base'];
   if(!g.owned.avatars)g.owned.avatars=['bear'];
+  /* anyone who has ever held #1 has necessarily been in the top ten */
+  if(g.crowned&&!g.top10){g.top10=true;g.top10At=g.crownedAt||Date.now();}
   var added=[];
-  CHAMPION_THEMES.forEach(function(t){
-    if(g.owned.themes.indexOf(t)<0){g.owned.themes.push(t);added.push((window.SBGame.themes[t]||{}).name||t);}
-  });
-  CHAMPION_AVATARS.forEach(function(a){
-    if(g.owned.avatars.indexOf(a)<0){g.owned.avatars.push(a);added.push('Sovereign');}
-  });
+  if(g.top10){
+    TOP10_AVATARS.forEach(function(av){
+      if(g.owned.avatars.indexOf(av)<0){g.owned.avatars.push(av);added.push('the Sovereign buddy');}
+    });
+  }
+  if(g.crowned){
+    CHAMPION_THEMES.forEach(function(t){
+      if(g.owned.themes.indexOf(t)<0){g.owned.themes.push(t);added.push((window.SBGame.themes[t]||{}).name||t);}
+    });
+  }
   if(!added.length)return false;
   try{window.SBGame.check();}catch(e){}
   window.SBGame.persist();
   try{window.SBGame.sfx('buy');}catch(e){}
-  if(typeof toast==='function')toast('\uD83D\uDC51 Champion reward unlocked: '+added.join(' and ')+' \u2014 find it in the Arcade shop');
+  if(typeof toast==='function')toast('🏅 Unlocked: '+added.join(' and ')+' — find it in the Arcade shop');
   try{window.SBGame.refresh();}catch(e){}
   render();
   return true;
 }
 
-/* Is this client currently sitting at #1? If so it is crowned — now, or at any
-   point before. The crown is never taken away. */
+/* Where is this client sitting right now? Top ten earns the buddy, first place
+   also earns the theme. Both are recorded permanently the moment they happen. */
 function evaluateCrown(rows){
-  /* Run first and unconditionally: a standing champion may be owed rewards that
-     did not exist when they won, whether or not they are still on top today. */
+  /* Run first and unconditionally: a standing honour may be owed rewards that
+     did not exist when it was earned, whatever the position is today. */
   reconcileChampion();
   if(!rows||!rows.length||!canRank()||!gameReady())return;
   var uid=cloudUid(), g=G2();
-  if(rows[0].uid!==uid)return;
-  if(g.crowned){
-    /* Already a champion and still on top — nothing new to award, but keep the
-       published row honest so other players see the crown. */
-    rows[0].crowned=true;
-    return;
+  var idx=-1;
+  for(var i=0;i<rows.length;i++){if(rows[i].uid===uid){idx=i;break;}}
+  if(idx<0)return;
+
+  var newTop10=(idx<HONOUR_CUT && !g.top10);
+  var newCrown=(idx===0 && !g.crowned);
+
+  if(idx<HONOUR_CUT && !g.top10){
+    g.top10=true; g.top10At=Date.now();
+    TOP10_AVATARS.forEach(function(av){if(g.owned.avatars.indexOf(av)<0)g.owned.avatars.push(av);});
   }
-  g.crowned=true;
-  g.crownedAt=Date.now();
-  rows[0].crowned=true;   /* the row we just read predates the crown — don't redraw it stale */
-  CHAMPION_THEMES.forEach(function(t){if(g.owned.themes.indexOf(t)<0)g.owned.themes.push(t);});
-  CHAMPION_AVATARS.forEach(function(a){if(g.owned.avatars.indexOf(a)<0)g.owned.avatars.push(a);});
+  if(idx===0){
+    if(!g.crowned){g.crowned=true;g.crownedAt=Date.now();
+      CHAMPION_THEMES.forEach(function(t){if(g.owned.themes.indexOf(t)<0)g.owned.themes.push(t);});}
+    /* the row we just read predates the crown — don't redraw it stale */
+    rows[0].crowned=true;
+  }
+  if(!newTop10&&!newCrown)return;
+
   try{window.SBGame.sfx('level');}catch(e){}
   try{window.SBGame.check();}catch(e){}   /* fires the Monarch badge */
   window.SBGame.persist();
   publish(true);
-  showCrowning();
+  showCrowning(newCrown?'crown':'top10');
 }
 
-function showCrowning(){
+/* Two celebrations, because the two honours are not the same size. */
+function showCrowning(kind){
   var box=$('lb-crowning');if(!box)return;
-  box.querySelector('.box').innerHTML=
-    '<div class="big">👑</div>'+
-    '<h3>You took first place</h3>'+
-    '<p>Two things are yours permanently, and neither can be bought at any price:</p>'+
-    '<div class="lb-spoils">'+
-      '<div class="lb-spoil"><div class="ic">👑</div><div><b>Sovereign</b><span>A crown to wear as your buddy</span></div></div>'+
-      '<div class="lb-spoil"><div class="ic">✦</div><div><b>Regalia</b><span>The champion&rsquo;s arcade skin</span></div></div>'+
-    '</div>'+
-    '<p style="margin:16px 0 18px">They stay yours even if someone passes you tomorrow.</p>'+
+  var g=G2();
+  var body, wear;
+  if(kind==='crown'){
+    /* first place — may arrive together with the top-ten unlock */
+    var alsoBuddy=(g.owned.avatars.indexOf('crown')>=0);
+    body='<div class="big">👑</div>'+
+      '<h3>You took first place</h3>'+
+      '<p>Nobody else can hold this while you do. It is yours permanently, and it cannot be bought at any price:</p>'+
+      '<div class="lb-spoils">'+
+        '<div class="lb-spoil"><div class="ic">✦</div><div><b>Regalia</b><span>The champion&rsquo;s arcade skin</span></div></div>'+
+        (alsoBuddy?'<div class="lb-spoil"><div class="ic">👑</div><div><b>Sovereign</b><span>Yours from the top ten</span></div></div>':'')+
+      '</div>'+
+      '<p style="margin:16px 0 18px">It stays yours even if someone passes you tomorrow.</p>';
+    wear=function(){
+      if(alsoBuddy)window.SBGame.equip('avatar','crown');
+      window.SBGame.equip('theme','regalia');
+    };
+  } else {
+    body='<div class="big">🏅</div>'+
+      '<h3>You made the top ten</h3>'+
+      '<p>Out of everyone on the board. That unlocks a buddy you cannot buy:</p>'+
+      '<div class="lb-spoils">'+
+        '<div class="lb-spoil"><div class="ic">👑</div><div><b>Sovereign</b><span>A crown to wear as your buddy</span></div></div>'+
+      '</div>'+
+      '<p style="margin:16px 0 18px">Yours for good, wherever you finish from here. First place has its own reward.</p>';
+    wear=function(){window.SBGame.equip('avatar','crown');};
+  }
+  box.querySelector('.box').innerHTML=body+
     '<div class="row" style="justify-content:center">'+
-      '<button class="btn" id="lb-wear">Wear both</button>'+
+      '<button class="btn" id="lb-wear">'+(kind==='crown'?'Wear it':'Wear the crown')+'</button>'+
       '<button class="btn sec" id="lb-later">Later</button>'+
     '</div>';
   box.classList.add('show');
-  $('lb-wear').onclick=function(){
-    window.SBGame.equip('avatar','crown');
-    window.SBGame.equip('theme','regalia');
-    box.classList.remove('show');render();
-  };
+  $('lb-wear').onclick=function(){wear();box.classList.remove('show');render();};
   $('lb-later').onclick=function(){box.classList.remove('show');};
 }
 

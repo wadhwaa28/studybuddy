@@ -579,7 +579,7 @@
     </svg>
     <h1>Study Buddy</h1>
     <p class="land-tag">Level up your studying</p>
-    <p class="land-desc">Every card you review, every focus session, every test you sit earns XP. Level up through five ranks, clear daily quests, collect badges, and spend your coins on themes and power-ups — all wrapped around the study methods that actually work.</p>
+    <p class="land-desc">Every card you review, every focus session, every test you sit earns XP. Level up through 29 ranks, clear daily quests, collect badges, and spend your coins on themes and power-ups — all wrapped around the study methods that actually work.</p>
     <div class="land-cta" id="land-cta">
       <div id="g-signin-btn"></div>
       <button class="land-guest" id="land-guest">Continue without an account</button>
@@ -587,9 +587,10 @@
     <p class="land-note" id="land-note"></p>
     <div class="land-strip">
       <div class="land-chip"><b>6–12</b><span>grades</span></div>
-      <div class="land-chip"><b>1,000+</b><span>questions</span></div>
-      <div class="land-chip"><b>34</b><span>badges</span></div>
-      <div class="land-chip"><b>6</b><span>themes</span></div>
+      <div class="land-chip"><b>1,700+</b><span>questions</span></div>
+      <div class="land-chip"><b>35</b><span>badges</span></div>
+      <div class="land-chip"><b>22</b><span>themes</span></div>
+      <div class="land-chip"><b>29</b><span>ranks</span></div>
       <div class="land-chip"><b>∞</b><span>bragging rights</span></div>
     </div>
     <h2 class="land-h2">Your studying, with a scoreboard</h2>
@@ -611,11 +612,11 @@
         <div class="lg-ic">◈</div>
         <div class="lg-t">Badges, coins &amp; a shop</div>
         <div class="lg-d">Spend what you earn on things that make the app yours.</div>
-        <ul><li>34 badges to hunt down</li><li>6 themes, 11 avatars</li><li>Double-XP boosts and freezes</li></ul>
+        <ul><li>35 badges to hunt down</li><li>22 themes, 18 avatars</li><li>Double-XP boosts and freezes</li></ul>
       </div>
     </div>
     <h2 class="land-h2">Climb the ranks</h2>
-    <p class="land-h2-sub">Ten tiers stand between your first flashcard and total mastery. Everyone starts at Iron.</p>
+    <p class="land-h2-sub">Twenty-nine tiers stand between your first flashcard and total mastery. Everyone starts at Iron; almost nobody reaches Kyawthuite.</p>
     <div class="land-ranks" id="land-ranks"></div>
     <h2 class="land-h2">Everything you need to study smarter</h2>
     <p class="land-h2-sub">Six tools that work together to help you learn, remember, and stay on top of your work.</p>
@@ -903,7 +904,7 @@
     <!-- POMODORO -->
     <section class="page" id="page-pomodoro">
       <h2 class="title">Pomodoro timer</h2>
-      <p class="sub">Focus in sprints. Default 25 min work / 5 min break, 4 rounds then a long break.</p>
+      <p class="sub">Focus in sprints. Default 30 min work / 10 min break, 4 rounds then a long break.</p>
       <div class="grid g2">
         <div class="card timer-wrap">
           <div class="timer-ring">
@@ -8676,6 +8677,7 @@ function askGrade(after){
 }
 
 function enterAppUI(){
+  landingLock(false);
   document.getElementById('landing').style.display='none';
   document.querySelector('.app').style.display='flex';
   document.getElementById('help-fab').style.display='';
@@ -8712,6 +8714,7 @@ function renderSignInButton(){
       '<span>Signed in as <b>'+esc(who)+'</b></span></div>'+
       '<button class="btn" id="fb-back-btn" style="padding:12px 26px;font-size:15px;margin-top:12px">Back to studying \u2192</button>';
     document.getElementById('fb-back-btn').onclick=function(){
+      landingLock(false);
       document.getElementById('landing').style.display='none';
     };
     if(lg)lg.style.display='none';
@@ -8738,6 +8741,7 @@ function showLanding(){
   document.getElementById('land-close').style.display='none';
   document.getElementById('land-cta').style.display='flex';
   document.getElementById('land-note').style.display='block';
+  landingLock(true);
   document.getElementById('landing').style.display='block';
   document.getElementById('landing').scrollTop=0;
   renderSignInButton();
@@ -8747,8 +8751,20 @@ function showLanding(){
       ? 'You’ve opened this as a file on your computer, so Google sign-in can’t run — it needs a real web address. Everything works here in guest mode, saved in this browser.'
       : 'Google sign-in isn’t available here, so your progress saves in this browser instead. Everything else works exactly the same.';
 }
+/* The welcome page is a fixed, full-screen overlay that scrolls inside itself.
+   When it is opened from inside the app (About), the app stays mounted behind
+   it — so the document keeps its own scrollbar and the user sees two. Freezing
+   the document while the overlay is up leaves exactly one scrollbar, and the
+   app's scroll position is preserved for when it closes. */
+function landingLock(on){
+  var d=document.documentElement;
+  if(on){ d.style.overflow='hidden'; }
+  else  { d.style.overflow=''; }
+}
+
 // reopen the welcome page while signed in (no logout) with a Back-to-app button
 function showAbout(){
+  landingLock(true);
   document.getElementById('land-close').style.display='block';
   document.getElementById('land-cta').style.display='flex';
   document.getElementById('land-note').style.display='block';
@@ -8756,7 +8772,7 @@ function showAbout(){
   document.getElementById('landing').scrollTop=0;
   renderSignInButton();
 }
-document.getElementById('land-close').onclick=()=>{document.getElementById('landing').style.display='none';};
+document.getElementById('land-close').onclick=()=>{landingLock(false);document.getElementById('landing').style.display='none';};
 document.getElementById('side-about').onclick=(e)=>{e.preventDefault();showAbout();};
 (function(){const b=document.querySelector('.brand');if(b){b.style.cursor='pointer';b.title='About Study Buddy';b.onclick=showAbout;}})();
 function logout(){

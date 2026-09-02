@@ -782,6 +782,7 @@
         <div class="row" style="margin-bottom:12px">
           <select id="rc-subject" style="max-width:240px"></select>
           <span class="pill"><span id="rc-due">0</span> due · <span id="rc-new">0</span> new</span>
+          <span class="sub" id="rc-newcap" style="margin:0;font-size:12px;flex-basis:100%"></span>
         </div>
         <div id="rc-progresswrap" style="display:none;margin-bottom:14px">
           <div class="between" style="margin-bottom:6px">
@@ -798,7 +799,7 @@
           </div>
           <div id="rc-grades" style="display:none">
             <div class="grade-row">
-              <button class="g-again" data-g="0">Again<small>&lt;1 min</small></button>
+              <button class="g-again" data-g="0">Again<small id="lbl-again"></small></button>
               <button class="g-hard" data-g="1">Hard<small id="lbl-hard"></small></button>
               <button class="g-good" data-g="2">Good<small id="lbl-good"></small></button>
               <button class="g-easy" data-g="3">Easy<small id="lbl-easy"></small></button>
@@ -1210,6 +1211,10 @@
           <label class="fld">Your name</label>
           <input type="text" id="set-name" placeholder="What should we call you?">
           <button class="btn sm" id="set-save-name" style="margin-top:12px">Save</button>
+          <div class="section-h">Review pace</div>
+          <p class="sub" style="margin:0 0 8px">How far ahead a card you know well can be pushed. Shorter means more reviews but nothing disappears before it matters.</p>
+          <select id="set-srs-pace"></select>
+          <p class="sub" id="set-srs-note" style="margin:8px 0 0;font-size:12px"></p>
           <div class="section-h">Your data</div>
           <p class="sub" style="margin:0 0 12px">Signed in, your work syncs to your Google account. As a guest it stays in this browser. Your record of progress is the point of this app, so it is easy to keep and deliberately hard to lose.</p>
           <div class="row">
@@ -2944,6 +2949,7 @@ const SEED_VERSION=2;
 // Fill in any missing fields + seed content for a freshly-loaded account, then update the streak.
 function prepareDB(){
   if(!DB.cards)DB.cards=[];
+  if(!DB.srsPace)DB.srsPace='balanced';
   if(!DB.streak)DB.streak={count:0,last:""};
   if(!DB.pomToday)DB.pomToday={date:"",count:0};
   if(!DB.settings)DB.settings={provider:"none",key:"",gcid:""};
@@ -2951,6 +2957,9 @@ function prepareDB(){
   /* deliberately after applyCourses() below — seeding needs the course list */
   if(!DB.tests)DB.tests={};
   if(!DB.history)DB.history=[];
+  /* Decks built under the old algorithm can have cards years out. Pull them
+     back inside the current ceiling, once, on load. */
+  try{srsRebalance();}catch(e){}
   if(!DB.assignments)DB.assignments=[];
   if(!DB.priorities)DB.priorities=["Low","Medium","High"];
   if(!DB.statuses)DB.statuses=["Not started","In progress","Stumped","Finished"];
@@ -3143,6 +3152,9 @@ document.getElementById('ac-save').onclick=()=>{
 };
 /* ============================ SPACED REPETITION (SM-2 lite) ============================ */
 let rcQueue=[],rcIdx=0,rcFlipped=false,rcCram=false,rcTotal=0,rcKnew=0,rcStruggled=0,rcMissed=[];
+/* Cards can now appear more than once in a session, so progress is counted in
+   distinct cards rather than queue positions. */
+let rcScored={},rcDone={};
 function fillSubjSelect(el,all=true){
   el.innerHTML=(all?'<option value="">All subjects</option>':'')+SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
 }
@@ -3175,13 +3187,28 @@ function buildQueue(){
   const subj=document.getElementById('rc-subject').value, now=Date.now();
   let pool=DB.cards.filter(c=>!subj||c.subj===subj);
   document.getElementById('rc-due').textContent=pool.filter(c=>c.due&&c.due<=now).length+pool.filter(c=>c.due===0).length;
-  document.getElementById('rc-new').textContent=pool.filter(c=>c.due===0).length;
-  const cards = rcCram ? shuffle(pool.slice()) : pool.filter(c=>c.due===0||c.due<=now);
+  const newCount=pool.filter(c=>c.due===0).length;
+  document.getElementById('rc-new').textContent=newCount;
+  const cap=document.getElementById('rc-newcap');
+  if(cap)cap.textContent=(!rcCram&&newCount>SRS_NEW_PER_SESSION)
+    ? SRS_NEW_PER_SESSION+' new cards this session — the rest are waiting for you.' : '';
+  /* Learning steps mean each new card takes about three passes to graduate, so
+     an unlimited pile of new cards turns the first session into a 450-answer
+     slog. Cap how many are introduced at once; the rest wait their turn.
+     Cards already in review are never held back, and Cram ignores the cap. */
+  let cards;
+  if(rcCram){ cards=shuffle(pool.slice()); }
+  else{
+    const due=pool.filter(c=>c.due&&c.due<=now);
+    const fresh=pool.filter(c=>c.due===0).slice(0,SRS_NEW_PER_SESSION);
+    cards=shuffle(due.concat(fresh));
+  }
   startSessionWith(cards);
 }
 // begins a linear, Quizlet-style pass through a set of cards (with progress + end score)
 function startSessionWith(cards){
-  rcQueue=cards;rcIdx=0;rcFlipped=false;rcKnew=0;rcStruggled=0;rcMissed=[];rcTotal=rcQueue.length;
+  rcQueue=cards.slice();rcIdx=0;rcFlipped=false;rcKnew=0;rcStruggled=0;rcMissed=[];
+  rcScored={};rcDone={};rcTotal=new Set(cards.map(c=>c.id)).size;
   document.getElementById('rc-results').style.display='none';
   if(!rcTotal){
     document.getElementById('rc-stage').style.display='none';
@@ -3203,11 +3230,12 @@ function showCard(){
   document.getElementById('rc-text').textContent=c.front;
   document.getElementById('rc-hint').style.display='block';
   document.getElementById('rc-grades').style.display='none';
-  document.getElementById('rc-pos').textContent=rcIdx+1;
+  const done=Object.keys(rcDone).length;
+  document.getElementById('rc-pos').textContent=Math.min(rcTotal,done+1);
   document.getElementById('rc-total').textContent=rcTotal;
   document.getElementById('rc-knew-live').textContent=rcKnew;
   document.getElementById('rc-struggle-live').textContent=rcStruggled;
-  document.getElementById('rc-progress-bar').style.width=(rcIdx/rcTotal*100)+'%';
+  document.getElementById('rc-progress-bar').style.width=(rcTotal?done/rcTotal*100:0)+'%';
   updateGradeLabels(c);
 }
 function showResults(){
@@ -3234,30 +3262,162 @@ function flip(){
 }
 document.getElementById('rc-card').onclick=flip;
 function updateGradeLabels(c){
-  document.getElementById('lbl-hard').textContent=fmtIv(nextInterval(c,1));
-  document.getElementById('lbl-good').textContent=fmtIv(nextInterval(c,2));
-  document.getElementById('lbl-easy').textContent=fmtIv(nextInterval(c,3));
+  document.getElementById('lbl-again').textContent=srsAnswer(c,0).label;
+  document.getElementById('lbl-hard').textContent=srsAnswer(c,1).label;
+  document.getElementById('lbl-good').textContent=srsAnswer(c,2).label;
+  document.getElementById('lbl-easy').textContent=srsAnswer(c,3).label;
+}
+/* ============================ SCHEDULING ============================
+   This used to be textbook SM-2, which is built for lifetime retention of
+   facts with no deadline. Answering "Good" every time ran 1d, 4d, 10d, 25d,
+   2.1 months, 5.3 months, 13 months; "Easy" reached four years. For a student
+   that is wrong three times over: the card comes back long after the test it
+   was learned for, often after the course has ended, and while it is away the
+   "cards due" count reads zero — which quietly starves the streak, the daily
+   quests and every other thing that depends on there being something to do.
+
+   So the ease is clamped, the early steps are tuned for a school term, and a
+   ceiling keeps everything inside a horizon the student actually has. --------- */
+/* Ceilings are set against the school calendar, not against memory theory.
+   A unit test lands every two or three weeks, so a card you know well should
+   still come back two or three times inside that window. Ten days does that;
+   three weeks does not, and parks half the deck out of sight while it waits. */
+const SRS_PACE={
+  cram:    {name:'Tight',    max:5,  note:'Nothing sits longer than 5 days. Use it in the week before a test.'},
+  balanced:{name:'Steady',   max:10, note:'A card you know well comes back about every 10 days \u2014 two or three times per unit.'},
+  long:    {name:'Extended', max:21, note:'Up to 3 weeks. Only worth it for material you have genuinely nailed.'}
+};
+const SRS_EASE_MIN=1.3, SRS_EASE_MAX=2.1, SRS_EASE_START=2.0;
+
+function srsMax(){
+  const p=SRS_PACE[(DB&&DB.srsPace)||'balanced']||SRS_PACE.balanced;
+  return p.max;
+}
+/* If a goal for this course has a target date, no card should be scheduled past
+   it — revision that lands after the exam is revision that never happened. */
+function srsDeadlineCap(subj){
+  if(!DB||!DB.goals)return Infinity;
+  let best=Infinity, now=Date.now();
+  DB.goals.forEach(function(g){
+    if(g.done||!g.target)return;
+    if(g.subj&&subj&&g.subj!==subj)return;
+    const days=Math.floor((new Date(g.target+'T23:59:59')-now)/86400000);
+    if(days>0&&days<best)best=days;
+  });
+  return best;
 }
 function nextInterval(c,grade){
   if(grade===0)return 0;
-  if(c.reps===0)return grade===3?4:1;
-  if(c.reps===1)return grade===3?6:(grade===1?3:4);
-  let ef=c.ease+(0.1-(3-grade)*(0.08+(3-grade)*0.02));
-  ef=Math.max(1.3,ef);
-  return Math.round(c.interval*ef);
+  let iv;
+  /* Explicit early steps. The first few reps are where a card is actually
+     learned, so they stay short and predictable rather than compounding. */
+  if(c.reps===0)      iv=(grade===3?2:1);
+  else if(c.reps===1) iv=(grade===3?3:grade===1?2:2);
+  else if(c.reps===2) iv=(grade===3?5:grade===1?3:4);
+  else if(c.reps===3) iv=(grade===3?8:grade===1?4:7);
+  else {
+    let ef=(c.ease||SRS_EASE_START)+(0.1-(3-grade)*(0.08+(3-grade)*0.02));
+    ef=Math.min(SRS_EASE_MAX,Math.max(SRS_EASE_MIN,ef));
+    iv=Math.round((c.interval||1)*ef);
+  }
+  /* Hard still climbs, just slowly — pressing it repeatedly used to pin the card
+     at one day forever, which is its own kind of useless. */
+  if(grade===1&&c.reps>2)iv=Math.max((c.interval||1)+1,Math.round((c.interval||1)*1.3));
+  const cap=Math.min(srsMax(),srsDeadlineCap(c&&c.subj));
+  return Math.max(1,Math.min(iv,cap));
+}
+/* Cards scheduled by the old algorithm can be months or years out. Pull them
+   back to the current ceiling once, so an existing deck is not simply lost. */
+function srsRebalance(){
+  if(!DB||!DB.cards)return 0;
+  const cap=srsMax(), now=Date.now();
+  let moved=0;
+  DB.cards.forEach(function(c){
+    if(c.ease>SRS_EASE_MAX){c.ease=SRS_EASE_MAX;}
+    if(c.interval>cap){
+      c.interval=cap;
+      const over=c.due-now;
+      if(over>cap*86400000){c.due=now+cap*86400000;moved++;}
+    }
+  });
+  return moved;
 }
 function fmtIv(d){if(d===0)return'<1d';if(d<1)return'<1d';if(d>=30)return Math.round(d/30)+'mo';return d+'d';}
+
+/* ---------------------------- LEARNING STEPS ----------------------------
+   Real spaced repetition has two scales, and this app only ever had one.
+   A brand-new card belongs in *learning*: minutes apart, several times in the
+   same sitting, until it sticks. Only then does it graduate to the day-scale
+   ladder. Before this, the first correct answer catapulted a card straight to
+   tomorrow, and pressing Again set it due in 60 seconds but never put it back
+   in the queue — so you never saw it again that session either. ------------- */
+const SRS_NEW_PER_SESSION=20; /* new cards introduced per session — the rest wait */
+const SRS_LEARN=[1,10];      /* minutes, for a card being learned */
+const SRS_RELEARN=[1,10];    /* minutes, after you forget one you had learned */
+
+function srsInLearning(c){return !!c.learning || (c.reps||0)===0;}
+/* A card that has never been answered has no step yet. */
+function srsFresh(c){return (c.reps||0)===0 && !c.learning;}
+/* Pure: works out what an answer would do, without changing the card. The
+   grade buttons use it for their previews and grade() uses it to apply. */
+function srsAnswer(c,g){
+  const now=Date.now();
+  if(srsInLearning(c)){
+    const steps=c.relearn?SRS_RELEARN:SRS_LEARN;
+    /* -1 means the card has not taken a step yet, so the first Good lands on the
+       first step rather than skipping past it. */
+    let step=(c.step==null?-1:c.step);
+    if(g===0)step=0;                      /* Again: back to the first step */
+    else if(g===1)step=Math.max(0,step);  /* Hard: sit on this step */
+    else if(g===2)step=step+1;            /* Good: move up */
+    else step=steps.length;               /* Easy: graduate now */
+    if(step<steps.length){
+      return {learning:true,relearn:!!c.relearn,step:step,interval:0,reps:c.reps||0,
+              ease:c.ease||SRS_EASE_START,due:now+steps[step]*60000,
+              label:steps[step]+'m',inSession:true};
+    }
+    /* graduating */
+    const base=c.relearn?Math.max(1,Math.round((c.lapseFrom||1)*0.5)):(g===3?2:1);
+    const iv=Math.max(1,Math.min(base,Math.min(srsMax(),srsDeadlineCap(c.subj))));
+    return {learning:false,relearn:false,step:0,interval:iv,reps:(c.reps||0)+1,
+            ease:c.ease||SRS_EASE_START,due:now+iv*86400000,label:fmtIv(iv),inSession:false};
+  }
+  if(g===0){
+    /* a lapse drops back into short steps rather than vanishing for a day */
+    return {learning:true,relearn:true,step:0,lapseFrom:c.interval||1,interval:0,reps:c.reps||0,
+            ease:Math.max(SRS_EASE_MIN,(c.ease||SRS_EASE_START)-0.2),
+            due:now+SRS_RELEARN[0]*60000,label:SRS_RELEARN[0]+'m',inSession:true};
+  }
+  const iv=nextInterval(c,g);
+  let ef=(c.ease||SRS_EASE_START)+(0.1-(3-g)*(0.08+(3-g)*0.02));
+  ef=Math.min(SRS_EASE_MAX,Math.max(SRS_EASE_MIN,ef));
+  return {learning:false,relearn:false,step:0,interval:iv,reps:(c.reps||0)+1,ease:ef,
+          due:now+iv*86400000,label:fmtIv(iv),inSession:false};
+}
 function grade(g){
   const c=rcQueue[rcIdx];if(!c||!rcFlipped)return;
-  if(g===0){c.reps=0;c.interval=0;c.due=Date.now()+60*1000;}
-  else {
-    const iv=nextInterval(c,g);
-    let ef=c.ease+(0.1-(3-g)*(0.08+(3-g)*0.02));c.ease=Math.max(1.3,ef);
-    c.interval=iv;c.reps+=1;c.due=Date.now()+iv*86400000;
+  const wasLearning=srsInLearning(c);
+  const r=srsAnswer(c,g);
+  c.learning=r.learning; c.relearn=r.relearn; c.step=r.step;
+  c.interval=r.interval; c.reps=r.reps; c.ease=r.ease; c.due=r.due;
+  if(r.lapseFrom!==undefined)c.lapseFrom=r.lapseFrom;
+
+  /* Score each distinct card once, the first time it is answered. */
+  if(!rcScored[c.id]){
+    rcScored[c.id]=1;
+    if(g>=2){rcKnew++;clearFcMistake(c);} else {rcStruggled++;rcMissed.push(c);recordFcMistake(c);}
+  } else if(g<2){ recordFcMistake(c); }
+  if(!r.learning)rcDone[c.id]=1;      /* graduated — done for this session */
+  save();
+
+  /* A card still in learning comes back inside this session, a few cards later.
+     Without this the minute-scale steps would be a promise the app never kept. */
+  if(r.learning){
+    const gap=Math.min(4,Math.max(1,rcQueue.length-rcIdx-1));
+    rcQueue.splice(rcIdx+1+gap,0,c);
   }
-  if(g>=2){rcKnew++;clearFcMistake(c);} else {rcStruggled++;rcMissed.push(c);recordFcMistake(c);}
-  save();rcIdx++;
-  if(rcIdx>=rcTotal)showResults(); else showCard();
+  rcIdx++;
+  if(rcIdx>=rcQueue.length)showResults(); else showCard();
 }
 // Track the concepts a student stumbles on so the Weak Topics tab can surface them.
 function recordFcMistake(c){
@@ -7062,6 +7222,27 @@ document.getElementById('set-reset-srs').onclick=async ()=>{
 };
 /* Export first. A growth record you can keep is what makes an erase button
    defensible at all — otherwise the only options are hoard or lose. */
+(function(){
+  const sel=document.getElementById('set-srs-pace'), note=document.getElementById('set-srs-note');
+  if(!sel)return;
+  sel.innerHTML=Object.keys(SRS_PACE).map(k=>
+    `<option value="${k}">${esc(SRS_PACE[k].name)} — up to ${SRS_PACE[k].max} days</option>`).join('');
+  function paint(){
+    sel.value=DB.srsPace||'balanced';
+    note.textContent=(SRS_PACE[sel.value]||SRS_PACE.balanced).note;
+  }
+  sel.onchange=()=>{
+    DB.srsPace=sel.value;
+    const moved=srsRebalance();      /* tightening the ceiling pulls cards back in */
+    save(); paint();
+    toast(moved?`Pace updated — ${moved} card${moved===1?'':'s'} brought forward`:'Pace updated ✓');
+    if(typeof renderDash==='function')try{renderDash();}catch(e){}
+  };
+  /* repaint whenever Settings is opened, not just once at load */
+  const origRS=window.renderSettings;
+  if(typeof origRS==='function'){window.renderSettings=function(){origRS.apply(this,arguments);paint();};}
+  paint();
+})();
 document.getElementById('set-export').onclick=()=>{
   try{
     const payload={exported:new Date().toISOString(),app:'Study Buddy',name:DB.name||'',
@@ -8884,17 +9065,43 @@ window.addEventListener('load',function(){
 /* Ten tiers, one ladder — used for the sidebar title, the player card emblem,
    the level-up card and the sign-in page, so they can never disagree.
    Colours are mid-tone on purpose: each has to read on a light AND a dark ground. */
+/* Fourteen tiers, every one a real metal or mineral. 'Mythic' was the odd one
+   out in a ladder that was otherwise a materials scale, so it became Amethyst —
+   which also happens to match the purple it already used.
+
+   Nothing below level 55 moved. Adding tiers in the middle would have demoted
+   anyone already ranked, so the four new ones are stacked on top, where the
+   ladder actually ran out. Platinum stays above Diamond, as you called it. */
 var RANKS=[
-  {at:1, name:'Iron',     c:'#7d848c'},
-  {at:3, name:'Bronze',   c:'#b0794a'},
-  {at:6, name:'Silver',   c:'#98a2ad'},
-  {at:10,name:'Gold',     c:'#cf9a35'},
-  {at:15,name:'Emerald',  c:'#3fa377'},
-  {at:21,name:'Sapphire', c:'#3f7fc4'},
-  {at:28,name:'Ruby',     c:'#c2415a'},
-  {at:36,name:'Diamond',  c:'#35b6cd'},
-  {at:45,name:'Platinum', c:'#6f7fa6'},
-  {at:55,name:'Mythic',   c:'#9866d4'}
+  {at:1,  name:'Iron',          c:'#7d848c'},
+  {at:3,  name:'Bronze',        c:'#b0794a'},
+  {at:6,  name:'Silver',        c:'#98a2ad'},
+  {at:10, name:'Gold',          c:'#cf9a35'},
+  {at:13, name:'Onyx',          c:'#5b5f68'},
+  {at:15, name:'Emerald',       c:'#3fa377'},
+  {at:18, name:'Jade',          c:'#5fae8f'},
+  {at:21, name:'Sapphire',      c:'#3f7fc4'},
+  {at:24, name:'Topaz',         c:'#d99a4e'},
+  {at:28, name:'Ruby',          c:'#c2415a'},
+  {at:32, name:'Garnet',        c:'#9c3b4a'},
+  {at:36, name:'Diamond',       c:'#35b6cd'},
+  {at:40, name:'Opal',          c:'#8fd3c8'},
+  {at:45, name:'Platinum',      c:'#6f7fa6'},
+  {at:50, name:'Zircon',        c:'#a4b7d6'},
+  {at:55, name:'Amethyst',      c:'#9866d4'},
+  {at:61, name:'Spinel',        c:'#e0567f'},   /* mistaken for ruby for centuries */
+  {at:68, name:'Alexandrite',   c:'#4fd1b0'},   /* changes colour in different light */
+  {at:75, name:'Benitoite',     c:'#4f7fe0'},
+  {at:82, name:'Tanzanite',     c:'#5b6fe0'},   /* found in exactly one place on Earth */
+  {at:89, name:'Taaffeite',     c:'#c79ad6'},
+  {at:97, name:'Moissanite',    c:'#8fd4ea'},   /* occurs naturally only in meteorites */
+  {at:105,name:'Grandidierite', c:'#4fb8b0'},
+  {at:115,name:'Carbonado',     c:'#6b5f80'},   /* black diamond, probably not from here */
+  {at:130,name:'Painite',       c:'#a8543a'},   /* held the record for rarest mineral for decades */
+  {at:148,name:'Musgravite',    c:'#7a8f74'},
+  {at:167,name:'Jeremejevite',  c:'#7fc4e8'},
+  {at:183,name:'Serendibite',   c:'#2e7d78'},   /* for years, fewer than ten faceted stones were known */
+  {at:200,name:'Kyawthuite',    c:'#e8703a'}    /* one specimen exists. There is no rank above this. */
 ];
 function rankOf(l){var r=RANKS[0];for(var i=0;i<RANKS.length;i++){if(l>=RANKS[i].at)r=RANKS[i];}return r;}
 function rankBand(i){
@@ -8902,18 +9109,140 @@ function rankBand(i){
   return b?('Level '+a+'\u2013'+(b.at-1)):('Level '+a+'+');
 }
 function titleFor(l){return rankOf(l).name;}
+/* Half the rank names now start with a vowel — Iron, Onyx, Opal, Emerald,
+   Amethyst, Alexandrite — so the article has to be chosen, not hardcoded. */
+function article(w){return /^[aeiou]/i.test(String(w||''))?'an':'a';}
 window.SBRANKS={list:RANKS,of:rankOf,band:rankBand};
 function xpNeeded(level){return 100+(level-1)*60;}
 
 var THEMES={
   base:{name:'Study Buddy',price:0,emoji:'🧸',vars:null,swatch:['#f6efe3','#c67c4e','#7f9b6a']},
   midnight:{name:'Midnight',price:300,emoji:'🌙',swatch:['#11151b','#e0a06a','#8fc08a'],vars:{'--bg':'#11151b','--icon-invert':'1','--bg2':'#171c24','--panel':'#1b212b','--panel2':'#232b37','--line':'#2e3846','--txt':'#e6e9ee','--muted':'#9aa6b6','--faint':'#6d7a8b','--accent':'#e0a06a','--accent2':'#8fc08a','--warn':'#e2c05f','--bad':'#e08074','--ap':'#b394c9','--shadow':'0 6px 22px rgba(0,0,0,.5)'}},
-  forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#6f9e5a','#c39a4e'],vars:{'--bg':'#eef3e9','--icon-invert':'0','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
+  forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#7fae66','#c9a45c'],vars:{'--bg':'#eef3e9','--icon-invert':'0','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
   ocean:{name:'Ocean',price:250,emoji:'🌊',swatch:['#eef4f8','#57a3c7','#63bda6'],vars:{'--bg':'#eef4f8','--icon-invert':'0','--bg2':'#e3edf4','--panel':'#f9fcfe','--panel2':'#dfeaf2','--line':'#c7dae6','--txt':'#26333d','--muted':'#64798a','--faint':'#93a6b4','--accent':'#57a3c7','--accent2':'#63bda6','--warn':'#dcae52','--bad':'#d1706a','--ap':'#9498d6'}},
   sakura:{name:'Sakura',price:350,emoji:'🌸',swatch:['#fdf1f3','#e79ab0','#9ac9b8'],vars:{'--bg':'#fdf1f3','--icon-invert':'0','--bg2':'#f9e6ea','--panel':'#fffafb','--panel2':'#f7e2e7','--line':'#f0cdd5','--txt':'#45343a','--muted':'#8d7480','--faint':'#b79ba5','--accent':'#e79ab0','--accent2':'#9ac9b8','--warn':'#e0b569','--bad':'#d4757d','--ap':'#b195d3','--on-accent':'#45343a'}},
   neon:{name:'Neon Arcade',price:800,emoji:'👾',swatch:['#0d0b1a','#ff9edb','#5ef1c0'],vars:{'--bg':'#0d0b1a','--icon-invert':'1','--bg2':'#141130','--panel':'#1a1740','--panel2':'#242052','--line':'#342f6b','--txt':'#f2eeff','--muted':'#a79fd6','--faint':'#7d75ab','--accent':'#ff9edb','--accent2':'#5ef1c0','--warn':'#ffd166','--bad':'#ff6b8b','--ap':'#9d7bff','--shadow':'0 6px 26px rgba(120,60,220,.4)'}},
   /* Not for sale at any price. The only way in is to hold #1 on the leaderboard,
      which is why `price` is null — the shop renders it locked instead of buyable. */
+  /* ---- earned, not bought. Each names what unlocks it. ---- */
+  /* ---- rank themes, one every few tiers so the ladder always has something
+       waiting a little further up ---- */
+  sunrise:{name:'Sunrise',price:null,emoji:'🌅',req:{level:10},
+    ds:'First light on paper. Unlocks at Gold.',
+    swatch:['#fff8e6','#dfa41c','#e8703a'],
+    vars:{'--bg':'#fff8e6','--bg2':'#fdefcf','--panel':'#fffdf7','--panel2':'#fae8bf','--line':'#ebd39a','--txt':'#43371f','--muted':'#8a7749','--faint':'#b3a077','--accent':'#dfa41c','--accent2':'#e8703a','--warn':'#dfa41c','--bad':'#c9584e','--ap':'#a07bb8','--icon-invert':'0'}},
+  tide:{name:'Tide',price:null,emoji:'🌀',req:{level:21},
+    ds:'Deep water at night. Unlocks at Sapphire.',
+    swatch:['#0a1a22','#249ec4','#6fd6a8'],
+    vars:{'--bg':'#0a1a22','--bg2':'#0f242e','--panel':'#132c37','--panel2':'#1a3a47','--line':'#245061','--txt':'#e4f4fa','--muted':'#9bc2d1','--faint':'#6d92a1','--accent':'#249ec4','--accent2':'#6fd6a8','--warn':'#e8c46a','--bad':'#e8837d','--ap':'#9d9de0','--icon-invert':'1'}},
+  cardinal:{name:'Cardinal',price:null,emoji:'🍷',req:{level:28},
+    ds:'Deep red on near-black. Unlocks at Ruby.',
+    swatch:['#1b0d15','#e0456f','#c98ad6'],
+    vars:{'--bg':'#1b0d15','--bg2':'#23121c','--panel':'#2a1621','--panel2':'#371d2b','--line':'#4b2739','--txt':'#f9ecf1','--muted':'#cba7b8','--faint':'#99798a','--accent':'#e0456f','--accent2':'#c98ad6','--warn':'#e8a54f','--bad':'#ff7a95','--ap':'#b98ad6','--icon-invert':'1'}},
+  steel:{name:'Steel',price:null,emoji:'⚙️',req:{level:45},
+    ds:'Cold, clean and industrial. Unlocks at Platinum.',
+    swatch:['#f0f1f2','#5a6470','#8e98a3'],
+    vars:{'--bg':'#f0f1f2','--bg2':'#e5e7e9','--panel':'#fafbfb','--panel2':'#dcdfe2','--line':'#c5c9cd','--txt':'#262a2e','--muted':'#61686e','--faint':'#949a9f','--accent':'#5a6470','--accent2':'#8e98a3','--warn':'#b9903f','--bad':'#b56660','--ap':'#7d7d99','--icon-invert':'0'}},
+  aurora:{name:'Aurora',price:null,emoji:'🌌',req:{level:68},
+    ds:'Green shading into violet, like the stone it comes from. Unlocks at Alexandrite.',
+    swatch:['#0e1418','#5fe0b0','#b58aff'],
+    vars:{'--bg':'#0e1418','--bg2':'#131c22','--panel':'#182229','--panel2':'#1f2d36','--line':'#2b3d48',
+      '--txt':'#eaf5f2','--muted':'#a3c4bb','--faint':'#779188','--accent':'#5fe0b0','--accent2':'#b58aff',
+      '--warn':'#ffd98a','--bad':'#ff8ba0','--ap':'#b58aff','--icon-invert':'1','--on-accent':'#0e1418'}},
+  starfield:{name:'Starfield',price:null,emoji:'✨',req:{level:97},
+    ds:'Black sky, white fire. Unlocks at Moissanite, which only forms in meteorites.',
+    swatch:['#05070f','#8ab6ff','#c9b8ff'],
+    vars:{'--bg':'#05070f','--bg2':'#0a0d18','--panel':'#0e1220','--panel2':'#151a2b','--line':'#222941','--txt':'#eef3ff','--muted':'#9fb0d4','--faint':'#6b7a9c','--accent':'#8ab6ff','--accent2':'#c9b8ff','--warn':'#ffd48a','--bad':'#ff8a9c','--ap':'#b39aff','--icon-invert':'1','--on-accent':'#05070f'}},
+  magma:{name:'Magma',price:null,emoji:'🌋',req:{level:130},
+    ds:'Cooled crust with something molten underneath. Unlocks at Painite.',
+    swatch:['#140708','#ff3b1f','#ff8f5e'],
+    vars:{'--bg':'#140708','--bg2':'#1c0c0c','--panel':'#231010','--panel2':'#301616','--line':'#421f1c','--txt':'#fce9e6','--muted':'#cb9d96','--faint':'#996f68','--accent':'#ff3b1f','--accent2':'#ff8f5e','--warn':'#ffab5e','--bad':'#ff6b6b','--ap':'#d17ad1','--icon-invert':'1'}},
+  glacier:{name:'Glacier',price:null,emoji:'🧊',req:{level:167},
+    ds:'Ice seen from inside the crevasse, not from the surface. Unlocks at Jeremejevite.',
+    swatch:['#071219','#7fe8ff','#cfefff'],
+    vars:{'--bg':'#071219','--bg2':'#0c1a23','--panel':'#0f2029','--panel2':'#163038','--line':'#204450','--txt':'#eaf8fd','--muted':'#9ec5d1','--faint':'#6d919d','--accent':'#7fe8ff','--accent2':'#cfefff','--warn':'#ffd98a','--bad':'#ff8f9c','--ap':'#a0b8ff','--icon-invert':'1','--on-accent':'#071219'}},
+  singularity:{name:'Singularity',price:null,emoji:'🔆',req:{level:200},
+    ds:'Almost no colour at all, and then one that will not sit still. Unlocks at Kyawthuite — the end of the ladder.',
+    swatch:['#030208','#b14dff','#35f0e0'],
+    vars:{'--bg':'#030208','--bg2':'#07050f','--panel':'#0b0815','--panel2':'#120e1f','--line':'#241a3a','--txt':'#f5f2fb','--muted':'#a89dc0','--faint':'#73688c','--accent':'#b14dff','--accent2':'#35f0e0','--warn':'#ffc46b','--bad':'#ff5f8b','--ap':'#35f0e0','--icon-invert':'1','--on-accent':'#030208','--shadow':'0 8px 34px rgba(177,77,255,.28)'},
+    /* Colour alone could not separate this from the lava themes, and as the
+       level-200 reward it should not have to compete on hue. Like Regalia it
+       ships its own stylesheet: light bending round a very small, very heavy
+       thing. It is the only other theme in the shop that does. */
+    css:`
+    @keyframes sg-drift{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.12)}}
+    @keyframes sg-ring{to{transform:translate(-50%,-50%) rotate(360deg)}}
+    @keyframes sg-flow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+    body{background:radial-gradient(120% 90% at 50% 45%,#0b0718 0%,#050310 45%,#020106 100%) fixed !important}
+    /* the horizon itself, sitting behind everything */
+    body::before{
+      content:'';position:fixed;left:50%;top:46%;width:min(58vw,620px);height:min(58vw,620px);
+      border-radius:50%;pointer-events:none;z-index:0;
+      background:radial-gradient(circle,transparent 34%,rgba(177,77,255,.16) 42%,rgba(53,240,224,.10) 52%,transparent 68%);
+      animation:sg-drift 11s ease-in-out infinite;
+    }
+    body::after{
+      content:'';position:fixed;left:50%;top:46%;width:min(30vw,320px);height:min(30vw,320px);
+      border-radius:50%;pointer-events:none;z-index:0;
+      background:conic-gradient(from 0deg,transparent,rgba(53,240,224,.22),transparent 40%,rgba(177,77,255,.24),transparent 72%);
+      filter:blur(22px);animation:sg-ring 26s linear infinite;
+    }
+    .main,.sidebar{position:relative;z-index:1}
+    .card,.arc-stat,.lb-row,.arc-shop,.qblock{
+      border-color:rgba(177,77,255,.20) !important;
+      background-image:linear-gradient(180deg,rgba(177,77,255,.05),transparent 45%) !important;
+    }
+    .title,#arc-hero h3{
+      background:linear-gradient(100deg,#b14dff,#35f0e0 45%,#ffffff 60%,#b14dff 85%);
+      background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+      -webkit-text-fill-color:transparent;color:transparent;animation:sg-flow 9s linear infinite;
+    }
+    .btn:not(.ghost):not(.sec){
+      background:linear-gradient(120deg,#b14dff,#7b3ff0 55%,#35f0e0) !important;
+      color:#050310 !important;border-color:transparent !important;font-weight:700;
+      box-shadow:0 0 18px rgba(177,77,255,.42);
+    }
+    .nav-btn.active{background:linear-gradient(90deg,rgba(177,77,255,.18),transparent) !important;
+      box-shadow:inset 0 0 0 1px rgba(177,77,255,.3)}
+    .nav-btn.active .ic{filter:drop-shadow(0 0 8px rgba(53,240,224,.8))}
+    .progress>div,.arc-bar>div{
+      background:linear-gradient(90deg,#b14dff,#35f0e0,#b14dff) !important;
+      background-size:200% 100% !important;animation:sg-flow 4s linear infinite;
+    }
+    .arc-hud{border-color:rgba(177,77,255,.35) !important;
+      background:linear-gradient(150deg,rgba(177,77,255,.12),rgba(53,240,224,.06)) !important}
+    ::selection{background:rgba(177,77,255,.35)}
+    @media (prefers-reduced-motion:reduce){
+      body::before,body::after,.title,#arc-hero h3,.progress>div,.arc-bar>div{animation:none !important}
+    }
+    `},
+  /* Not 'Ember' — the dragon avatar already owns that name in this same shop. */
+  cinder:{name:'Cinder',price:null,emoji:'🔥',req:{badge:'streak_7'},locked:'Hit a 7-day streak',
+    ds:'Charcoal and firelight. Earned by showing up seven days running.',
+    swatch:['#1a1512','#ffb43a','#e8703a'],
+    vars:{'--bg':'#1a1512','--bg2':'#221b16','--panel':'#28201a','--panel2':'#342a21','--line':'#453626','--txt':'#f7efe4','--muted':'#c7b39c','--faint':'#95836f','--accent':'#ffb43a','--accent2':'#e8703a','--warn':'#ffb43a','--bad':'#ff7a6b','--ap':'#d98cff','--icon-invert':'1','--shadow':'0 6px 24px rgba(255,180,58,.16)'}},
+  frost:{name:'Frost',price:null,emoji:'❄️',req:{level:36},
+    ds:'Clear ice and pale sky. Unlocks at Diamond.',
+    swatch:['#f0f2fb','#6b6fd6','#7fb8e0'],
+    vars:{'--bg':'#f0f2fb','--bg2':'#e5e9f7','--panel':'#fafbff','--panel2':'#dee4f4','--line':'#c8d1ea','--txt':'#26293d','--muted':'#5f6785','--faint':'#9098b5','--accent':'#6b6fd6','--accent2':'#7fb8e0','--warn':'#d9a441','--bad':'#cf6b76','--ap':'#9d6bd6','--icon-invert':'0'}},
+  sandstone:{name:'Sandstone',price:null,emoji:'🏜️',req:{badge:'test_100'},
+    ds:'Warm stone and dry grass. Earned with a perfect test score.',
+    swatch:['#f7f2e7','#2f9e8f','#c8752f'],
+    vars:{'--bg':'#f7f2e7','--bg2':'#ede5d2','--panel':'#fdfbf5','--panel2':'#e6dcc5','--line':'#d6c9a9','--txt':'#3b352a','--muted':'#756c58','--faint':'#a1977f','--accent':'#2f9e8f','--accent2':'#c8752f','--warn':'#c9a53f','--bad':'#b5604e','--ap':'#8a7fae','--icon-invert':'0'}},
+  chalkboard:{name:'Chalkboard',price:null,emoji:'📝',req:{badge:'feynman_10'},
+    ds:'Slate and chalk dust. Earned by explaining ten things in your own words.',
+    swatch:['#16241c','#f4efd8','#6fc98d'],
+    vars:{'--bg':'#16241c','--bg2':'#1c2c23','--panel':'#203228','--panel2':'#293f33','--line':'#365040','--txt':'#edf5ef','--muted':'#a3c0ab','--faint':'#799381','--accent':'#f4efd8','--accent2':'#6fc98d','--warn':'#ecd07a','--bad':'#e08a80','--ap':'#b0a0e0','--icon-invert':'1','--on-accent':'#203228'}},
+  dusk:{name:'Dusk',price:null,emoji:'🌆',req:{level:55},
+    ds:'The hour after sunset. Unlocks at Amethyst.',
+    swatch:['#14111f','#a98bff','#ff9ec4'],
+    vars:{'--bg':'#14111f','--bg2':'#1b1729','--panel':'#211c33','--panel2':'#2b2442','--line':'#3a3157',
+      '--txt':'#f0ecfa','--muted':'#b3a8cf','--faint':'#85799f','--accent':'#a98bff','--accent2':'#ff9ec4',
+      '--warn':'#ffcf6b','--bad':'#ff7a9c','--ap':'#7ee0d0','--icon-invert':'1'}},
+  carbon:{name:'Carbon',price:null,emoji:'◼️',req:{level:115},
+    ds:'No colour at all \u2014 the only theme with none. Unlocks at Carbonado.',
+    swatch:['#0c0d0f','#d4d7dc','#8f959e'],
+    vars:{'--bg':'#0c0d0f','--bg2':'#121417','--panel':'#17191d','--panel2':'#1f2228','--line':'#2c3038','--txt':'#eef1f5','--muted':'#9aa3af','--faint':'#6b7280','--accent':'#d4d7dc','--accent2':'#8f959e','--warn':'#c9ccd1','--bad':'#e08a8a','--ap':'#a8adb6','--icon-invert':'1','--on-accent':'#0c0d0f'}},
   regalia:{name:'Regalia',price:null,emoji:'👑',locked:'Held #1 on the leaderboard',
     ds:'The champion\u2019s skin. Gold on a moving void, shimmering headings, a crown over everything. Nothing else in the shop looks like it, and nothing else ever will.',
     swatch:['#0b0714','#ffd77a','#7be3ff'],
@@ -8924,100 +9253,161 @@ var THEMES={
        so it ships a whole stylesheet: a living gold-and-void arcade skin that
        nothing else in the shop is allowed to look like. Mounted by applyTheme(). */
     css:`
-    @keyframes rg-drift{0%{background-position:0% 50%,100% 50%}50%{background-position:100% 50%,0% 50%}100%{background-position:0% 50%,100% 50%}}
+    /* The champion's skin. It has to out-do everything else in the shop, and it
+       gets there with depth and rare motion rather than constant motion — a
+       study app you cannot read is not a reward. */
+    @keyframes rg-drift{0%{background-position:0% 50%,100% 50%,50% 50%}50%{background-position:100% 50%,0% 50%,50% 50%}100%{background-position:0% 50%,100% 50%,50% 50%}}
     @keyframes rg-shimmer{0%{background-position:-220% 0}100%{background-position:220% 0}}
     @keyframes rg-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,215,122,.55),0 0 16px rgba(255,215,122,.30)}50%{box-shadow:0 0 0 6px rgba(255,215,122,0),0 0 26px rgba(255,215,122,.55)}}
     @keyframes rg-sweep{0%{transform:translateX(-120%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
     @keyframes rg-float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-9px) rotate(4deg)}}
+    @keyframes rg-fall{0%{transform:translateY(-9%)}100%{transform:translateY(9%)}}
+    /* the whole page catches the light once every 15 seconds, then stops */
+    @keyframes rg-pass{
+      0%{opacity:0;transform:translateX(-45vw) skewX(-14deg)}
+      3%{opacity:.55}
+      11%{opacity:0;transform:translateX(150vw) skewX(-14deg)}
+      100%{opacity:0;transform:translateX(150vw) skewX(-14deg)}
+    }
 
-    /* the void, slowly moving */
+    /* a lit void: two golds drifting against each other, with the edges falling away */
     body{
       background:
         radial-gradient(1100px 620px at 12% -10%, rgba(198,155,255,.20), transparent 60%),
-        radial-gradient(900px 560px at 105% 8%, rgba(123,227,255,.14), transparent 60%),
+        radial-gradient(900px 560px at 105% 8%, rgba(255,215,122,.13), transparent 60%),
+        radial-gradient(140% 110% at 50% 42%, transparent 38%, rgba(0,0,0,.55) 100%),
         var(--bg) !important;
-      background-size:180% 180%,180% 180% !important;
+      background-size:180% 180%,180% 180%,100% 100% !important;
+      background-attachment:fixed !important;
       animation:rg-drift 34s ease-in-out infinite;
     }
     /* a crown presiding over the whole app */
     body::before{
-      content:'👑';position:fixed;top:52px;right:38px;font-size:150px;line-height:1;
-      opacity:.05;pointer-events:none;z-index:0;animation:rg-float 13s ease-in-out infinite;
+      content:'👑';position:fixed;top:44px;right:30px;font-size:190px;line-height:1;
+      opacity:.055;pointer-events:none;z-index:0;animation:rg-float 13s ease-in-out infinite;
+      text-shadow:0 0 60px rgba(255,215,122,.5);
+    }
+    /* gold dust, drifting */
+    body::after{
+      content:'';position:fixed;inset:-9% 0;pointer-events:none;z-index:0;
+      background-image:
+        radial-gradient(1.7px 1.7px at 9% 18%,rgba(255,232,170,.60),transparent 60%),
+        radial-gradient(1.3px 1.3px at 23% 61%,rgba(255,215,122,.45),transparent 60%),
+        radial-gradient(1.9px 1.9px at 37% 33%,rgba(255,240,200,.50),transparent 60%),
+        radial-gradient(1.2px 1.2px at 48% 78%,rgba(255,215,122,.40),transparent 60%),
+        radial-gradient(1.6px 1.6px at 61% 12%,rgba(255,232,170,.50),transparent 60%),
+        radial-gradient(1.3px 1.3px at 72% 52%,rgba(255,215,122,.42),transparent 60%),
+        radial-gradient(2px 2px at 84% 27%,rgba(255,240,200,.46),transparent 60%),
+        radial-gradient(1.4px 1.4px at 93% 69%,rgba(255,215,122,.44),transparent 60%),
+        radial-gradient(1.5px 1.5px at 16% 88%,rgba(255,232,170,.40),transparent 60%),
+        radial-gradient(1.2px 1.2px at 55% 95%,rgba(255,215,122,.36),transparent 60%);
+      animation:rg-fall 30s linear infinite alternate;
+    }
+    /* the light passing over. position:fixed keeps it out of .app's flex flow. */
+    .app::after{
+      content:'';position:fixed;top:0;bottom:0;left:0;width:24vw;pointer-events:none;z-index:3;
+      background:linear-gradient(100deg,transparent,rgba(255,244,214,.20),transparent);
+      animation:rg-pass 15s ease-in-out infinite;
     }
     .main,.sidebar{position:relative;z-index:1}
 
-    /* gilded panels */
+    /* gilded panels, with corner brackets drawn in */
     .card,.arc-stat,.lb-row,.arc-shop,.qblock{
-      border-color:rgba(255,215,122,.22) !important;
+      border-color:rgba(255,215,122,.24) !important;
       background-image:linear-gradient(180deg,rgba(255,215,122,.05),transparent 42%) !important;
-      box-shadow:inset 0 1px 0 rgba(255,215,122,.14);
+      box-shadow:inset 0 1px 0 rgba(255,215,122,.16);
+      transition:box-shadow .2s,transform .2s;
     }
     .card,.arc-stat{position:relative}
     .card::after,.arc-stat::after{
       content:'';position:absolute;inset:0 0 auto 0;height:1px;
-      background:linear-gradient(90deg,transparent,rgba(255,215,122,.8),transparent);
+      background:linear-gradient(90deg,transparent,rgba(255,215,122,.85),transparent);
     }
+    .card::before{
+      content:'';position:absolute;inset:7px;pointer-events:none;
+      background:
+        linear-gradient(#ffd77a,#ffd77a) left  0    top    0/13px 1px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) left  0    top    0/1px 13px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) right 0    top    0/13px 1px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) right 0    top    0/1px 13px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) left  0    bottom 0/13px 1px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) left  0    bottom 0/1px 13px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) right 0    bottom 0/13px 1px no-repeat,
+        linear-gradient(#ffd77a,#ffd77a) right 0    bottom 0/1px 13px no-repeat;
+      opacity:.42;
+    }
+    .card:hover{box-shadow:0 8px 30px rgba(255,215,122,.16),inset 0 1px 0 rgba(255,215,122,.24)}
 
-    /* headings struck in moving gold */
+    /* headings struck in moving gold, lit from behind */
     .title,#arc-hero h3,#lb-body .lb-you .lb-nm{
       background:linear-gradient(100deg,#ffd77a 12%,#fff6d8 26%,#ffd77a 40%,#c69bff 62%,#ffd77a 82%);
       background-size:220% 100%;
       -webkit-background-clip:text;background-clip:text;
       -webkit-text-fill-color:transparent;color:transparent;
       animation:rg-shimmer 7s linear infinite;
+      filter:drop-shadow(0 2px 14px rgba(255,215,122,.35));
     }
 
-    /* buttons get a sheen that sweeps across on hover */
+    /* buttons: a permanent low shimmer, and a hard sweep on hover */
     .btn{position:relative;overflow:hidden}
     .btn:not(.ghost):not(.sec){
-      background:linear-gradient(140deg,#ffd77a,#e8b34e 58%,#ffe9ae) !important;
+      background:linear-gradient(100deg,#e8b34e,#ffd77a 30%,#fff3cf 45%,#ffd77a 60%,#e8b34e) !important;
+      background-size:220% 100% !important;
       color:#2a1d05 !important;border-color:#ffd77a !important;font-weight:700;
-      box-shadow:0 3px 14px rgba(255,215,122,.30);
+      box-shadow:0 3px 16px rgba(255,215,122,.34);
+      animation:rg-shimmer 9s linear infinite;
     }
     .btn:not(.ghost):not(.sec)::after{
       content:'';position:absolute;top:-40%;bottom:-40%;left:0;width:34%;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);
       transform:translateX(-120%) skewX(-18deg);
     }
     .btn:not(.ghost):not(.sec):hover::after{animation:rg-sweep .75s ease-out}
     .btn.sec{border-color:rgba(255,215,122,.45) !important;color:#ffd77a !important}
 
-    /* the sidebar reads like a marquee */
+    /* the sidebar reads like a gilded column */
+    .sidebar{
+      border-right:1px solid rgba(255,215,122,.22) !important;
+      box-shadow:1px 0 22px rgba(255,215,122,.10);
+      background-image:linear-gradient(180deg,rgba(255,215,122,.07),transparent 40%) !important;
+    }
     .nav-btn::before{background:linear-gradient(180deg,#ffd77a,#c69bff) !important}
     .nav-btn.active{
-      background:linear-gradient(90deg,rgba(255,215,122,.16),transparent) !important;
-      color:#ffe9ae !important;
-      box-shadow:inset 0 0 0 1px rgba(255,215,122,.28);
+      background:linear-gradient(90deg,rgba(255,215,122,.18),transparent) !important;
+      color:#ffe9ae !important;box-shadow:inset 0 0 0 1px rgba(255,215,122,.30);
     }
-    .nav-btn.active .ic{color:#ffd77a;filter:drop-shadow(0 0 7px rgba(255,215,122,.75))}
-    .brand h1{color:#ffd77a}
+    .nav-btn.active .ic{color:#ffd77a;filter:drop-shadow(0 0 8px rgba(255,215,122,.85))}
+    .brand h1{color:#ffd77a;text-shadow:0 0 22px rgba(255,215,122,.45)}
 
-    /* XP and progress read as molten gold */
+    /* molten gold everywhere a value is shown */
     .progress>div,.arc-bar>div{
       background:linear-gradient(90deg,#e8b34e,#ffe9ae,#7be3ff,#ffd77a) !important;
       background-size:280% 100% !important;
       animation:rg-shimmer 3.4s linear infinite;
+      box-shadow:0 0 12px rgba(255,215,122,.5);
     }
     .arc-hud{
-      border-color:rgba(255,215,122,.34) !important;
-      background:linear-gradient(150deg,rgba(255,215,122,.11),rgba(198,155,255,.07)) !important;
+      border-color:rgba(255,215,122,.38) !important;
+      background:linear-gradient(150deg,rgba(255,215,122,.13),rgba(198,155,255,.08)) !important;
+      box-shadow:0 0 26px rgba(255,215,122,.14);
     }
     .arc-hud .arc-av{
       background:linear-gradient(135deg,#ffe9ae,#e8b34e) !important;
       border-color:#ffd77a !important;animation:rg-pulse 2.8s ease-in-out infinite;
     }
-    .pill,.lb-tier{border-color:rgba(255,215,122,.42) !important}
+    .pill,.lb-tier{border-color:rgba(255,215,122,.45) !important}
     .lb-row.top1{
       border-color:#ffd77a !important;
-      background:linear-gradient(100deg,rgba(255,215,122,.16),transparent 60%) !important;
-      box-shadow:inset 0 0 0 1px rgba(255,215,122,.5),0 0 26px rgba(255,215,122,.16) !important;
+      background:linear-gradient(100deg,rgba(255,215,122,.18),transparent 60%) !important;
+      box-shadow:inset 0 0 0 1px rgba(255,215,122,.55),0 0 30px rgba(255,215,122,.20) !important;
     }
-    ::selection{background:rgba(255,215,122,.32)}
+    ::selection{background:rgba(255,215,122,.34)}
 
     @media (prefers-reduced-motion:reduce){
-      body,body::before,.title,#arc-hero h3,.progress>div,.arc-bar>div,.arc-hud .arc-av,
-      #lb-body .lb-you .lb-nm{animation:none !important}
+      body,body::before,body::after,.app::after,.title,#arc-hero h3,.progress>div,.arc-bar>div,
+      .arc-hud .arc-av,.btn:not(.ghost):not(.sec),#lb-body .lb-you .lb-nm{animation:none !important}
       .btn:not(.ghost):not(.sec):hover::after{animation:none !important}
+      .app::after{display:none}
     }
     `}
 };
@@ -9166,7 +9556,7 @@ function award(xp,coins,label){
   if(coins)pop('+'+coins+' 🪙',true);
   var leveled=false;
   while(g.xp>=xpNeeded(g.level)){g.xp-=xpNeeded(g.level);g.level++;leveled=true;}
-  if(leveled)onLevelUp();
+  if(leveled){onLevelUp();reconcileThemes();}
   markTime();
   checkBadges();
   renderHUD();
@@ -9187,7 +9577,7 @@ function onLevelUp(){
     box.querySelector('.arc-lu-body').innerHTML=
       '<div class="big">'+avatarEmoji()+'</div>'+
       '<h3>Level '+g.level+'</h3>'+
-      '<p>You’re now a <strong>'+esc2(titleFor(g.level))+'</strong> · +'+reward+' 🪙 bonus</p>'+
+      '<p>You’re now '+article(titleFor(g.level))+' <strong>'+esc2(titleFor(g.level))+'</strong> · +'+reward+' 🪙 bonus</p>'+
       '<button class="btn" id="arc-lu-ok">Keep studying</button>';
     box.classList.add('show');
     $('arc-lu-ok').onclick=function(){box.classList.remove('show');};
@@ -9288,6 +9678,46 @@ function equip(kind,id){
   else if(kind==='helper'){g.equipped.helper=id;try{if(window.SBBuddy)window.SBBuddy.apply();}catch(e){}}
   else {g.equipped.avatar=id;}
   renderHUD();renderPage();persist();
+}
+/* A theme can be bought, or it can be earned. `req` says which: {level:n} for a
+   rank, {badge:'id'} for an achievement. Anything with neither and price:null is
+   granted some other way entirely, like Regalia. */
+function themeReqText(t){
+  if(!t||!t.req)return t&&t.locked?t.locked:'Locked';
+  if(t.req.level!=null)return 'Reach '+rankOf(t.req.level).name+' (level '+t.req.level+')';
+  if(t.req.badge){
+    var bd=BADGES.filter(function(b){return b.id===t.req.badge;})[0];
+    return bd?('Earn '+bd.name):'Earn an achievement';
+  }
+  return 'Locked';
+}
+function themeReqMet(t){
+  if(!t||!t.req)return false;
+  var g=G();
+  if(t.req.level!=null)return g.level>=t.req.level;
+  if(t.req.badge)return !!(g.badges&&g.badges[t.req.badge]);
+  return false;
+}
+/* Grants every earned theme whose condition is now satisfied. Idempotent, so it
+   is safe to run on every badge check and every level-up — and it back-fills an
+   account that already met a condition before the theme existed. */
+function reconcileThemes(){
+  var g=G(); if(!g||!g.owned)return 0;
+  var got=[];
+  Object.keys(THEMES).forEach(function(k){
+    var t=THEMES[k];
+    if(!t.req)return;
+    if(g.owned.themes.indexOf(k)>=0)return;
+    if(themeReqMet(t)){g.owned.themes.push(k);got.push(t.name);}
+  });
+  if(got.length){
+    persist();
+    try{sfx('buy');}catch(e){}
+    if(typeof toast==='function')
+      toast('\uD83C\uDFA8 Theme unlocked: '+got.join(' and ')+' \u2014 it is in the Arcade shop');
+    try{renderPage();}catch(e){}
+  }
+  return got.length;
 }
 function applyTheme(id){
   /* id is optional: at first paint no account is loaded yet, so we apply the
@@ -9633,8 +10063,9 @@ function boot(){
   checkBadges();
   renderHUD();
   /* let the rest of the app force a badge re-check (streak badges need no XP event) */
+  reconcileThemes();               /* back-fill anything already earned */
   window.SBGame={
-    check:function(){try{if(ARC.ready&&checkBadges())persist();}catch(e){}},
+    check:function(){try{if(ARC.ready&&checkBadges()){reconcileThemes();persist();}}catch(e){}},
     refresh:function(){try{renderHUD();renderPage();}catch(e){}},
     /* Exposed so the other layers (Training Grounds, Leaderboard) can pay out
        and read game state without reaching into this closure. */
@@ -9651,6 +10082,8 @@ function boot(){
     sfx:sfx,
     pop:pop,
     xpNeeded:xpNeeded,
+    reconcileThemes:reconcileThemes,
+    themeReq:themeReqText,
     tab:function(t){ARC.tab=t;go('arcade');},
     currentTab:function(){return ARC.tab;}
   };
@@ -9805,7 +10238,10 @@ function badgesHTML(){
 
 function shopHTML(){
   var g=G();
-  var themes=Object.keys(THEMES).map(function(k){
+  /* Grouped by how you get it, and rank themes in rank order. Rendering in
+     declaration order put Frost in the middle of the achievement themes, which
+     made the whole section look arbitrary. */
+  function themeCard(k){
     var t=THEMES[k],owned=g.owned.themes.indexOf(k)>=0,on=g.equipped.theme===k;
     return '<div class="arc-shop">'+
       '<div class="sw">'+t.swatch.map(function(c){return '<i style="background:'+c+'"></i>';}).join('')+'</div>'+
@@ -9813,10 +10249,33 @@ function shopHTML(){
       '<div class="ds">'+esc2(t.ds||'Restyles the whole app — every page, card and button.')+'</div>'+
       (on?'<button class="btn sm sec" disabled>Equipped</button>'
         :owned?'<button class="btn sm" data-arcequip="theme|'+k+'">Use this theme</button>'
-        :t.price==null?'<button class="btn sm sec" disabled title="'+esc2(t.locked||'Locked')+'">🔒 '+esc2(t.locked||'Locked')+'</button>'
+        :t.price==null?'<button class="btn sm sec" disabled title="'+esc2(themeReqText(t))+'">\uD83D\uDD12 '+esc2(themeReqText(t))+'</button>'
         :'<button class="btn sm" data-arcbuy="theme|'+k+'"><span class="arc-price">'+t.price+' 🪙</span></button>')+
     '</div>';
-  }).join('');
+  }
+  var byWay={coin:[],badge:[],rank:[],special:[]};
+  Object.keys(THEMES).forEach(function(k){
+    var t=THEMES[k];
+    if(t.price!=null)byWay.coin.push(k);
+    else if(t.req&&t.req.level!=null)byWay.rank.push(k);
+    else if(t.req&&t.req.badge)byWay.badge.push(k);
+    else byWay.special.push(k);
+  });
+  byWay.rank.sort(function(a,b){return THEMES[a].req.level-THEMES[b].req.level;});
+  function section(title,sub,keys){
+    if(!keys.length)return '';
+    var have=keys.filter(function(k){return g.owned.themes.indexOf(k)>=0;}).length;
+    return '<div class="section-h">'+esc2(title)+
+      ' <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)">\u00b7 '+
+      have+' of '+keys.length+'</span></div>'+
+      (sub?'<p class="sub" style="margin:-6px 0 12px;font-size:12.5px">'+esc2(sub)+'</p>':'')+
+      '<div class="arc-grid">'+keys.map(themeCard).join('')+'</div>';
+  }
+  var themes=
+    section('Themes \u00b7 buy with coins','',byWay.coin)+
+    section('Themes \u00b7 earned with achievements','Unlocked by badges, not by spending.',byWay.badge)+
+    section('Themes \u00b7 earned with rank','One waiting at each of these tiers, low to high.',byWay.rank)+
+    section('Themes \u00b7 one of a kind','',byWay.special);
   var avs=AVATARS.map(function(a){
     var owned=g.owned.avatars.indexOf(a.id)>=0,on=g.equipped.avatar===a.id;
     return '<div class="arc-shop">'+
@@ -9842,7 +10301,7 @@ function shopHTML(){
     '</div>';
   }).join('');
   return '<p class="sub">You have <strong class="arc-price">'+g.coins+' 🪙</strong>. Coins come from reviewing cards, focus sessions, tests, quests and badges.</p>'+
-    '<div class="section-h">Themes</div><div class="arc-grid">'+themes+'</div>'+
+    themes+
     '<div class="section-h">Avatars</div><div class="arc-grid">'+avs+'</div>'+
     '<div class="section-h">Power-ups</div><div class="arc-grid">'+pws+'</div>';
 }

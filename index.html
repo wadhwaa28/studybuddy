@@ -6834,10 +6834,11 @@ function renderSchedule(grid){
   const t=document.getElementById('sc-table');t.innerHTML=html;
   t.querySelectorAll('.x').forEach(x=>x.onclick=(e)=>{e.stopPropagation();grid[x.dataset.d].splice(+x.dataset.r,1);DB.schedule={grid};save();renderSchedule(grid);});
   t.querySelectorAll('[data-edit]').forEach(el=>el.onclick=(e)=>{if(e.target.classList.contains('x'))return;const [d,r]=el.dataset.edit.split('|');openScheduleEditor(d,+r);});
-  t.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
-    const d=b.dataset.add;const subj=prompt("Subject? Type: "+SUBJECTS.map(s=>s.id).join(', '));
-    if(!subj||!subjById(subj))return;
-    const time=prompt("Time label? e.g. 7:00 PM–7:50 PM","");
+  t.querySelectorAll('[data-add]').forEach(b=>b.onclick=async ()=>{
+    const d=b.dataset.add;
+    const subj=await sbPrompt('Add a study block','Which course? Type one of: '+SUBJECTS.map(s=>s.id).join(', '),'', SUBJECTS[0]?SUBJECTS[0].id:'');
+    if(!subj||!subjById(subj)){if(subj)toast('No course with that id');return;}
+    const time=await sbPrompt('When?','A label for the block — leave blank if it does not matter.','','7:00 PM – 7:50 PM');
     grid[d].push({kind:'study',subj,time:time||''});DB.schedule={grid};save();renderSchedule(grid);
   });
   document.getElementById('sc-ics').onclick=()=>exportICS(grid);
@@ -6964,8 +6965,10 @@ function renderCourses(){
     const last=document.querySelector('#set-courselist .row:last-child [data-cc-name]');
     if(last){last.focus();last.select();}
   };
-  document.getElementById('set-course-reset').onclick=function(){
-    if(!confirm(`Reset your course list to the Grade ${DB.grade} defaults? Cards and scores are kept.`))return;
+  document.getElementById('set-course-reset').onclick=async function(){
+    if(!await sbConfirm('Reset your courses?',
+        `This puts your course list back to the Grade ${DB.grade} defaults. Your cards and scores are kept.`,
+        {ok:'Reset courses'}))return;
     DB.subjects=coursesForGrade(DB.grade);applyCourses();save();renderCourses();refreshSubjectUI();
     toast('Courses reset');
   };
@@ -7051,7 +7054,12 @@ document.getElementById('set-save-ai').onclick=()=>{
   toast(DB.settings.provider==='none'?'AI off — using templates':`AI set to ${aiLabel()} ✓`);
 };
 document.getElementById('set-save-gcid').onclick=()=>{DB.settings.gcid=document.getElementById('set-gcid').value.trim();save();toast("Client ID saved ✓");};
-document.getElementById('set-reset-srs').onclick=()=>{if(confirm("Reset all card scheduling (keeps the cards)?")){DB.cards.forEach(c=>{c.ease=2.5;c.interval=0;c.reps=0;c.due=0;});save();toast("Card schedule reset");}};
+document.getElementById('set-reset-srs').onclick=async ()=>{
+  if(!await sbConfirm('Reset the card schedule?',
+      'Every card becomes due again, as if it were new. The cards themselves and everything you have written stay exactly as they are.',
+      {ok:'Reset schedule'}))return;
+  DB.cards.forEach(c=>{c.ease=2.5;c.interval=0;c.reps=0;c.due=0;});save();toast('Card schedule reset');
+};
 /* Export first. A growth record you can keep is what makes an erase button
    defensible at all — otherwise the only options are hoard or lose. */
 document.getElementById('set-export').onclick=()=>{
@@ -7304,9 +7312,11 @@ function tickTest(){
   tt.remaining--;
 }
 document.getElementById('pr-t-quit').onclick=()=>{clearInterval(tt.timer);renderPractice();};
-document.getElementById('pr-t-submit').onclick=()=>{
+document.getElementById('pr-t-submit').onclick=async ()=>{
   const unanswered=tt.qs.filter(x=>x.picked===null).length;
-  if(unanswered>0 && !confirm(`${unanswered} question(s) still blank. Submit anyway?`))return;
+  if(unanswered>0 && !await sbConfirm('Submit with blanks?',
+      `${unanswered} question${unanswered===1?' is':'s are'} still unanswered. Blank counts as wrong.`,
+      {ok:'Submit anyway'}))return;
   submitTest();
 };
 /* Gauntlet-only rich stats: timing, pace, attempt history, and per-topic accuracy. */
@@ -7515,7 +7525,12 @@ function coachFeedback(h,bySubj,weak,avg,trend){
   }
   return parts.map(p=>`<p style="margin:0 0 8px">${p}</p>`).join('');
 }
-document.getElementById('pg-clear').onclick=()=>{if(confirm("Clear all test history? (Best scores are kept.)")){DB.history=[];save();renderProgress();toast("History cleared");}};
+document.getElementById('pg-clear').onclick=async ()=>{
+  if(!await sbConfirm('Clear your test history?',
+      'Every recorded attempt goes, so your trend and weak topics start over. Your best score per course is kept, and no cards are touched.',
+      {ok:'Clear history',danger:true}))return;
+  DB.history=[];save();renderProgress();toast('History cleared');
+};
 /* ============================ RESOURCES ============================ */
 // Learn has two sub-tabs: Browse resources (general) and Study Coach (guided, topic-specific).
 /* Coursework: the kanban board and Google Classroom share one page, the same
@@ -8128,9 +8143,9 @@ let evCtx=null;
 function fillChoiceSelect(sel,list,current,kind){
   sel.innerHTML='<option value="">— none —</option>'+list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')+'<option value="__add">➕ Add custom…</option>';
   sel.value=current||'';
-  sel.onchange=()=>{
+  sel.onchange=async ()=>{
     if(sel.value==='__add'){
-      const name=prompt('Name your custom '+kind+':');
+      const name=await sbPrompt('New '+kind,'What should it be called?','', kind==='priority'?'Urgent':'Waiting on someone');
       if(name&&name.trim()){
         const v=name.trim(),arr=(kind==='priority'?DB.priorities:DB.statuses);
         if(!arr.includes(v))arr.push(v);save();
@@ -8692,6 +8707,169 @@ window.addEventListener('load',function(){
   .arc-stat .l{color:var(--muted);font-size:12.5px;margin-top:5px}
 </style>
 
+<!-- ============ BRANDED FORM CONTROLS ============ -->
+<style id="sb-controls">
+  /* Every native control the browser would otherwise draw in OS chrome. All of
+     it reads from the theme variables, so switching themes restyles the lot —
+     including Regalia, which paints over these with its own gold treatment. */
+
+  /* A blanket fallback first: anything below that a browser renders its own way
+     at least picks up the theme's accent rather than system blue. */
+  /* Browser-drawn glyphs (the calendar and clock buttons) are always dark; on a
+     dark theme they need inverting. Each dark theme sets --icon-invert:1. */
+  /* What reads legibly ON the accent colour. White works on the darker accents;
+     a light-gold accent like Regalia's needs dark ink instead. */
+  :root{accent-color:var(--accent);--icon-invert:0;--on-accent:#fff}
+  input,textarea,select,button{caret-color:var(--accent)}
+  ::selection{background:color-mix(in srgb,var(--accent) 32%,transparent);color:var(--txt)}
+  ::placeholder{color:var(--faint);opacity:1}
+
+  /* Focus. The native ring is system blue and disappears under our borders, so
+     it is replaced rather than removed — keyboard users still need to see it. */
+  input:focus-visible,textarea:focus-visible,select:focus-visible,
+  button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;border-radius:8px;
+  }
+
+  /* ---- text-ish fields: date and color were missing from the base rule ---- */
+  input[type=date],input[type=datetime-local],input[type=month],input[type=week],
+  input[type=search],input[type=email],input[type=url],input[type=tel]{
+    width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);
+    padding:10px 12px;border-radius:10px;outline:none;transition:.15s;font-family:inherit;font-size:14px;
+  }
+  /* The little calendar / clock buttons Chrome paints inside date and time
+     fields are dark grey pictograms; tint them to the theme instead. */
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator,
+  input[type=datetime-local]::-webkit-calendar-picker-indicator{
+    filter:grayscale(1) brightness(0) saturate(0) invert(var(--icon-invert,0));
+    opacity:.5;cursor:pointer;transition:.15s;
+  }
+  input[type=date]:hover::-webkit-calendar-picker-indicator,
+  input[type=time]:hover::-webkit-calendar-picker-indicator{opacity:.9}
+  input[type=time]::-webkit-datetime-edit-ampm-field,
+  input[type=date]::-webkit-datetime-edit-year-field{color:var(--txt)}
+
+  /* Number spinners: hidden, because they are tiny OS arrows that never match. */
+  input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+  /* ---- select: drop the OS arrow, draw our own chevron ---- */
+  select{
+    -webkit-appearance:none;-moz-appearance:none;appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),
+                     linear-gradient(135deg,currentColor 50%,transparent 50%);
+    background-position:calc(100% - 17px) calc(50% + 1px),calc(100% - 12px) calc(50% + 1px);
+    background-size:5px 5px,5px 5px;
+    background-repeat:no-repeat;
+    padding-right:34px;cursor:pointer;
+  }
+  select:disabled{opacity:.55;cursor:not-allowed}
+  select option{background:var(--panel);color:var(--txt)}
+
+  /* ---- checkbox ---- */
+  input[type=checkbox]{
+    -webkit-appearance:none;appearance:none;
+    width:18px!important;height:18px;flex:none;margin:0 2px 0 0;padding:0;
+    border:1.5px solid var(--line);border-radius:5px;background:var(--bg2);
+    cursor:pointer;position:relative;transition:.15s;vertical-align:-4px;
+  }
+  input[type=checkbox]:hover{border-color:var(--accent)}
+  input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+  /* the tick is drawn, not a glyph, so it stays crisp at any zoom */
+  input[type=checkbox]:checked::after{
+    content:'';position:absolute;left:5px;top:1.5px;width:4px;height:9px;
+    border:solid var(--on-accent,#fff);border-width:0 2px 2px 0;transform:rotate(42deg);
+  }
+  input[type=checkbox]:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---- radio ---- */
+  input[type=radio]{
+    -webkit-appearance:none;appearance:none;
+    width:18px;height:18px;flex:none;margin:0 2px 0 0;
+    border:1.5px solid var(--line);border-radius:50%;background:var(--bg2);
+    cursor:pointer;position:relative;transition:.15s;vertical-align:-4px;
+  }
+  input[type=radio]:hover{border-color:var(--accent)}
+  input[type=radio]:checked{border-color:var(--accent);border-width:5px}
+
+  /* ---- range slider ---- */
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:22px;background:transparent;cursor:pointer;padding:0;border:none;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px;border-radius:999px;
+    background:linear-gradient(var(--accent),var(--accent)) 0/var(--sb-fill,0%) 100% no-repeat,
+               var(--line);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:16px;height:16px;margin-top:-5px;border-radius:50%;
+    background:var(--accent);border:2px solid var(--panel);
+    box-shadow:0 1px 4px rgba(0,0,0,.28);transition:transform .12s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
+  input[type=range]::-moz-range-track{height:6px;border-radius:999px;background:var(--line)}
+  input[type=range]::-moz-range-progress{height:6px;border-radius:999px;background:var(--accent)}
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.28);
+  }
+
+  /* ---- file input: the native button is pure OS chrome ---- */
+  input[type=file]{
+    width:100%;font-size:13px;color:var(--muted);cursor:pointer;
+    background:var(--bg2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;
+  }
+  input[type=file]:hover{border-color:var(--accent)}
+  input[type=file]::file-selector-button{
+    font-family:inherit;font-size:13px;font-weight:600;
+    background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:7px 13px;margin-right:11px;cursor:pointer;transition:.15s;
+  }
+  input[type=file]::file-selector-button:hover{background:var(--accent);color:var(--on-accent,#fff);border-color:var(--accent)}
+
+  /* ---- colour swatch ---- */
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;
+    width:44px;height:32px;padding:0;cursor:pointer;
+    background:var(--bg2);border:1px solid var(--line);border-radius:9px;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:4px}
+  input[type=color]::-webkit-color-swatch{border:1px solid var(--line);border-radius:6px}
+  input[type=color]::-moz-color-swatch{border:1px solid var(--line);border-radius:6px}
+
+  /* ---- details / summary: replace the OS triangle ---- */
+  summary{list-style:none;position:relative;padding-left:18px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{
+    content:'';position:absolute;left:2px;top:50%;width:5px;height:5px;
+    border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+    transform:translateY(-70%) rotate(-45deg);transition:transform .18s;
+  }
+  details[open]>summary::before{transform:translateY(-30%) rotate(45deg)}
+
+  /* ---- Chrome's autofill paints its own yellow over our fields ---- */
+  input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+    -webkit-text-fill-color:var(--txt);
+    -webkit-box-shadow:0 0 0 40px var(--bg2) inset;
+    caret-color:var(--txt);
+  }
+
+  /* ---- progress / meter, for anything added later ---- */
+  progress{-webkit-appearance:none;appearance:none;width:100%;height:8px;border:none;background:var(--line);border-radius:999px;overflow:hidden}
+  progress::-webkit-progress-bar{background:var(--line)}
+  progress::-webkit-progress-value{background:var(--accent)}
+  progress::-moz-progress-bar{background:var(--accent)}
+
+  @media (prefers-reduced-motion:reduce){
+    input,select,textarea,summary::before{transition:none!important}
+  }
+</style>
+
 <script id="arc-js">
 /* ============================================================================
    STUDY BUDDY · ARCADE MODE
@@ -8729,19 +8907,19 @@ function xpNeeded(level){return 100+(level-1)*60;}
 
 var THEMES={
   base:{name:'Study Buddy',price:0,emoji:'🧸',vars:null,swatch:['#f6efe3','#c67c4e','#7f9b6a']},
-  midnight:{name:'Midnight',price:300,emoji:'🌙',swatch:['#11151b','#e0a06a','#8fc08a'],vars:{'--bg':'#11151b','--bg2':'#171c24','--panel':'#1b212b','--panel2':'#232b37','--line':'#2e3846','--txt':'#e6e9ee','--muted':'#9aa6b6','--faint':'#6d7a8b','--accent':'#e0a06a','--accent2':'#8fc08a','--warn':'#e2c05f','--bad':'#e08074','--ap':'#b394c9','--shadow':'0 6px 22px rgba(0,0,0,.5)'}},
-  forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#6f9e5a','#c39a4e'],vars:{'--bg':'#eef3e9','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
-  ocean:{name:'Ocean',price:250,emoji:'🌊',swatch:['#eef4f8','#57a3c7','#63bda6'],vars:{'--bg':'#eef4f8','--bg2':'#e3edf4','--panel':'#f9fcfe','--panel2':'#dfeaf2','--line':'#c7dae6','--txt':'#26333d','--muted':'#64798a','--faint':'#93a6b4','--accent':'#57a3c7','--accent2':'#63bda6','--warn':'#dcae52','--bad':'#d1706a','--ap':'#9498d6'}},
-  sakura:{name:'Sakura',price:350,emoji:'🌸',swatch:['#fdf1f3','#e79ab0','#9ac9b8'],vars:{'--bg':'#fdf1f3','--bg2':'#f9e6ea','--panel':'#fffafb','--panel2':'#f7e2e7','--line':'#f0cdd5','--txt':'#45343a','--muted':'#8d7480','--faint':'#b79ba5','--accent':'#e79ab0','--accent2':'#9ac9b8','--warn':'#e0b569','--bad':'#d4757d','--ap':'#b195d3'}},
-  neon:{name:'Neon Arcade',price:800,emoji:'👾',swatch:['#0d0b1a','#ff9edb','#5ef1c0'],vars:{'--bg':'#0d0b1a','--bg2':'#141130','--panel':'#1a1740','--panel2':'#242052','--line':'#342f6b','--txt':'#f2eeff','--muted':'#a79fd6','--faint':'#7d75ab','--accent':'#ff9edb','--accent2':'#5ef1c0','--warn':'#ffd166','--bad':'#ff6b8b','--ap':'#9d7bff','--shadow':'0 6px 26px rgba(120,60,220,.4)'}},
+  midnight:{name:'Midnight',price:300,emoji:'🌙',swatch:['#11151b','#e0a06a','#8fc08a'],vars:{'--bg':'#11151b','--icon-invert':'1','--bg2':'#171c24','--panel':'#1b212b','--panel2':'#232b37','--line':'#2e3846','--txt':'#e6e9ee','--muted':'#9aa6b6','--faint':'#6d7a8b','--accent':'#e0a06a','--accent2':'#8fc08a','--warn':'#e2c05f','--bad':'#e08074','--ap':'#b394c9','--shadow':'0 6px 22px rgba(0,0,0,.5)'}},
+  forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#6f9e5a','#c39a4e'],vars:{'--bg':'#eef3e9','--icon-invert':'0','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
+  ocean:{name:'Ocean',price:250,emoji:'🌊',swatch:['#eef4f8','#57a3c7','#63bda6'],vars:{'--bg':'#eef4f8','--icon-invert':'0','--bg2':'#e3edf4','--panel':'#f9fcfe','--panel2':'#dfeaf2','--line':'#c7dae6','--txt':'#26333d','--muted':'#64798a','--faint':'#93a6b4','--accent':'#57a3c7','--accent2':'#63bda6','--warn':'#dcae52','--bad':'#d1706a','--ap':'#9498d6'}},
+  sakura:{name:'Sakura',price:350,emoji:'🌸',swatch:['#fdf1f3','#e79ab0','#9ac9b8'],vars:{'--bg':'#fdf1f3','--icon-invert':'0','--bg2':'#f9e6ea','--panel':'#fffafb','--panel2':'#f7e2e7','--line':'#f0cdd5','--txt':'#45343a','--muted':'#8d7480','--faint':'#b79ba5','--accent':'#e79ab0','--accent2':'#9ac9b8','--warn':'#e0b569','--bad':'#d4757d','--ap':'#b195d3','--on-accent':'#45343a'}},
+  neon:{name:'Neon Arcade',price:800,emoji:'👾',swatch:['#0d0b1a','#ff9edb','#5ef1c0'],vars:{'--bg':'#0d0b1a','--icon-invert':'1','--bg2':'#141130','--panel':'#1a1740','--panel2':'#242052','--line':'#342f6b','--txt':'#f2eeff','--muted':'#a79fd6','--faint':'#7d75ab','--accent':'#ff9edb','--accent2':'#5ef1c0','--warn':'#ffd166','--bad':'#ff6b8b','--ap':'#9d7bff','--shadow':'0 6px 26px rgba(120,60,220,.4)'}},
   /* Not for sale at any price. The only way in is to hold #1 on the leaderboard,
      which is why `price` is null — the shop renders it locked instead of buyable. */
   regalia:{name:'Regalia',price:null,emoji:'👑',locked:'Held #1 on the leaderboard',
     ds:'The champion\u2019s skin. Gold on a moving void, shimmering headings, a crown over everything. Nothing else in the shop looks like it, and nothing else ever will.',
     swatch:['#0b0714','#ffd77a','#7be3ff'],
-    vars:{'--bg':'#0b0714','--bg2':'#120c1f','--panel':'#181029','--panel2':'#221635','--line':'#3a2a55',
+    vars:{'--bg':'#0b0714','--icon-invert':'1','--bg2':'#120c1f','--panel':'#181029','--panel2':'#221635','--line':'#3a2a55',
       '--txt':'#fdf7ff','--muted':'#bfa9dd','--faint':'#8b76ab','--accent':'#ffd77a','--accent2':'#7be3ff',
-      '--warn':'#ffd77a','--bad':'#ff7a9c','--ap':'#c69bff','--shadow':'0 8px 34px rgba(255,215,122,.20)'},
+      '--warn':'#ffd77a','--bad':'#ff7a9c','--ap':'#c69bff','--shadow':'0 8px 34px rgba(255,215,122,.20)','--on-accent':'#2a1d05'},
     /* Regalia is not a palette swap. It is the trophy for holding first place,
        so it ships a whole stylesheet: a living gold-and-void arcade skin that
        nothing else in the shop is allowed to look like. Mounted by applyTheme(). */
@@ -11821,7 +11999,7 @@ function boot(){
   row.style.cssText='display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap';
   row.innerHTML='<button class="btn sec sm" id="nm-suggest" type="button">Suggest a name</button>'+
     '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer">'+
-    '<input type="checkbox" id="nm-strict" style="width:auto;margin:0"> Strict mode</label>';
+    '<input type="checkbox" id="nm-strict"> Strict mode</label>';
   var msg=document.createElement('div');
   msg.id='nm-msg';
   msg.style.cssText='font-size:12.5px;margin-top:7px;min-height:17px;line-height:1.45';
@@ -11889,5 +12067,108 @@ else boot();
 })();
 </script>
 
+<!-- ============ BRANDED DIALOGS + LIVE SLIDER FILL ============ -->
+<style id="sb-dialog-css">
+  #sb-ask{position:fixed;inset:0;background:rgba(20,14,10,.55);display:none;place-items:center;
+    z-index:400;padding:20px;backdrop-filter:blur(2px)}
+  #sb-ask.show{display:grid}
+  #sb-ask .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);max-width:420px;width:100%;padding:24px}
+  #sb-ask h3{margin:0 0 8px;font-size:19px}
+  #sb-ask p{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.6}
+  #sb-ask .row{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+  #sb-ask input{margin-bottom:16px}
+  #sb-ask .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+</style>
+<script id="sb-dialog-js">
+/* ============================================================================
+   Native confirm() and prompt() are OS chrome — a grey system box in the middle
+   of a themed app, and on mobile they name the origin. These replace them with
+   the app's own card. Promise-based, so call sites become `await sbAsk(...)`.
+   ========================================================================== */
+(function(){
+'use strict';
+var box;
+function build(){
+  if(document.getElementById('sb-ask'))return;
+  box=document.createElement('div');
+  box.id='sb-ask';
+  box.innerHTML='<div class="box"></div>';
+  document.body.appendChild(box);
+}
+function esc5(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+/* opts: {title, body, ok, cancel, danger, input, placeholder, value}
+   Resolves to false / true, or for an input dialog null / the string. */
+function sbAsk(opts){
+  build();
+  opts=opts||{};
+  return new Promise(function(resolve){
+    var inner=box.querySelector('.box');
+    inner.innerHTML=
+      '<h3>'+esc5(opts.title||'Are you sure?')+'</h3>'+
+      (opts.body?'<p>'+esc5(opts.body)+'</p>':'')+
+      (opts.input?'<input type="text" id="sb-ask-input" placeholder="'+esc5(opts.placeholder||'')+
+                  '" value="'+esc5(opts.value||'')+'">':'')+
+      '<div class="row">'+
+        '<button class="btn sec sm" id="sb-ask-no">'+esc5(opts.cancel||'Cancel')+'</button>'+
+        '<button class="btn sm'+(opts.danger?' danger':'')+'" id="sb-ask-yes">'+esc5(opts.ok||'Confirm')+'</button>'+
+      '</div>';
+    box.classList.add('show');
+    var field=document.getElementById('sb-ask-input');
+    if(field)setTimeout(function(){field.focus();field.select();},40);
+    else setTimeout(function(){document.getElementById('sb-ask-yes').focus();},40);
+
+    function close(v){
+      box.classList.remove('show');
+      document.removeEventListener('keydown',key,true);
+      box.onclick=null;
+      resolve(v);
+    }
+    function accept(){ close(opts.input ? (field&&field.value.trim()?field.value.trim():null) : true); }
+    function reject(){ close(opts.input ? null : false); }
+    document.getElementById('sb-ask-yes').onclick=accept;
+    document.getElementById('sb-ask-no').onclick=reject;
+    /* clicking the backdrop cancels, the same as dismissing a native dialog */
+    box.onclick=function(e){if(e.target===box)reject();};
+    function key(e){
+      if(e.key==='Escape'){e.preventDefault();reject();}
+      else if(e.key==='Enter'&&(opts.input||document.activeElement!==document.getElementById('sb-ask-no'))){
+        e.preventDefault();accept();
+      }
+    }
+    document.addEventListener('keydown',key,true);
+  });
+}
+function sbConfirm(title,body,opts){
+  opts=opts||{};
+  return sbAsk({title:title,body:body,ok:opts.ok||'Yes',cancel:opts.cancel||'Cancel',danger:opts.danger});
+}
+function sbPrompt(title,body,value,placeholder){
+  return sbAsk({title:title,body:body,input:true,value:value,placeholder:placeholder,ok:'Save'});
+}
+window.sbAsk=sbAsk; window.sbConfirm=sbConfirm; window.sbPrompt=sbPrompt;
+
+/* --------------------------------------------------------------------------
+   Range sliders: WebKit cannot fill the track left of the thumb on its own, so
+   the filled proportion is published as a custom property the stylesheet uses.
+   -------------------------------------------------------------------------- */
+function paintRange(el){
+  if(!el||el.type!=='range')return;
+  var min=parseFloat(el.min||0), max=parseFloat(el.max||100), val=parseFloat(el.value||0);
+  var pct=max>min?((val-min)/(max-min))*100:0;
+  el.style.setProperty('--sb-fill',pct+'%');
+}
+function paintAll(){document.querySelectorAll('input[type=range]').forEach(paintRange);}
+document.addEventListener('input',function(e){if(e.target&&e.target.type==='range')paintRange(e.target);},true);
+document.addEventListener('change',function(e){if(e.target&&e.target.type==='range')paintRange(e.target);},true);
+/* Sliders are rendered into pages long after load, so repaint on navigation. */
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){build();paintAll();});
+else {build();paintAll();}
+setInterval(paintAll,1500);
+window.SBPaintRanges=paintAll;
+})();
+</script>
 </body>
 </html>

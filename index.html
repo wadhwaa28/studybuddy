@@ -224,9 +224,9 @@
   a.res{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--txt);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:10px;transition:.14s;border-left:4px solid var(--accent)}
   a.res:hover{background:var(--panel2);transform:translateY(-1px);box-shadow:var(--shadow)}
   a.res .rtype{flex-shrink:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:4px 9px;border-radius:7px;background:var(--panel2);color:var(--muted);min-width:74px;text-align:center}
-  a.res .rmain{flex:1;min-width:0}
-  a.res .rtitle{font-weight:600;font-size:14.5px}
-  a.res .rnote{color:var(--muted);font-size:12.5px;margin-top:2px}
+  a.res .rmain{flex:1;min-width:0;display:flex;flex-direction:column}
+  a.res .rtitle{font-weight:600;font-size:14.5px;display:block}
+  a.res .rnote{color:var(--muted);font-size:12.5px;margin-top:2px;display:block;line-height:1.45}
   a.res .rarrow{color:var(--faint);font-size:18px}
   .cc-card{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;background:var(--bg2)}
   .cc-card .ccf{font-weight:600;font-size:14px}
@@ -1454,6 +1454,7 @@ const BANK_IDS = ["alg","ela","sci","spa","his",             // the five origina
                   "ela6","ela7",                             // English, grades 6-7
                   "sci6","life","phys","chem","bio",         // science, grades 6-12
                   "ss6","world","govecon",                   // social studies, grades 6-12
+                  "satact",                                  // college-entrance prep, grades 10-12
                   "spa3","spa4"];                            // Spanish, grades 11-12
 
 /* The five built-in course templates. Their ids double as the default course
@@ -1514,6 +1515,8 @@ const COURSE_VARIANTS = {
   govecon:{slot:"his", name:"Government & Economics", desc:"How American government works, and how markets and money work.",
     topics:["Foundations","The Constitution","Three branches","Civil liberties","Elections","Supply & demand","Macroeconomics","Personal finance"]},
   /* --- Spanish slot --- */
+  satact:{slot:"test", name:"SAT / ACT Prep", desc:"Grammar, rhetoric, reading and math in the exact forms the college-entrance tests ask for.",
+    topics:["Punctuation","Subject-verb agreement","Pronouns","Modifiers","Verb tense","Parallelism","Transitions","Conciseness","Word choice","Main idea","Inference","Evidence","Data analysis","Linear equations","Systems","Ratios & percents","Exponents & radicals","Quadratics","Functions","Geometry","Right-triangle trig","Statistics","Probability","Test format"]},
   spa3:{slot:"spa", name:"Spanish 3", desc:"Preterite vs imperfect, the subjunctive, commands, and compound tenses.",
     topics:["Preterite vs Imperfect","Present Subjunctive","Commands","Object Pronouns","Por vs Para","Present Perfect","Future & Conditional","Saber vs Conocer"]},
   spa4:{slot:"spa", name:"Spanish 4", desc:"Si clauses, the full subjunctive system, the passive, and advanced register.",
@@ -1536,6 +1539,9 @@ function variantCourse(bank){
               9 Civics · 10 World History · 11 US History · 12 Gov & Economics
      Spanish  6 Exploratory · 7 Spanish 1A · 8 Spanish 1B · 9 Spanish 2 ·
               10 Spanish 3 · 11 Spanish 4 · 12 AP Spanish
+     prep     SAT / ACT Prep rides alongside in 10, 11 and 12 — the years
+              students actually sit the tests. Remove it in Settings if the
+              schools being applied to do not ask for a score.
               (1A and 1B are the two halves of Spanish 1, the usual middle-school
               split, so the level actually rises every single year)
 
@@ -1553,11 +1559,14 @@ const GRADE_PRESETS = {
   9:[variantCourse("geom"),    {id:"ela",name:"English 9",bank:"ela"}, variantCourse("bio"),
      {id:"his",name:"Civics",bank:"govecon"}, {id:"spa",name:"Spanish 2",bank:"spa"}],
   10:[{id:"alg",name:"Algebra 2",bank:"alg"}, {id:"ela",name:"English 10",bank:"ela"},
-     variantCourse("chem"),    variantCourse("world"), variantCourse("spa3")],
+     variantCourse("chem"),    variantCourse("world"), variantCourse("spa3"),
+     variantCourse("satact")],
   11:[variantCourse("precalc"),{id:"ela",name:"English 11",bank:"ela"}, {id:"sci",name:"Physics",bank:"sci"},
-     {id:"his",name:"US History",bank:"his"}, variantCourse("spa4")],
+     {id:"his",name:"US History",bank:"his"}, variantCourse("spa4"),
+     variantCourse("satact")],
   12:[variantCourse("calc"),   {id:"ela",name:"English 12",bank:"ela"}, {id:"sci",name:"AP Biology",bank:"bio"},
-     variantCourse("govecon"), {id:"spa",name:"AP Spanish",bank:"spa4"}]
+     variantCourse("govecon"), {id:"spa",name:"AP Spanish",bank:"spa4"},
+     variantCourse("satact")]
 };
 const GRADES=[6,7,8,9,10,11,12];
 const DEFAULT_GRADE=9;
@@ -6758,6 +6767,205 @@ BANKS.RESOURCES.bio=[
   {type:"Tool",title:"PhET — Gene Expression Essentials",note:"Build a gene, transcribe it, translate it, and watch the protein appear.",url:"https://phet.colorado.edu/en/simulations/gene-expression-essentials"},
   {type:"Practice",title:"CK-12 Biology",note:"Readings with embedded practice questions and instant feedback, chapter by chapter.",url:"https://www.ck12.org/c/biology/"}
 ];
+
+/* ==== SAT / ACT PREP (grades 10-12) ==== */
+/* ============================ SAT / ACT PREP ============================ */
+BANKS.QUESTIONS.satact=[
+  ["How many questions are on the Reading and Writing section of the Digital SAT?",["54","44","67","96"],0,"Two adaptive 32-minute modules of 27 questions each."],
+  ["On the enhanced ACT, how long is the English section and how many questions does it have?",["50 questions in 35 minutes","75 questions in 45 minutes","40 questions in 40 minutes","45 questions in 50 minutes"],0,"English is 50 questions in 35 minutes; 45 in 50 minutes is Math."],
+  ["Choose the verb: 'The box of faded photographs ___ on the top shelf.'",["sits","sit","are sitting","have sat"],0,"The subject is 'box', not the noun inside the prepositional phrase."],
+  ["Choose the verb: 'Neither the coach nor the players ___ satisfied with the result.'",["were","was","has been","is"],0,"With 'neither…nor' the verb agrees with the subject nearer to it."],
+  ["Choose the verb: 'A list of approved vendors ___ posted every January.'",["is","are","were","have been"],0,"The singular subject 'list' controls the verb."],
+  ["Choose the pronoun: 'The award went to Deborah and ___.'",["me","I","myself","mine"],0,"The pronoun is the object of the preposition, so the objective case is required."],
+  ["Choose the pronoun: 'The scholarship committee published ___ findings in March.'",["its","it's","its'","them"],0,"A collective noun acting as one body takes the singular possessive 'its'."],
+  ["Which sentence is free of a dangling modifier?",["Having studied all night, Marcus felt ready for the exam.","Having studied all night, the exam felt easy to Marcus.","Having studied all night, the exam was no trouble.","Having studied all night, Marcus's confidence was high."],0,"The opening phrase must describe the noun that immediately follows it."],
+  ["Which sentence contains a misplaced modifier?",["The chemist described the reaction wearing safety goggles.","Wearing safety goggles, the chemist described the reaction.","The chemist, wearing safety goggles, described the reaction.","The chemist who was wearing safety goggles described the reaction."],0,"As written, the modifying phrase sits beside 'reaction', so the reaction seems to wear the goggles."],
+  ["Which sentence joins the two clauses correctly?",["The storm cut power for three days; residents relied on generators.","The storm cut power for three days, residents relied on generators.","The storm cut power for three days residents relied on generators.","The storm cut power for three days: residents, relied on generators."],0,"A semicolon links two complete, closely related sentences."],
+  ["Which sentence uses a colon correctly?",["The kit contains everything you need: rope, chalk, and a harness.","The kit contains: rope, chalk, and a harness.","The kit contains rope: chalk, and a harness.","The kit contains everything you need; rope, chalk, and a harness."],0,"A colon must follow a complete sentence before it introduces a list."],
+  ["Which sentence sets off the nonessential clause correctly?",["Dr. Ruiz, who founded the clinic, still sees patients on Fridays.","Dr. Ruiz who founded the clinic, still sees patients on Fridays.","Dr. Ruiz, who founded the clinic still sees patients on Fridays.","Dr. Ruiz — who founded the clinic, still sees patients on Fridays."],0,"Nonessential information needs matching punctuation on both sides."],
+  ["Which phrase correctly shows a locker room shared by more than one player?",["the players' locker room","the player's locker room","the players locker room","the players's locker room"],0,"A plural noun already ending in -s takes the apostrophe after the s."],
+  ["Choose the verb: 'By the time the ferry docked, the storm ___ already passed.'",["had","has","have","was"],0,"The past perfect marks the earlier of two past events."],
+  ["Which sentence keeps its tenses consistent?",["The researcher collected the samples and analyzed them the same day.","The researcher collected the samples and analyzes them the same day.","The researcher collects the samples and analyzed them the same day.","The researcher will collect the samples and analyzed them the same day."],0,"Both verbs describe the same moment, so both must share a tense."],
+  ["Which sentence is parallel?",["The internship involves drafting memos, attending hearings, and interviewing clients.","The internship involves drafting memos, attending hearings, and to interview clients.","The internship involves drafting memos, hearing attendance, and to interview clients.","The internship involves to draft memos, attending hearings, and interviews with clients."],0,"Items in a list must share the same grammatical form."],
+  ["Complete in parallel form: 'The proposal is not only affordable but also ___.'",["practical","it is practical","practicality","being practical"],0,"'Not only…but also' must join two items of the same kind, here two adjectives."],
+  ["A sentence says solar costs fell sharply; the next says adoption still lagged. Which transition fits?",["Nevertheless","Therefore","For example","In addition"],0,"The second idea contrasts with what the first would lead you to expect."],
+  ["One sentence gives a cause and the next states its result. Which transition fits best?",["Consequently","However","Nonetheless","By contrast"],0,"Only one of these signals a result rather than a contrast."],
+  ["Which version is most concise without losing meaning?",["The results surprised the team.","The results were surprising to the members of the team.","The results, which were surprising, surprised the team members.","The results had a surprising effect on the members of the team."],0,"The shortest grammatical option that keeps the meaning is usually correct."],
+  ["Which phrase is redundant?",["revert back","respond briefly","review annually","return quickly"],0,"'Revert' already means to go back."],
+  ["Choose the best word: 'The evidence was ___ enough to convince even the skeptics.'",["compelling","adjacent","tentative","ornate"],0,"Only one word describes evidence strong enough to persuade doubters."],
+  ["Choose the best word: 'Rather than ___ the claim outright, the reviewer asked for more data.'",["rejecting","objecting","correlating","narrating"],0,"The verb needs a direct object and must mean turning the claim down."],
+  ["A paragraph about the chemistry of bread dough includes a sentence naming the writer's favorite bakery. What should the writer do?",["Delete it, because it does not support the paragraph's focus","Keep it, because it adds personal interest","Move it to the essay's conclusion","Expand it with more detail about the bakery"],0,"Relevance to the paragraph's specific focus, not general interest, decides the question."],
+  ["A writer wants to define 'gluten' for readers before explaining how kneading develops it. Where does the definition belong?",["Before the explanation, so readers meet the term first","After the explanation, as a summary","In the final paragraph","Nowhere, since the term explains itself"],0,"A definition is only useful if it arrives before the idea that depends on it."],
+  ["The writer wants to conclude by emphasizing the study's practical value. Which sentence does that?",["Farmers can apply the findings immediately to cut water use in dry seasons.","The study ran for four years and involved six researchers.","The team hopes to publish a follow-up paper next spring.","Irrigation has interested scientists for well over a century."],0,"Only one choice names a use readers could act on."],
+  ["Passage: 'Urban rooftops soak up heat all day and release it at night, keeping cities warmer than the countryside. Painting those roofs white reflects sunlight and measurably lowers nighttime temperatures.' What is the main idea?",["Reflective roofs can reduce the urban heat island effect.","Cities are always hotter than rural areas at noon.","White paint costs less than other roofing materials.","Rooftops should be replaced with gardens."],0,"The main idea is the claim both sentences together support."],
+  ["Passage: 'Octopuses solve mazes, open jars, and recognize individual keepers. Yet their intelligence evolved on a branch that split from ours more than 500 million years ago.' The passage mainly makes the point that…",["complex intelligence has evolved more than once, independently","octopuses are smarter than most mammals","keepers should avoid handling octopuses","mazes are the best test of animal intelligence"],0,"The 'yet' signals that the point is about the separate evolutionary origin."],
+  ["Passage: 'The lighthouse keeper's logbook records the weather every six hours for forty years without a single gap — even on the night of the 1938 hurricane.' It can be inferred that the keeper was…",["exceptionally diligent","frightened of storms","a trained meteorologist","paid for each entry"],0,"An unbroken forty-year record supports only the conclusion about diligence."],
+  ["Passage: 'Sales of the new sedan doubled after the company halved its price, but the firm's profits fell that quarter.' It can be inferred that…",["the extra sales did not offset the smaller margin on each car","buyers disliked the sedan","the company stopped building the sedan","production costs fell along with the price"],0,"Twice the volume at a lower margin still produced less profit."],
+  ["A student claims a city's bike-share program increased cycling. Which finding best supports the claim?",["Trips on city bike lanes rose 40 percent in the year after launch","Three newspapers covered the program's launch","The bike-share stations were painted a bright color","Residents say they like the idea of cycling"],0,"Evidence must measure the specific outcome the claim asserts."],
+  ["A researcher hypothesizes that longer recess improves classroom focus. Which result would most weaken it?",["Classes given double recess showed no change in on-task behavior","Students said they enjoyed the longer recess","Teachers needed more time to plan lessons","The school added the extra recess in spring"],0,"Weakening evidence must address the predicted effect itself."],
+  ["Passage: 'Before you blame the pigeon for the mess on your car, remember that we bred the bird for centuries and then abandoned it in our streets.' The author's main purpose is to…",["challenge a common attitude toward pigeons","give instructions for cleaning a car","describe pigeon anatomy","argue that pigeons should be domesticated again"],0,"The sentence answers an assumed judgment rather than informing or instructing."],
+  ["Passage: 'After two years and four hearings, the committee's 300-page report recommends forming another committee.' The tone is best described as…",["wry","reverent","alarmed","sentimental"],0,"The deadpan contrast between effort and outcome creates dry amusement."],
+  ["A scatterplot of study hours against test scores shows points rising steadily to the right. This indicates…",["a positive association","a negative association","no association","that studying causes a higher score in every case"],0,"An upward trend shows association; a scatterplot alone cannot establish cause."],
+  ["Solve 3(x − 4) = 2x + 5.",["x = 17","x = 9","x = 1","x = −17"],0,"Distribute to 3x − 12 = 2x + 5, then subtract 2x and add 12."],
+  ["A line passes through (2, 3) and (6, 11). What is its slope?",["2","1/2","4","8"],0,"(11 − 3)/(6 − 2) = 8/4."],
+  ["Solve the system: x + y = 10 and x − y = 4.",["x = 7, y = 3","x = 3, y = 7","x = 6, y = 4","x = 5, y = 5"],0,"Adding the equations gives 2x = 14."],
+  ["The ratio of cats to dogs at a shelter is 3:5. If there are 40 animals in all, how many are dogs?",["25","24","15","8"],0,"Eight parts total, so each part is 5 animals and dogs are 5 parts."],
+  ["A jacket priced at $80 is marked down 25 percent. What is the sale price?",["$60","$55","$65","$20"],0,"The customer pays 75 percent of $80."],
+  ["A car travels 90 kilometers in 45 minutes. What is its speed in kilometers per hour?",["120","135","67.5","45"],0,"45 minutes is 0.75 hour, so 90 ÷ 0.75."],
+  ["Simplify (x⁵)(x³)/x².",["x⁶","x⁷","x⁴","x^(15/2)"],0,"Add the exponents, then subtract: x⁸ ÷ x²."],
+  ["What are the solutions of x² − 5x + 6 = 0?",["2 and 3","−2 and −3","1 and 6","−1 and −6"],0,"It factors as (x − 2)(x − 3)."],
+  ["If (x − 4) is a factor of a polynomial p(x), what must be true?",["p(4) = 0","p(0) = 4","p(−4) = 0","p(4) = 4"],0,"The factor theorem: a factor (x − a) means a is a zero."],
+  ["If f(x) = 2x² − 3, what is f(−3)?",["15","−15","33","9"],0,"Square first: 2(9) − 3."],
+  ["Two triangles are similar with corresponding sides in the ratio 2:3. What is the ratio of their areas?",["4:9","2:3","8:27","3:2"],0,"Areas scale as the square of the length ratio."],
+  ["In a right triangle, the side opposite a 30° angle measures 5. How long is the hypotenuse?",["10","5√3","5√2","2.5"],0,"In a 30-60-90 triangle the short leg is half the hypotenuse."],
+  ["A circle has equation (x − 3)² + (y + 2)² = 25. What are its center and radius?",["(3, −2), r = 5","(−3, 2), r = 5","(3, −2), r = 25","(−3, 2), r = 25"],0,"Standard form gives the center directly and r as the square root of 25."],
+  ["Which measure of center is most affected by one extreme outlier?",["The mean","The median","The mode","The interquartile range"],0,"Every value enters the mean, so a far-out value pulls it."],
+  ["A bag holds 4 red and 6 blue marbles. What is the probability of drawing a red marble at random?",["2/5","3/5","1/4","4/6"],0,"4 favorable outcomes out of 10 total."]
+];
+BANKS.TOPICS.satact=["Test format","Test format","Subject-verb agreement","Subject-verb agreement","Subject-verb agreement","Pronouns","Pronouns","Modifiers","Modifiers","Punctuation","Punctuation","Punctuation","Punctuation","Verb tense","Verb tense","Parallelism","Parallelism","Transitions","Transitions","Conciseness","Conciseness","Word choice","Word choice","Adding & deleting sentences","Adding & deleting sentences","Meeting the goal","Main idea","Main idea","Inference","Inference","Command of evidence","Command of evidence","Author's purpose","Tone","Data interpretation","Linear equations","Linear equations","Systems of equations","Ratios & rates","Percents","Unit conversion","Exponents & radicals","Quadratics","Polynomials","Functions","Geometry","Right-triangle trig","Circles","Statistics","Probability"];
+BANKS.TEST_QUESTIONS.satact=[
+  ["Choose the verb: 'Each of the proposals ___ a detailed budget.'",["includes","include","are including","have included"],0,"'Each' is singular no matter what follows it.","Subject-verb agreement"],
+  ["Choose the verb: 'There ___ several reasons for the delay.'",["are","is","was","has been"],0,"In 'there' sentences the subject follows the verb, and 'reasons' is plural.","Subject-verb agreement"],
+  ["Choose the pronoun: 'Between you and ___, the schedule is unrealistic.'",["me","I","myself","mine"],0,"'Between' is a preposition, so it takes an object pronoun.","Pronouns"],
+  ["Choose the pronoun: 'The runners who trained together improved ___ times the most.'",["their","there","its","his"],0,"The plural antecedent 'runners' needs a plural possessive.","Pronouns"],
+  ["Which revision makes clear that the ledger, not the archivist, was dusty?",["The archivist found the ledger, which was covered in dust.","Covered in dust, the archivist found the ledger.","The archivist covered in dust found the ledger.","Finding the ledger, dust covered the archivist."],0,"A relative clause attaches the description directly to the ledger.","Modifiers"],
+  ["Which sentence links the two clauses correctly?",["The rain stopped, so the game resumed.","The rain stopped, the game resumed.","The rain stopped so, the game resumed.","The rain stopped; so the game resumed."],0,"A comma plus a coordinating conjunction joins two independent clauses.","Punctuation"],
+  ["Which sentence uses dashes correctly?",["One factor — cost — decided the vote.","One factor — cost, decided the vote.","One factor, cost — decided the vote.","One — factor cost — decided the vote."],0,"Dashes setting off an interrupter must come in a matched pair.","Punctuation"],
+  ["Choose the verb: 'She ___ in Lagos for six years before moving to Accra.'",["had lived","has lived","lives","will live"],0,"The earlier of two past events takes the past perfect.","Verb tense"],
+  ["Complete in parallel form: 'The course teaches students to code, to debug, and ___.'",["to document their work","documenting their work","documentation of work","they document work"],0,"The third item must match the infinitive form of the first two.","Parallelism"],
+  ["A writer states a general rule and then gives a specific case. Which transition fits?",["For instance","However","Therefore","Instead"],0,"Only one of these introduces an example.","Transitions"],
+  ["Two sentences report findings that point in opposite directions. Which transition fits best?",["By contrast","Similarly","Furthermore","Accordingly"],0,"The relationship is contrast, not addition or result.","Transitions"],
+  ["Which is the most concise replacement for 'due to the fact that'?",["because","on account of the fact that","owing to the fact that","the reason being that"],0,"One word does the whole job.","Conciseness"],
+  ["Choose the best word: 'The lab's findings were ___ by three independent teams.'",["corroborated","collaborated","correlated","corresponded"],0,"Only one of these verbs means confirmed by independent support.","Word choice"],
+  ["A paragraph argues that ferries reduce bridge traffic. Which sentence should be deleted?",["The harbor's oldest ferry was built in 1911.","Ferry ridership rose 22 percent last year.","Each full ferry keeps about 40 cars off the bridge.","Commuters report shorter trips since the new route opened."],0,"The date of an old vessel does nothing to support the traffic argument.","Adding & deleting sentences"],
+  ["The writer wants to open the paragraph by naming a problem. Which sentence does that?",["Each summer the reservoir loses nearly a third of its water to evaporation.","The reservoir was completed in 1957.","Many visitors enjoy fishing at the reservoir.","Engineers use several types of concrete."],0,"Only one choice states something that needs solving.","Meeting the goal"],
+  ["Passage: 'Coral reefs cover less than one percent of the ocean floor but shelter roughly a quarter of all marine species.' The sentence mainly emphasizes…",["the outsized ecological importance of a small habitat","the total area of the ocean floor","how quickly reefs are shrinking","how many species scientists have named"],0,"The contrast between tiny area and huge share is the point.","Main idea"],
+  ["Passage: 'The bakery opens at five, and by seven the shelves are usually bare.' It can be inferred that…",["demand outpaces the day's supply","the bakery closes at seven","the bread is of poor quality","the baking is done overnight"],0,"Empty shelves two hours after opening point to demand exceeding supply.","Inference"],
+  ["A claim states that a drug reduces fever. Which evidence best supports it?",["Patients given the drug had lower average temperatures than a placebo group","The drug is approved in twelve countries","Patients said they felt better after taking it","The drug is inexpensive to manufacture"],0,"A controlled comparison measures the effect the claim describes.","Command of evidence"],
+  ["Passage: 'Ignore the label on the front of the box; the ingredient list on the back is the only honest paragraph.' The author's purpose is to…",["warn readers about misleading marketing","explain how packaged food is manufactured","praise a particular brand","describe the design of packaging"],0,"The sentence urges distrust of a specific practice.","Author's purpose"],
+  ["Passage: 'Another study, another headline, another quiet retraction six months later.' The tone is…",["skeptical","enthusiastic","mournful","neutral"],0,"The weary repetition signals doubt about the pattern.","Tone"],
+  ["A bar graph shows monthly sales of 120, 150, and 90 units. What is the mean monthly figure?",["120","150","110","130"],0,"360 ÷ 3.","Data interpretation"],
+  ["Solve 5x + 8 = 3x − 2.",["x = −5","x = 5","x = −3","x = 3"],0,"2x = −10.","Linear equations"],
+  ["Solve the system: 2x + y = 7 and x − y = 2.",["x = 3, y = 1","x = 1, y = 3","x = 2, y = 3","x = 4, y = −1"],0,"Adding gives 3x = 9, then y = 1.","Systems of equations"],
+  ["A recipe uses 3 cups of flour for 24 cookies. How much flour is needed for 40 cookies?",["5 cups","4 cups","4.5 cups","6 cups"],0,"1/8 cup per cookie, times 40.","Ratios & rates"],
+  ["A town's population grows from 250 to 300. What is the percent increase?",["20%","16.7%","25%","50%"],0,"50 ÷ 250 = 0.20.","Percents"],
+  ["Simplify √50.",["5√2","25√2","2√5","10√5"],0,"50 = 25 × 2.","Exponents & radicals"],
+  ["What is the vertex of y = (x − 3)² + 4?",["(3, 4)","(−3, 4)","(3, −4)","(4, 3)"],0,"Vertex form reverses the sign inside the parentheses.","Quadratics"],
+  ["If g(x) = 4x + 1, for what value of x does g(x) = 21?",["5","4","6","20"],0,"4x = 20.","Functions"],
+  ["A rectangle has perimeter 30 and length 9. What is its width?",["6","12","3","21"],0,"2(9 + w) = 30.","Geometry"],
+  ["A fair six-sided die is rolled once. What is the probability of rolling a number greater than 4?",["1/3","1/2","1/6","2/3"],0,"Two outcomes, 5 and 6, out of six.","Probability"]
+];
+BANKS.AP_QUESTIONS.satact=[
+  ["Which sentence punctuates both the interrupting list and the nonessential clause correctly?",["The panel — Ruiz, Osei, and Lindqvist — released its report, which ran to 400 pages, in June.","The panel, Ruiz, Osei, and Lindqvist, released its report which ran to 400 pages in June.","The panel — Ruiz, Osei and Lindqvist, released its report, which ran to 400 pages — in June.","The panel: Ruiz, Osei, and Lindqvist — released its report; which ran to 400 pages, in June."],0,"Paired dashes hold a list that already contains commas, and paired commas hold the nonessential clause.","Punctuation"],
+  ["Choose the verb: 'The number of applicants who meet every requirement ___ small.'",["is","are","were","have been"],0,"'The number' is singular, even though 'applicants' sits beside the verb.","Subject-verb agreement"],
+  ["Choose the pronoun: 'The prize was shared by two chemists, one of ___ had already retired.'",["whom","who","which","whose"],0,"The pronoun is the object of 'of', so the objective form is required.","Pronouns"],
+  ["Which sentence avoids both a dangling modifier and a misplaced limiting word?",["Reviewing the ledger, the auditor found only one discrepancy.","Reviewing the ledger, only one discrepancy was found.","Reviewing the ledger, the auditor only found one discrepancy.","Only reviewing the ledger, one discrepancy was found by the auditor."],0,"The phrase modifies the auditor, and 'only' sits directly before the number it limits.","Modifiers"],
+  ["Choose the verb: 'By 2030 the utility ___ every coal plant in the state.'",["will have closed","will close","closed","has closed"],0,"An action completed before a future deadline takes the future perfect.","Verb tense"],
+  ["Which sentence keeps its correlative conjunctions parallel?",["The grant funds not only the equipment but also the training.","The grant not only funds the equipment but also the training.","The grant funds not only the equipment but also trains the staff.","Not only the grant funds equipment but also training."],0,"'Not only' and 'but also' must be followed by the same kind of element, here two noun phrases.","Parallelism"],
+  ["A paragraph reports that a policy cut emissions, then notes that it also raised electricity bills. Which transition best opens the second sentence?",["At the same time","As a result","In other words","For example"],0,"The second fact runs alongside the first rather than following from it.","Transitions"],
+  ["Which revision of 'It is the opinion of the authors of the report that the current policy is not working effectively' is best?",["The report's authors conclude that the policy is failing.","The authors of the report hold the opinion that the policy fails.","In the opinion of the report's authors, the current policy is ineffective and not working.","The report says that its authors think the policy is not effective."],0,"It keeps the meaning while cutting every empty phrase.","Conciseness"],
+  ["The writer wants to end the paragraph with a specific, quantified benefit. Which sentence does that best?",["The retrofit cut the building's heating costs by 38 percent in its first winter.","The retrofit proved popular with tenants.","Retrofits of this kind are increasingly common.","The building has stood on the corner since 1926."],0,"Only one choice gives a measured result.","Meeting the goal"],
+  ["Students who eat breakfast score higher on tests. Which finding would most strengthen a causal claim?",["Randomly assigned students given breakfast outscored a control group","Breakfast eaters also reported sleeping longer","Most high scorers said they ate breakfast","Schools serving breakfast tend to have larger budgets"],0,"Random assignment rules out the confounding variables the other options raise.","Command of evidence"],
+  ["Passage: 'The glacier's terminus, marked on a 1912 survey, now lies two kilometers up the valley from a cairn built at its edge that year.' It can be inferred that…",["the glacier has retreated substantially since 1912","later surveyors moved the cairn","the valley has grown steeper","the 1912 survey was inaccurate"],0,"The ice now sits far above a marker placed at its edge, so it has withdrawn.","Inference"],
+  ["A line of best fit is y = 2.5x + 12, where x is years since 2000. What does the slope mean?",["The quantity rises by about 2.5 units per year.","The quantity was 2.5 units in 2000.","The quantity rises by 12 units per year.","The quantity doubles every 2.5 years."],0,"Slope is the predicted change in y for each one-unit increase in x.","Data interpretation"],
+  ["Tickets cost $8 for students and $12 for adults. If 150 tickets sold for $1,480, how many adult tickets were sold?",["70","80","60","90"],0,"8(150 − a) + 12a = 1,480 gives 4a = 280.","Systems of equations"],
+  ["A price rises 20 percent and then falls 20 percent. Compared with the original, the final price is…",["4 percent lower","the same","4 percent higher","20 percent lower"],0,"1.20 × 0.80 = 0.96, because the decrease applies to a larger base.","Percents"],
+  ["Where does the parabola y = x² − 6x + 5 cross the x-axis?",["(1, 0) and (5, 0)","(−1, 0) and (−5, 0)","(2, 0) and (3, 0)","(0, 1) and (0, 5)"],0,"It factors as (x − 1)(x − 5).","Quadratics"],
+  ["A 12-metre ladder leans against a wall at 65° to the ground. How high up the wall does it reach?",["about 10.9 m","about 5.1 m","about 13.2 m","about 12.9 m"],0,"Height = 12 sin 65° ≈ 10.88, and it cannot exceed the ladder's length.","Right-triangle trig"]
+];
+BANKS.CHALLENGE_QUESTIONS.satact=[
+  ["If f(x) = 3x − 2 and g(x) = x² + 1, what is f(g(2))?",["13","23","25","11"],0,"g(2) = 5, and 3(5) − 2 = 13.","Functions"],
+  ["For what positive value of k does x² + kx + 9 = 0 have exactly one real solution?",["6","3","9","18"],0,"Set the discriminant k² − 36 to zero.","Quadratics"],
+  ["Simplify (27x⁶)^(2/3).",["9x⁴","18x⁴","9x⁹","27x⁴"],0,"27^(2/3) = 9 and x^(6 · 2/3) = x⁴.","Exponents & radicals"],
+  ["What is the radius of the circle x² + y² − 6x + 8y = 0?",["5","25","10","√14"],0,"Completing both squares gives (x − 3)² + (y + 4)² = 25.","Circles"],
+  ["A data set's mean is noticeably greater than its median. The distribution is most likely…",["skewed right","skewed left","symmetric","uniform"],0,"A long high tail drags the mean above the median.","Statistics"],
+  ["The mean of eight numbers is 15. Removing one number raises the mean of the rest to 16. What number was removed?",["8","7","16","1"],0,"The total falls from 120 to 112.","Statistics"],
+  ["Two cards are drawn without replacement from a standard 52-card deck. What is the probability that both are hearts?",["1/17","1/16","13/204","1/4"],0,"(13/52)(12/51) = 156/2,652.","Probability"],
+  ["Machine A fills 300 bottles per hour and machine B fills 200 per hour. Running together, how long do they need to fill 2,000 bottles?",["4 hours","5 hours","3 hours","6 hours"],0,"Their combined rate is 500 bottles per hour.","Ratios & rates"],
+  ["A line perpendicular to y = −3x + 4 passes through (6, 1). What is its equation?",["y = (1/3)x − 1","y = −(1/3)x + 3","y = 3x − 17","y = (1/3)x + 1"],0,"The perpendicular slope is 1/3, and 1 = (1/3)(6) + b gives b = −1.","Linear equations"],
+  ["A cylinder's radius doubles while its height is halved. Its volume becomes…",["twice the original","unchanged","half the original","four times the original"],0,"V = πr²h scales by 2² × 1/2.","Geometry"],
+  ["A pipe delivers 3 litres per second. How many cubic metres does it deliver per hour?",["10.8","3.6","180","1.08"],0,"3 L/s is 10,800 L per hour, and 1,000 litres make a cubic metre.","Unit conversion"],
+  ["Given p(x) = x³ − 4x² + x + 6 and p(3) = 0, which expression is a factor of p(x)?",["x − 3","x + 3","x − 6","3x − 1"],0,"A zero at x = 3 corresponds to the factor (x − 3).","Polynomials"],
+  ["Which sentence uses semicolons correctly in a series whose items already contain commas?",["The tour visits Lima, Peru; Quito, Ecuador; and Bogotá, Colombia.","The tour visits Lima, Peru, Quito, Ecuador, and Bogotá, Colombia.","The tour visits Lima; Peru, Quito; Ecuador, and Bogotá; Colombia.","The tour visits: Lima, Peru; Quito, Ecuador and Bogotá, Colombia."],0,"Semicolons separate the whole items so the internal commas stay readable.","Punctuation"],
+  ["Choose the verbs: 'Half of the shipment ___ damaged, though half of the crates ___ intact.'",["was … were","were … was","was … was","were … were"],0,"A fraction takes its number from the noun it refers to.","Subject-verb agreement"],
+  ["Choose the best word: 'The senator's remarks were deliberately ___, letting supporters on both sides claim victory.'",["ambiguous","ambivalent","amiable","ambitious"],0,"Only one word means open to more than one reading.","Word choice"],
+  ["Passage: 'Early mapmakers drew sea monsters where the soundings ran out. The blank was intolerable; the fiction was not.' The passage suggests that…",["people would rather invent an explanation than admit a gap in knowledge","medieval sailors truly met enormous sea creatures","maps improved only once the monsters were removed","cartography was mainly an artistic profession"],0,"The contrast between the intolerable blank and the tolerated fiction carries the point.","Main idea"]
+];
+BANKS.SEED_CARDS.satact=[
+  ["What is a comma splice?","Two independent clauses joined by only a comma; fix it with a period, a semicolon, or a comma plus a FANBOYS conjunction."],
+  ["When is a semicolon legal?","Between two independent clauses, or between items in a list whose items already contain commas."],
+  ["When is a colon legal?","Only after a complete sentence, to introduce a list, an explanation, or a quotation."],
+  ["What do paired commas, dashes, or parentheses do?","They set off nonessential information, and both marks in the pair must match."],
+  ["How do you check subject-verb agreement?","Cross out prepositional phrases and interrupters, then match the verb to the real subject."],
+  ["Which subject does a 'neither…nor' verb agree with?","The subject closer to the verb."],
+  ["Which indefinite pronouns are always singular?","each, every, either, neither, one, everyone, anyone, nobody, somebody."],
+  ["'The number' or 'a number' — which is plural?","'A number of' is plural; 'the number of' is singular."],
+  ["Who or whom?","Who is a subject, whom is an object; substitute he or him to test it."],
+  ["Its or it's?","'Its' is the possessive; 'it's' only ever means 'it is' or 'it has'."],
+  ["What is a dangling modifier?","An opening phrase whose implied doer is not the noun that follows the comma."],
+  ["Where does the word 'only' belong?","Directly before the word or phrase it limits."],
+  ["What is parallelism?","Items in a list or comparison must share the same grammatical form."],
+  ["Which correlative pairs must stay parallel?","not only … but also, either … or, neither … nor, both … and."],
+  ["When do you use the past perfect?","For the earlier of two past events: the train had left before we arrived."],
+  ["How do you form a plural possessive?","A plural already ending in -s takes the apostrophe after the s: the players' bench."],
+  ["How should you choose a transition?","Name the relationship first — contrast, cause, addition, example — then pick a word that matches it."],
+  ["What is the usual rule for conciseness questions?","The shortest choice that is grammatical and keeps the meaning is usually correct."],
+  ["Name some common redundancies.","revert back, past history, each and every, the reason is because, in order to."],
+  ["How do you answer a 'meets the goal' question?","Reread the stated goal and choose the option that does exactly that, even if another sounds better written."],
+  ["How do you decide whether to add or delete a sentence?","Keep it only if it supports the paragraph's specific focus; relevance beats interest."],
+  ["What is the strategy for main-idea questions?","Find the claim the whole passage supports, not a fact from a single line."],
+  ["What is the strategy for inference questions?","Choose the option that must be true from the text alone, with no outside assumptions."],
+  ["What is the strategy for evidence questions?","Pick the line that proves the exact claim, not one that is merely on the same topic."],
+  ["What are the slope formula and slope-intercept form?","m = (y₂ − y₁)/(x₂ − x₁), and y = mx + b."],
+  ["What is point-slope form?","y − y₁ = m(x − x₁)."],
+  ["What is the percent-change formula?","(new − old) ÷ old × 100."],
+  ["What are the special right triangles?","30-60-90 is x, x√3, 2x; 45-45-90 is x, x, x√2."],
+  ["What is the quadratic formula?","x = (−b ± √(b² − 4ac)) / (2a)."],
+  ["What is the standard form of a circle?","(x − h)² + (y − k)² = r², with center (h, k) and radius r."]
+];
+BANKS.CHALLENGE_CARDS.satact=[
+  ["How do you punctuate a conjunctive adverb such as 'however' between two clauses?","Semicolon before it and a comma after it: the plan failed; however, we learned a lot."],
+  ["What are the exponent rules you need most?","xᵃxᵇ = x^(a+b); xᵃ/xᵇ = x^(a−b); (xᵃ)ᵇ = x^(ab); x^(a/b) = the b-th root of xᵃ; x⁰ = 1."],
+  ["Why is a 20 percent rise followed by a 20 percent fall not a wash?","The decrease applies to a bigger base: 1.20 × 0.80 = 0.96, a 4 percent net loss."],
+  ["How do similar figures scale?","Lengths by k, areas by k², volumes by k³."],
+  ["What does the mean tell you about skew?","The mean is pulled toward the long tail, so mean greater than median suggests right skew."],
+  ["What does the slope of a line of best fit mean in context?","The predicted change in the y-quantity for each one-unit increase in the x-quantity."]
+];
+BANKS.FEYNMAN_TOPICS.satact=["Why a comma alone cannot join two sentences","When a semicolon is the right choice","What a colon promises the reader","How to find the true subject of a verb","Why parallel structure makes a list readable","How a dangling modifier changes a sentence's meaning","How to pick a transition from the logic rather than the sound","Why the shortest grammatical choice usually wins","How to answer a question about a writer's stated goal","What makes a line of text real evidence for a claim","The difference between what a passage says and what it implies","What the slope of a line of best fit means in context","Why percent increase and percent decrease are not symmetric","Where the special right triangles come from"];
+BANKS.RESOURCES.satact=[
+  {type:"Practice",title:"College Board — Full-Length SAT Practice Tests",note:"Every official full-length digital SAT, free. The closest thing there is to sitting the real exam.",url:"https://satsuite.collegeboard.org/practice/practice-tests"},
+  {type:"Practice",title:"Bluebook — Adaptive Digital Mocks",note:"Full mocks inside the same app you sit the real test in, so the interface is never the surprise.",url:"https://satsuite.collegeboard.org/practice/practice-tests/bluebook"},
+  {type:"Practice",title:"Bluebook for Students — Download & Practice",note:"Install the actual testing app and rehearse on it before test day.",url:"https://bluebook.collegeboard.org/students/practice"},
+  {type:"Practice",title:"College Board — Paper Full-Length SATs",note:"Printable full-length SAT and PSAT forms with answer keys, for working away from a screen.",url:"https://satsuite.collegeboard.org/practice/practice-tests/paper"},
+  {type:"Practice",title:"College Board — Practice & Preparation Hub",note:"The index page for every official SAT practice route, free.",url:"https://satsuite.collegeboard.org/practice"},
+  {type:"Practice",title:"SAT Practice Quick Start Guide (PDF)",note:"Ten steps to set up a real practice routine rather than drifting through questions.",url:"https://satsuite.collegeboard.org/media/pdf/sat-practice-quick-start-guide.pdf"},
+  {type:"Practice",title:"ACT — Free Official Practice Tests",note:"ACT's own free full-length tests, with answer keys and scoring instructions.",url:"https://www.act.org/content/act/en/students-and-parents/high-school-success/testing-advice-for-the-act/free-act-practice-test.html"},
+  {type:"Practice",title:"ACT Practice Test 2 — Full Form (PDF)",note:"A complete printable ACT form. Time it properly and it is a real mock exam.",url:"https://www.act.org/content/dam/act/unsecured/documents/ACT-Test-Prep-ACT-Practice-Test-2-Form.pdf"},
+  {type:"Practice",title:"Preparing for the ACT Test (PDF booklet)",note:"ACT's official booklet: strategies, a full practice test, and the scoring key.",url:"https://www.act.org/content/dam/act/unsecured/documents/Preparing-for-the-ACT-e.pdf"},
+  {type:"Practice",title:"ACT — Online Sample Questions",note:"Section-by-section samples when you want a short drill rather than a full sitting.",url:"https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/free-act-test-prep/act-online-test-sample-questions.html"},
+  {type:"Practice",title:"Khan Academy — Official Full-Length SATs",note:"Khan's guide to which official full-length tests to take and in what order.",url:"https://www.khanacademy.org/college-careers-more/college-admissions/making-high-school-count/standardized-tests/a/full-length-sats-to-take-online"},
+  {type:"Course",title:"Khan Academy — Official Digital SAT Prep",note:"The College Board's official partner course. Free, adaptive, and matched to the real test.",url:"https://www.khanacademy.org/digital-sat"},
+  {type:"Course",title:"Khan Academy — Digital SAT Course",note:"The full lesson-by-lesson course for Reading & Writing and Math.",url:"https://www.khanacademy.org/test-prep/digital-sat"},
+  {type:"Course",title:"ACT — Free Learning Resources",note:"ACT's own free study materials, organised by section.",url:"https://www.act.org/content/act/en/products-and-services/learning-resources.html"},
+  {type:"Course",title:"Khan Academy — Algebra 2",note:"Most SAT and ACT math sits at or below this level. Fill the gaps here first.",url:"https://www.khanacademy.org/math/algebra2"},
+  {type:"Course",title:"Khan Academy — Get Ready for Algebra 2",note:"The prerequisite skills course, if the math section is where you are losing points.",url:"https://www.khanacademy.org/math/get-ready-for-algebra-ii"},
+  {type:"Problem sets",title:"Kuta — Free Algebra 1 Worksheets",note:"Printable sheets with answer keys. Infinite variations of the same skill.",url:"https://www.kutasoftware.com/free.html"},
+  {type:"Problem sets",title:"Kuta — Free Algebra 2 Worksheets",note:"Quadratics, exponents, logs, functions — with worked answers.",url:"https://www.kutasoftware.com/freeia2.html"},
+  {type:"Problem sets",title:"Kuta — Free Geometry Worksheets",note:"Triangles, circles, similarity and right-triangle trig.",url:"https://www.kutasoftware.com/freeige.html"},
+  {type:"Problem sets",title:"Kuta — Free Pre-Algebra Worksheets",note:"Ratios, percents and unit conversion — the quiet source of most SAT math slips.",url:"https://www.kutasoftware.com/freeipa.html"},
+  {type:"Problem sets",title:"Kuta — All Free Worksheet Sets",note:"The index of every free printable set across all levels.",url:"https://www.kutasoftware.com/freemain.html"},
+  {type:"Problem sets",title:"Purdue OWL — Punctuation Exercises",note:"Drills with answers on exactly the punctuation the tests keep asking about.",url:"https://owl.purdue.edu/owl_exercises/punctuation_exercises/index.html"},
+  {type:"Problem sets",title:"Purdue OWL — Comma Exercises",note:"Commas are the single most tested mark on both exams. These are the drills.",url:"https://owl.purdue.edu/owl_exercises/punctuation_exercises/commas/index.html"},
+  {type:"Tool",title:"Desmos — SAT/AP Four-Function Calculator",note:"The exact calculator build the College Board puts in front of you on test day.",url:"https://www.desmos.com/testing/cb-sat-ap/fourfunction"},
+  {type:"Tool",title:"Desmos — Graphing Calculator",note:"Built into the digital SAT. Learning to solve by graphing is worth real points.",url:"https://www.desmos.com/calculator"},
+  {type:"Tool",title:"Desmos — Scientific Calculator",note:"For ACT math, where a graphing calculator is allowed but not provided.",url:"https://www.desmos.com/scientific"},
+  {type:"Reference",title:"College Board — What's on the SAT",note:"The official breakdown of both sections, module by module.",url:"https://satsuite.collegeboard.org/sat/whats-on-the-test/structure"},
+  {type:"Reference",title:"College Board — SAT Score Structure",note:"How 400-1600 is actually built, and what each section score means.",url:"https://satsuite.collegeboard.org/k12-educators/about/understand-scores-benchmarks/score-structure"},
+  {type:"Reference",title:"ACT — Exam Sections & Structure",note:"Question counts and timing per section, including what is now optional.",url:"https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html"},
+  {type:"Reference",title:"ACT — Understanding Your Scores",note:"How the 1-36 composite is computed, and why Science and Writing sit outside it.",url:"https://www.act.org/content/act/en/products-and-services/the-act/scores/understanding-your-scores.html"},
+  {type:"Reference",title:"Purdue OWL — Grammar",note:"The rule you half-remember, explained properly, in one place.",url:"https://owl.purdue.edu/owl/general_writing/grammar/index.html"},
+  {type:"Reference",title:"Purdue OWL — Punctuation",note:"Semicolons, colons and dashes — the marks both tests use to separate students.",url:"https://owl.purdue.edu/owl/general_writing/punctuation/index.html"}
+];
 /* Stamp each practice question with its topic, so topicOf() can read it straight
    off the question instead of trying to find it by index - randomizeChoices()
    copies the array, which makes an indexOf lookup miss. */
@@ -8209,12 +8417,27 @@ function openResources(id){
   document.getElementById('res-detail').style.display='block';
   const nm=document.getElementById('res-name');nm.textContent=s.name;nm.style.color=col(id);
   document.getElementById('res-desc').textContent='Free, hand-picked resources for '+s.name+'. Links open in a new tab.';
-  document.getElementById('res-list').innerHTML=(RESOURCES[bankOf(id)]||[]).map(r=>`
+  const resList=(RESOURCES[bankOf(id)]||[]);
+  const resCard=r=>`
     <a class="res" href="${r.url}" target="_blank" rel="noopener noreferrer" style="border-left-color:${col(id)}">
       <span class="rtype">${r.type}</span>
       <span class="rmain"><span class="rtitle">${esc(r.title)}</span><span class="rnote">${esc(r.note)}</span></span>
       <span class="rarrow">↗</span>
-    </a>`).join('');
+    </a>`;
+  /* Six links read fine as one run. Thirty do not — SAT/ACT prep carries a full
+     shelf of them — so once a subject has a real library, group it by what each
+     link actually is: sit a mock, take a course, print a sheet, open a tool. */
+  if(resList.length>8){
+    const ORDER=['Practice','Course','Problem sets','Worksheets','Tool','Reference','Textbook','Primary','Video','Audio'];
+    const byType={};resList.forEach(r=>{(byType[r.type]=byType[r.type]||[]).push(r);});
+    const rank=t=>{const i=ORDER.indexOf(t);return i<0?99:i;};
+    document.getElementById('res-list').innerHTML=Object.keys(byType)
+      .sort((a,b)=>rank(a)-rank(b))
+      .map(t=>`<div class="section-h">${esc(t)} · ${byType[t].length}</div>`+byType[t].map(resCard).join(''))
+      .join('');
+  }else{
+    document.getElementById('res-list').innerHTML=resList.map(resCard).join('');
+  }
   resCurrentSubj=id;
   document.getElementById('rs-query').value='';
   document.getElementById('rs-suggestions').innerHTML='';
@@ -13225,6 +13448,131 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else {build();paintAll();}
 setInterval(paintAll,1500);
 window.SBPaintRanges=paintAll;
+})();
+</script>
+<!-- ============ NO AUTOFILL ON ANY FIELD ============ -->
+<script id="sb-nofill-js">
+/* ============================================================================
+   A study app's text boxes are not a checkout form. Left alone, the browser
+   offers a goal title the same dropdown of names, addresses and emails it
+   would offer a shipping form, and password managers drop their own icon on
+   top of the field. Neither is ever useful here, and both leak whatever the
+   student typed on some other site into a screenshot of their homework.
+
+   So the rule is blanket: every text-ish field in the app opts out, including
+   ones rendered long after load — most of this UI is built from innerHTML at
+   navigation time, so a one-shot pass at startup would miss almost everything.
+   ========================================================================== */
+(function(){
+'use strict';
+/* Controls with no free-text entry have nothing to autofill. */
+var SKIP={checkbox:1,radio:1,range:1,color:1,file:1,submit:1,button:1,reset:1,image:1,hidden:1};
+
+function nofill(el){
+  if(!el||el.dataset.nofill)return;
+  var tag=el.tagName;
+  if(tag!=='INPUT'&&tag!=='TEXTAREA'&&tag!=='FORM')return;
+  if(tag==='INPUT'&&SKIP[(el.type||'text').toLowerCase()])return;
+  el.setAttribute('autocomplete','off');
+  if(tag!=='FORM'){
+    /* The big password managers each read their own opt-out attribute. */
+    el.setAttribute('data-lpignore','true');    /* LastPass  */
+    el.setAttribute('data-1p-ignore','');       /* 1Password */
+    el.setAttribute('data-bwignore','');        /* Bitwarden */
+    el.setAttribute('data-form-type','other');  /* Dashlane  */
+  }
+  el.dataset.nofill='1';
+}
+function sweep(root){
+  if(!root||!root.querySelectorAll)return;
+  if(root.nodeType===1)nofill(root);
+  root.querySelectorAll('input,textarea,form').forEach(nofill);
+}
+sweep(document);
+/* Pages are re-rendered on every navigation, so watch for new fields. */
+try{
+  new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var added=muts[i].addedNodes;
+      for(var j=0;j<added.length;j++)sweep(added[j]);
+    }
+  }).observe(document.documentElement,{childList:true,subtree:true});
+}catch(e){}
+/* Belt and braces for anything injected without touching the DOM tree. */
+document.addEventListener('focusin',function(e){nofill(e.target);},true);
+window.SBNoFill=sweep;
+})();
+</script>
+<!-- ============ SAT / ACT TEST-DAY FACTS ============ -->
+<script id="sb-satact-js">
+/* ============================================================================
+   Knowing the shape of the test is worth a surprising amount of score, and it
+   is the one thing a question bank cannot teach. Figures below are from the
+   College Board and ACT themselves, checked September 2026 — if either board
+   changes the format, this card is the thing to update.
+   ========================================================================== */
+(function(){
+'use strict';
+var HTML =
+  '<div class="between" style="align-items:baseline">'+
+    '<h3 style="margin:0">Test day \u2014 what you are actually sitting</h3>'+
+    '<span class="pill">verified Sept 2026</span>'+
+  '</div>'+
+  '<p class="sub" style="margin:6px 0 14px">Most colleges that dropped the SAT and ACT have brought them back. '+
+    'Every Ivy League school except Columbia requires a score again, as do Stanford and Caltech; '+
+    'Princeton\u2019s requirement starts with the 2027\u201328 cycle, and Yale accepts SAT, ACT, AP or IB. '+
+    'Columbia, Michigan, Chicago and Wisconsin are still test-optional. Always check the college\u2019s own page \u2014 these move yearly.</p>'+
+  '<div class="grid g2" style="align-items:start">'+
+    '<div>'+
+      '<div class="section-h" style="margin-top:0">Digital SAT \u00b7 400\u20131600</div>'+
+      '<ul style="color:var(--muted);font-size:13px;line-height:1.75;margin:0;padding-left:18px">'+
+        '<li><strong>Reading &amp; Writing</strong> \u2014 54 questions, two 32-minute modules</li>'+
+        '<li><strong>Math</strong> \u2014 44 questions, two 35-minute modules</li>'+
+        '<li>98 questions, 2 h 14 min, one 10-minute break</li>'+
+        '<li>Each section scores 200\u2013800</li>'+
+        '<li><strong>It adapts.</strong> How you do on the first module decides whether the second one is harder or easier \u2014 so the first module is the one that sets your ceiling.</li>'+
+      '</ul>'+
+    '</div>'+
+    '<div>'+
+      '<div class="section-h" style="margin-top:0">Enhanced ACT \u00b7 1\u201336</div>'+
+      '<ul style="color:var(--muted);font-size:13px;line-height:1.75;margin:0;padding-left:18px">'+
+        '<li><strong>English</strong> \u2014 50 questions, 35 min</li>'+
+        '<li><strong>Math</strong> \u2014 45 questions, 50 min</li>'+
+        '<li><strong>Reading</strong> \u2014 36 questions, 40 min</li>'+
+        '<li><strong>Science</strong> \u2014 40 questions, 40 min \u00b7 <em>optional</em></li>'+
+        '<li><strong>Writing</strong> \u2014 one essay, 40 min \u00b7 <em>optional</em></li>'+
+        '<li>The composite is the average of English, Math and Reading, rounded \u2014 Science and Writing do not count toward it.</li>'+
+      '</ul>'+
+    '</div>'+
+  '</div>'+
+  '<p class="sub" style="margin:14px 0 0;font-size:12.5px">Official free practice: '+
+    '<a href="https://satsuite.collegeboard.org/sat/practice-preparation" target="_blank" rel="noopener noreferrer">College Board</a> \u00b7 '+
+    '<a href="https://www.khanacademy.org/digital-sat" target="_blank" rel="noopener noreferrer">Khan Academy (official SAT partner)</a> \u00b7 '+
+    '<a href="https://www.act.org/content/act/en/products-and-services/the-act/test-preparation.html" target="_blank" rel="noopener noreferrer">ACT</a></p>';
+
+function paint(){
+  var home=document.getElementById('pr-home');if(!home)return;
+  var wanted=false;
+  try{wanted=SUBJECTS.some(function(c){return c.bank==='satact';});}catch(e){}
+  var card=document.getElementById('satact-facts');
+  /* Drop the course in Settings and the card goes with it. */
+  if(!wanted){if(card&&card.parentNode)card.parentNode.removeChild(card);return;}
+  if(card)return;
+  card=document.createElement('div');
+  card.className='card';card.id='satact-facts';card.style.marginBottom='18px';
+  card.innerHTML=HTML;
+  var slot=document.getElementById('pr-banner');
+  if(slot&&slot.parentNode===home)home.insertBefore(card,slot.nextSibling);
+  else home.insertBefore(card,home.firstChild);
+}
+/* Repaint on navigation, the same wrapping pattern the other layers use. */
+var _go=window.go;
+if(typeof _go==='function'){
+  window.go=function(){var r=_go.apply(this,arguments);try{paint();}catch(e){}return r;};
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(paint,300);});
+else setTimeout(paint,300);
+window.SBSatActCard=paint;
 })();
 </script>
 </body>

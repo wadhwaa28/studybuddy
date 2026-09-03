@@ -579,7 +579,7 @@
     </svg>
     <h1>Study Buddy</h1>
     <p class="land-tag">Level up your studying</p>
-    <p class="land-desc">Every card you review, every focus session, every test you sit earns XP. Level up through 29 ranks, clear daily quests, collect badges, and spend your coins on themes and power-ups — all wrapped around the study methods that actually work.</p>
+    <p class="land-desc">Every card you review, every focus session, every test you sit earns XP. Level up through <span id="land-n-ranks2">29</span> ranks, clear daily quests, collect badges, and spend your coins on themes and power-ups — all wrapped around the study methods that actually work.</p>
     <div class="land-cta" id="land-cta">
       <div id="g-signin-btn"></div>
       <button class="land-guest" id="land-guest">Continue without an account</button>
@@ -588,9 +588,9 @@
     <div class="land-strip">
       <div class="land-chip"><b>6–12</b><span>grades</span></div>
       <div class="land-chip"><b>1,700+</b><span>questions</span></div>
-      <div class="land-chip"><b>35</b><span>badges</span></div>
-      <div class="land-chip"><b>22</b><span>themes</span></div>
-      <div class="land-chip"><b>29</b><span>ranks</span></div>
+      <div class="land-chip"><b id="land-n-badges">35</b><span>badges</span></div>
+      <div class="land-chip"><b id="land-n-themes">30</b><span>themes</span></div>
+      <div class="land-chip"><b id="land-n-ranks">29</b><span>ranks</span></div>
       <div class="land-chip"><b>∞</b><span>bragging rights</span></div>
     </div>
     <h2 class="land-h2">Your studying, with a scoreboard</h2>
@@ -600,7 +600,7 @@
         <div class="lg-ic">⚡</div>
         <div class="lg-t">XP &amp; levels</div>
         <div class="lg-d">Everything you do pays out, and your bar fills as you go.</div>
-        <ul><li>A flat 10 XP per flashcard</li><li>Focus minutes + 20 per session</li><li>Up to triple XP on the Final Exam</li></ul>
+        <ul><li id="land-l-cardxp">A flat 1,000 XP per flashcard</li><li>Focus minutes + 20 per session</li><li>Up to triple XP on the Final Exam</li></ul>
       </div>
       <div class="land-gcard">
         <div class="lg-ic">📜</div>
@@ -612,7 +612,7 @@
         <div class="lg-ic">◈</div>
         <div class="lg-t">Badges, coins &amp; a shop</div>
         <div class="lg-d">Spend what you earn on things that make the app yours.</div>
-        <ul><li>35 badges to hunt down</li><li>22 themes, 18 avatars</li><li>Double-XP boosts and freezes</li></ul>
+        <ul><li id="land-l-badges">35 badges to hunt down</li><li id="land-l-shop">30 themes, 18 avatars</li><li>Double-XP boosts and freezes</li></ul>
       </div>
     </div>
     <h2 class="land-h2">Climb the ranks</h2>
@@ -9172,7 +9172,7 @@ var THEMES={
   steel:{name:'Steel',price:null,emoji:'⚙️',req:{level:45},
     ds:'Cold, clean and industrial. Unlocks at Platinum.',
     swatch:['#f0f1f2','#5a6470','#8e98a3'],
-    vars:{'--bg':'#f0f1f2','--bg2':'#e5e7e9','--panel':'#fafbfb','--panel2':'#dcdfe2','--line':'#c5c9cd','--txt':'#262a2e','--muted':'#61686e','--faint':'#949a9f','--accent':'#5a6470','--accent2':'#8e98a3','--warn':'#b9903f','--bad':'#b56660','--ap':'#7d7d99','--icon-invert':'0'}},
+    vars:{'--bg':'#dfe3e7','--bg2':'#d4d9de','--panel':'#f2f4f6','--panel2':'#cbd1d7','--line':'#b3bac1','--txt':'#262a2e','--muted':'#61686e','--faint':'#949a9f','--accent':'#5a6470','--accent2':'#8e98a3','--warn':'#b9903f','--bad':'#b56660','--ap':'#7d7d99','--icon-invert':'0'}},
   aurora:{name:'Aurora',price:null,emoji:'🌌',req:{level:68},
     ds:'Green shading into violet, like the stone it comes from. Unlocks at Alexandrite.',
     swatch:['#0e1418','#5fe0b0','#b58aff'],
@@ -9263,11 +9263,44 @@ var THEMES={
   sandstone:{name:'Sandstone',price:null,emoji:'🏜️',req:{badge:'test_100'},
     ds:'Warm stone and dry grass. Earned with a perfect test score.',
     swatch:['#f7f2e7','#2f9e8f','#c8752f'],
-    vars:{'--bg':'#f7f2e7','--bg2':'#ede5d2','--panel':'#fdfbf5','--panel2':'#e6dcc5','--line':'#d6c9a9','--txt':'#3b352a','--muted':'#756c58','--faint':'#a1977f','--accent':'#2f9e8f','--accent2':'#c8752f','--warn':'#c9a53f','--bad':'#b5604e','--ap':'#8a7fae','--icon-invert':'0'}},
+    vars:{'--bg':'#ebdcbb','--bg2':'#e1d0a9','--panel':'#f8f2e2','--panel2':'#d9c79b','--line':'#c7b184','--txt':'#3b352a','--muted':'#756c58','--faint':'#a1977f','--accent':'#2f9e8f','--accent2':'#c8752f','--warn':'#c9a53f','--bad':'#b5604e','--ap':'#8a7fae','--icon-invert':'0'}},
   chalkboard:{name:'Chalkboard',price:null,emoji:'📝',req:{badge:'feynman_10'},
     ds:'Slate and chalk dust. Earned by explaining ten things in your own words.',
     swatch:['#16241c','#f4efd8','#6fc98d'],
     vars:{'--bg':'#16241c','--bg2':'#1c2c23','--panel':'#203228','--panel2':'#293f33','--line':'#365040','--txt':'#edf5ef','--muted':'#a3c0ab','--faint':'#799381','--accent':'#f4efd8','--accent2':'#6fc98d','--warn':'#ecd07a','--bad':'#e08a80','--ap':'#b0a0e0','--icon-invert':'1','--on-accent':'#203228'}},
+  /* ---- earned by achievement, not by level or coin ---- */
+  vellum:{name:'Vellum',price:null,emoji:'📜',req:{badge:'cards_1000'},locked:'Review 1,000 flashcards',
+    ds:'Parchment and oxblood ink. Earned after a thousand cards.',
+    swatch:['#f4ecda','#8c3b4a','#3f6f86'],
+    vars:{'--bg':'#f4ecda','--bg2':'#eae0c9','--panel':'#fbf6ea','--panel2':'#e5d9bd','--line':'#d3c4a2','--txt':'#33302a','--muted':'#6f6857','--faint':'#9b937d','--accent':'#8c3b4a','--accent2':'#3f6f86','--warn':'#c19a3c','--bad':'#b04a3e','--ap':'#7a6ba8','--icon-invert':'0'}},
+  voltage:{name:'Voltage',price:null,emoji:'⚡',req:{badge:'combo_25'},locked:'Hold a 25-card focus chain',
+    ds:'Black glass and live current. Earned on a 25-card chain.',
+    swatch:['#080d0a','#b6ff3a','#35e0ff'],
+    vars:{'--bg':'#080d0a','--bg2':'#0e1611','--panel':'#121c16','--panel2':'#19271e','--line':'#24382b','--txt':'#eafff2','--muted':'#9fd4b6','--faint':'#6f9c85','--accent':'#b6ff3a','--accent2':'#35e0ff','--warn':'#ffe14d','--bad':'#ff5f7a','--ap':'#b98cff','--icon-invert':'1','--on-accent':'#0d1a0f','--shadow':'0 6px 26px rgba(182,255,58,.18)'}},
+  eclipse:{name:'Eclipse',price:null,emoji:'🌑',req:{badge:'gauntlet'},locked:'Complete a Gauntlet',
+    ds:'The dark red minute of an eclipse. Earned in the Gauntlet.',
+    swatch:['#1a0714','#ff5f9e','#ffd166'],
+    vars:{'--bg':'#1a0714','--bg2':'#230b1b','--panel':'#2a0f22','--panel2':'#37162d','--line':'#4a1e3c','--txt':'#fdeef5','--muted':'#d3a5bd','--faint':'#a37e92','--accent':'#ff5f9e','--accent2':'#ffd166','--warn':'#ffd166','--bad':'#ff6f6f','--ap':'#c58cff','--icon-invert':'1'}},
+  laurel:{name:'Laurel',price:null,emoji:'🏅',req:{badge:'finalexam'},locked:'Sit the Final Exam',
+    ds:'Ivory, evergreen and a gold wreath. Earned at the Final Exam.',
+    swatch:['#0c2b0c','#e8d06a','#a8e0b4'],
+    vars:{'--bg':'#0c2b0c','--bg2':'#113313','--panel':'#143a17','--panel2':'#1b491f','--line':'#265c2b','--txt':'#f2fbf0','--muted':'#b0d4ae','--faint':'#82a880','--accent':'#e8d06a','--accent2':'#a8e0b4','--warn':'#e8d06a','--bad':'#ef8a7d','--ap':'#c9a6ff','--icon-invert':'1','--on-accent':'#143a17'}},
+  nocturne:{name:'Nocturne',price:null,emoji:'🌜',req:{badge:'night_owl'},locked:'Study after 11pm',
+    ds:'Plum dark and small hours. Earned studying after eleven.',
+    swatch:['#241033','#e2b0ff','#ffd48a'],
+    vars:{'--bg':'#241033','--bg2':'#2c1540','--panel':'#331a49','--panel2':'#40225b','--line':'#543076','--txt':'#f7eeff','--muted':'#cbaee0','--faint':'#9c81b3','--accent':'#e2b0ff','--accent2':'#ffd48a','--warn':'#ffd48a','--bad':'#ff8fa8','--ap':'#b48cff','--icon-invert':'1','--on-accent':'#2c1540'}},
+  daybreak:{name:'Daybreak',price:null,emoji:'🐦',req:{badge:'early_bird'},locked:'Study before 7am',
+    ds:'First warm light on a cold morning. Earned before seven.',
+    swatch:['#fff4de','#e4552a','#2f88b5'],
+    vars:{'--bg':'#fff4de','--bg2':'#fbe9c9','--panel':'#fffdf7','--panel2':'#f7e0b8','--line':'#e8cf9e','--txt':'#3d3324','--muted':'#7a6a50','--faint':'#a89578','--accent':'#e4552a','--accent2':'#2f88b5','--warn':'#d99a2f','--bad':'#c9503f','--ap':'#8f6fbf','--icon-invert':'0'}},
+  monsoon:{name:'Monsoon',price:null,emoji:'🌧️',req:{badge:'deep_work'},locked:'Finish a focus block of 60+ minutes',
+    ds:'Deep water and warm lamplight. Earned in one long block.',
+    swatch:['#08191c','#3fd6c8','#ffce7a'],
+    vars:{'--bg':'#08191c','--bg2':'#0d2226','--panel':'#112a2f','--panel2':'#17383e','--line':'#204a52','--txt':'#e9fbfb','--muted':'#9cc7c9','--faint':'#6d9698','--accent':'#3fd6c8','--accent2':'#ffce7a','--warn':'#ffce7a','--bad':'#ff7d84','--ap':'#a99cff','--icon-invert':'1'}},
+  prism:{name:'Prism',price:null,emoji:'🔺',req:{badge:'polymath'},locked:'Review a card in all five subjects',
+    ds:'One light split five ways. Earned across every subject.',
+    swatch:['#f3f2f7','#d1479b','#2fb0c9'],
+    vars:{'--bg':'#f3f2f7','--bg2':'#e8e6f0','--panel':'#fbfaff','--panel2':'#e0dded','--line':'#cbc7dd','--txt':'#2b2836','--muted':'#666080','--faint':'#9791ac','--accent':'#d1479b','--accent2':'#2fb0c9','--warn':'#d79a33','--bad':'#cf5f6e','--ap':'#7a4fd6','--icon-invert':'0'}},
   dusk:{name:'Dusk',price:null,emoji:'🌆',req:{level:55},
     ds:'The hour after sunset. Unlocks at Amethyst.',
     swatch:['#14111f','#a98bff','#ff9ec4'],
@@ -9577,7 +9610,8 @@ function esc2(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){retur
 function today(){return (typeof dstr==='function')?dstr():new Date().toISOString().slice(0,10);}
 function seed(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return function(){h+=0x6D2B79F5;var t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
 
-var CARD_XP=10;              /* every reviewed card pays this, regardless of grade */
+var CARD_XP=1000;            /* every reviewed card pays this, regardless of grade */
+window.CARD_XP=CARD_XP;      /* other script blocks read it from here */
 var CHAIN_WINDOW=90000;      /* a pause longer than this breaks the focus chain   */
 var ARC={ready:false,inScan:false,pomMins:25,combo:0,lastGrade:0,tab:'quests',navBtn:null,saveTimer:null,sessionScored:false};
 
@@ -9892,6 +9926,20 @@ window.SBAudio={play:sfx,tone:blip};
 /* Paint the remembered theme immediately, so a reload never flashes the default
    palette on the sign-in page while the account loads. */
 try{var _t=localStorage.getItem('sb_theme');if(_t&&THEMES[_t])applyTheme(_t);}catch(e){}
+/* The sign-in page quotes how much there is to play for. Those numbers were
+   hand-written once and went stale the moment themes and ranks were added, so
+   they are now read straight off the tables they describe. */
+try{
+  var _setn=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
+  var _nTh=Object.keys(THEMES).length, _nBa=BADGES.length,
+      _nAv=AVATARS.length, _nRk=RANKS.length;
+  _setn('land-n-themes',_nTh); _setn('land-n-badges',_nBa);
+  _setn('land-n-ranks',_nRk);  _setn('land-n-ranks2',_nRk);
+  _setn('land-l-badges',_nBa+' badges to hunt down');
+  _setn('land-l-shop',_nTh+' themes, '+_nAv+' avatars');
+  _setn('land-l-cardxp','A flat '+CARD_XP.toLocaleString()+' XP per flashcard');
+}catch(e){}
+
 /* Fill the sign-in page's rank ladder from the same table the app uses. */
 try{
   var _lr=document.getElementById('land-ranks');
@@ -10478,7 +10526,7 @@ function E(s){return (typeof esc==='function')?esc(s):String(s||'');}
 var PAGE_META={
   goals:{ic:'⚑',t:'+150 XP · +100 🪙 per goal achieved',d:'The single biggest payout in the app. Mark one achieved and the confetti is earned.'},
   resources:{ic:'❏',t:'No XP here — this is where you load up',d:'Learn it in Browse or the Study Coach, then cash it in on cards, tests and the Gauntlet.'},
-  recall:{ic:'⚯',t:'A flat +10 XP a card · up to +20 focus-chain bonus · up to +60 to finish a run',d:'Every button pays the same, so grade yourself honestly — the schedule only works if you do. The bonus rides on answering without long pauses.'},
+  recall:{ic:'⚯',t:'A flat +'+(window.CARD_XP||10).toLocaleString()+' XP a card · up to +20 focus-chain bonus · up to +60 to finish a run',d:'Every button pays the same, so grade yourself honestly — the schedule only works if you do. The bonus rides on answering without long pauses.'},
   pomodoro:{ic:'◷',t:'+focus minutes +20 XP a session · +12 🪙',d:'A 45-minute block pays 65 XP. Push past 60 minutes once to unlock the Deep Work badge.'},
   feynman:{ic:'✎',t:'+25 XP · +10 🪙 per explanation saved',d:'Ten saved write-ups unlocks Great Teacher. Explaining it is the fastest way to find your gaps.'},
   practice:{ic:'✓',t:'+20 XP base, +0.6 per percent · ×2 Gauntlet · ×3 Final Exam',d:'A perfect score adds +100 XP and +50 🪙 on top. Four tiers unlock in order — the ladder is below.'},
@@ -10557,7 +10605,8 @@ function questStrip(){
   });
 }
 function dashActions(){
-  var map={recall:'+6–12 XP',pomodoro:'+50 XP',practice:'+20–120 XP',resources:'load up'};
+  var map={recall:'+'+(window.CARD_XP||10).toLocaleString()+' XP',pomodoro:'+50 XP',
+           practice:'+20–120 XP',resources:'load up'};
   document.querySelectorAll('#page-dashboard .dash-act').forEach(function(b){
     if(b.querySelector('.gm-xp'))return;
     var k=b.dataset.jump,v=map[k];if(!v)return;
@@ -10567,7 +10616,10 @@ function dashActions(){
 
 /* ------------------------------------------------------------ flashcards   */
 function gradeXP(){
-  var vals=['+10 XP','+10 XP','+10 XP','+10 XP'];   /* identical on purpose — no reason to lie */
+  /* identical on purpose — no reason to lie — and read off CARD_XP so the
+     button never advertises a payout the code does not actually give. */
+  var lbl='+'+(window.CARD_XP||10).toLocaleString()+' XP';
+  var vals=[lbl,lbl,lbl,lbl];
   document.querySelectorAll('#rc-grades .grade-row button').forEach(function(b,i){
     var t=b.querySelector('.gm-gx');
     if(!t){t=document.createElement('i');t.className='gm-gx';b.insertBefore(t,b.firstChild);}

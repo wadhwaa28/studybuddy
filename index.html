@@ -7333,6 +7333,32 @@ function aiModel(){const p=aiProvider();return (DB.settings.model||'').trim()||(
    Generators that are SUPPOSED to produce answers — flashcards, question sets,
    resource lists — pass {raw:true} and skip it.
    ========================================================================== */
+const SB_PLAIN_TEXT=[
+'=== HOW TO WRITE \u2014 THIS APP SHOWS YOUR REPLY AS PLAIN TEXT ===',
+'Your reply is displayed exactly as you typed it. There is no LaTeX renderer and',
+'no markdown renderer here. Any markup you use reaches a school student as literal',
+'punctuation \u2014 "$f(x) = x^{2}$" appears on their screen with the dollar signs and',
+'braces still in it, which reads as gibberish. Assume your reader has never seen',
+'LaTeX and does not know what a backslash command is.',
+'',
+'NEVER use:',
+'\u2022 LaTeX or TeX of any kind \u2014 no $...$, no \\(...\\), no \\frac, \\sqrt, \\times, no ^{ } or _{ }',
+'\u2022 markdown \u2014 no **bold**, no ## headings, no ``` code fences, no asterisk bullets',
+'\u2022 bare ^ or _ for powers and subscripts',
+'\u2022 notation the average student has not met (tetration, \u2200/\u2203, big-O) without saying in',
+'  words what it means first \u2014 and prefer plain wording over the symbol',
+'',
+'Write maths the way a person writes it by hand or says it out loud:',
+'\u2022 powers with real characters: x\u00b2, x\u00b3, 10\u207b\u2074 \u2014 or say "x to the power of n"',
+'\u2022 roots \u221a9, \u221b8 \u00b7 fractions 3/4 or (x + 1)/(x \u2212 2) \u00b7 or just say "three quarters"',
+'\u2022 symbols you can type: \u00d7 \u00f7 \u00b1 \u2264 \u2265 \u2260 \u2248 \u03c0 \u03b8 \u00b0 \u221e \u0394 \u03a3',
+'\u2022 so: f(x) = x\u00b2 + 3x \u2212 5   NOT   f(x) = x^{2} + 3x - 5',
+'\u2022 for a bulleted list, use a plain dash at the start of the line',
+'',
+'If something truly cannot be written in plain text, describe it in words instead.',
+'=== END ===',
+''].join('\n');
+
 const SB_TUTOR_POLICY=[
 '=== NON-NEGOTIABLE TUTORING RULE — READ BEFORE ANYTHING ELSE ===',
 'You are a tutor inside a study app used by a school student. You must NEVER hand',
@@ -7374,7 +7400,11 @@ const SB_TUTOR_POLICY=[
 async function aiComplete(prompt,maxTokens,opts){
   /* Everything the student can talk to gets the rule. Structured generators
      opt out with {raw:true}; they exist to produce answer keys. */
+  /* Formatting applies to EVERYTHING, generators included \u2014 a flashcard full of
+     LaTeX is just as unreadable as a chat reply full of it. The no-answers rule
+     applies only to what the student can talk to. */
   if(!(opts&&opts.raw))prompt=SB_TUTOR_POLICY+'\n'+prompt;
+  prompt=SB_PLAIN_TEXT+'\n'+prompt;
   const p=aiProvider();
   if(!p)throw new Error('no provider selected');
   const key=(DB.settings.key||'').trim();

@@ -587,7 +587,7 @@
     <p class="land-note" id="land-note"></p>
     <div class="land-strip">
       <div class="land-chip"><b>6–12</b><span>grades</span></div>
-      <div class="land-chip"><b>1,700+</b><span>questions</span></div>
+      <div class="land-chip"><b id="land-n-q">2,600+</b><span>questions</span></div>
       <div class="land-chip"><b id="land-n-badges">35</b><span>badges</span></div>
       <div class="land-chip"><b id="land-n-themes">30</b><span>themes</span></div>
       <div class="land-chip"><b id="land-n-ranks">29</b><span>ranks</span></div>
@@ -1450,9 +1450,9 @@
    still work — AI practice, the Training Grounds, and the student's own cards.
    --------------------------------------------------------------------------- */
 const BANK_IDS = ["alg","ela","sci","spa","his",             // the five original banks
-                  "math6","prealg","alg1","geom","precalc",  // math, grades 6-12
+                  "math6","prealg","alg1","geom","precalc","calc",  // math, grades 6-12
                   "ela6","ela7",                             // English, grades 6-7
-                  "sci6","life","phys","chem",               // science, grades 6-10
+                  "sci6","life","phys","chem","bio",         // science, grades 6-12
                   "ss6","world","govecon",                   // social studies, grades 6-12
                   "spa3","spa4"];                            // Spanish, grades 11-12
 
@@ -1489,6 +1489,8 @@ const COURSE_VARIANTS = {
   precalc:{slot:"alg", name:"Precalculus", desc:"Functions, trigonometry, logarithms, series, conics, and vectors.",
     topics:["Functions & inverses","Polynomial & rational functions","Exponentials & logarithms","Unit circle & trig graphs","Trig identities","Sequences & series","Conics & polar","Vectors & complex numbers"]},
   /* --- English slot --- */
+  calc:{slot:"alg", name:"Calculus", desc:"Limits, derivatives, integrals, and what they say about motion and area.",
+    topics:["Limits & continuity","Derivative rules","Chain rule","Implicit differentiation","Related rates","Curve sketching","Optimization","Integrals & area","Fundamental Theorem","Applications of integrals"]},
   ela6:{slot:"ela", name:"English 6", desc:"Parts of speech, sentence basics, figurative language, and finding the main idea.",
     topics:["Parts of speech","Subject-verb agreement","Sentence structure","Commas & punctuation","Context clues","Main idea & summary","Figurative language","Plot & theme"]},
   ela7:{slot:"ela", name:"English 7", desc:"Clauses, tone and mood, evidence, and building an argument.",
@@ -1503,6 +1505,8 @@ const COURSE_VARIANTS = {
   chem:{slot:"sci", name:"Chemistry", desc:"Atoms, bonding, the mole, reactions, gases, solutions, and equilibrium.",
     topics:["Atomic structure","Periodic trends","Bonding","The mole","Reactions & stoichiometry","Gas laws","Solutions & acids","Thermochemistry & equilibrium"]},
   /* --- history / social studies slot --- */
+  bio:{slot:"sci", name:"Biology", desc:"Cells, energy, DNA, inheritance, evolution, and how ecosystems fit together.",
+    topics:["Biochemistry","Cell structure","Cell transport","Photosynthesis & respiration","DNA & replication","Protein synthesis","Cell division","Genetics","Evolution","Classification","Ecology","Body systems"]},
   ss6:{slot:"his", name:"Social Studies 6", desc:"Geography skills and the ancient civilizations that shaped the world.",
     topics:["Geography skills","Mesopotamia","Ancient Egypt","Ancient India","Ancient China","Ancient Greece","Ancient Rome","Civics & economics basics"]},
   world:{slot:"his", name:"World History", desc:"From the Byzantines and Mali through the world wars and the Cold War.",
@@ -1520,6 +1524,21 @@ function variantCourse(bank){
   const v=COURSE_VARIANTS[bank];
   return {id:v.slot, name:v.name, bank:bank, desc:v.desc, topics:v.topics};
 }
+/* ---------------------------------------------------------------------------
+   Grade presets follow the standard US sequence, one course per slot per year,
+   in the same order every year: math, English, science, social studies, Spanish.
+
+     math     6 Math 6 · 7 Pre-Algebra · 8 Algebra 1 · 9 Geometry ·
+              10 Algebra 2 · 11 Precalculus · 12 Calculus
+     science  6 Science 6 · 7 Life Science · 8 Physical Science · 9 Biology ·
+              10 Chemistry · 11 Physics · 12 AP Biology
+     social   6 Ancient civilisations · 7 World History · 8 US History ·
+              9 Civics · 10 World History · 11 US History · 12 Gov & Economics
+
+   The social-studies repeats are deliberate and match how schools actually
+   teach it: early world history in 7 and modern in 10, founding-era US in 8
+   and modern US in 11.
+   --------------------------------------------------------------------------- */
 const GRADE_PRESETS = {
   6:[variantCourse("math6"),   variantCourse("ela6"),  variantCourse("sci6"),
      variantCourse("ss6"),     {id:"spa",name:"Spanish 1",bank:"spa"}],
@@ -1527,14 +1546,13 @@ const GRADE_PRESETS = {
      variantCourse("world"),   {id:"spa",name:"Spanish 1",bank:"spa"}],
   8:[variantCourse("alg1"),    {id:"ela",name:"English 8",bank:"ela"}, variantCourse("phys"),
      {id:"his",name:"US History",bank:"his"}, {id:"spa",name:"Spanish 1",bank:"spa"}],
-  9:[{id:"alg",name:"Algebra 2",bank:"alg"}, {id:"ela",name:"English 9",bank:"ela"},
-     {id:"sci",name:"Science · Physics + Biology",bank:"sci"},
-     {id:"spa",name:"Spanish 1",bank:"spa"}, {id:"his",name:"US History",bank:"his"}],
-  10:[variantCourse("geom"),   {id:"ela",name:"English 10",bank:"ela"}, variantCourse("chem"),
-     variantCourse("world"),   {id:"spa",name:"Spanish 2",bank:"spa"}],
-  11:[{id:"alg",name:"Algebra 2",bank:"alg"},{id:"ela",name:"English 11",bank:"ela"},{id:"sci",name:"Physics",bank:"sci"},
+  9:[variantCourse("geom"),    {id:"ela",name:"English 9",bank:"ela"}, variantCourse("bio"),
+     {id:"his",name:"Civics",bank:"govecon"}, {id:"spa",name:"Spanish 1",bank:"spa"}],
+  10:[{id:"alg",name:"Algebra 2",bank:"alg"}, {id:"ela",name:"English 10",bank:"ela"},
+     variantCourse("chem"),    variantCourse("world"), {id:"spa",name:"Spanish 2",bank:"spa"}],
+  11:[variantCourse("precalc"),{id:"ela",name:"English 11",bank:"ela"}, {id:"sci",name:"Physics",bank:"sci"},
      {id:"his",name:"US History",bank:"his"}, variantCourse("spa3")],
-  12:[variantCourse("precalc"),{id:"ela",name:"English 12",bank:"ela"},{id:"sci",name:"Biology",bank:"sci"},
+  12:[variantCourse("calc"),   {id:"ela",name:"English 12",bank:"ela"}, {id:"sci",name:"AP Biology",bank:"bio"},
      variantCourse("govecon"), variantCourse("spa4")]
 };
 const GRADES=[6,7,8,9,10,11,12];
@@ -6390,6 +6408,352 @@ BANKS.RESOURCES.spa4=[
   {type:"Course",title:"Khan Academy — AP Spanish Language",note:"Practice aligned to the AP exam's reading and writing tasks.",url:"https://www.khanacademy.org/humanities/ap-spanish-language"},
   {type:"Reference",title:"Real Academia Española — Diccionario",note:"The authoritative Spanish dictionary, useful for register and nuance.",url:"https://dle.rae.es/"}
 ];
+
+/* ==== CALCULUS (grade 12) ==== */
+/* ============================ CALCULUS ============================ */
+BANKS.QUESTIONS.calc=[
+  ["What is lim(x→3) (2x + 1)?",["5","7","3","1"],1,"Polynomials are continuous, so substitute x = 3."],
+  ["What is lim(x→2) (x² − 4)/(x − 2)?",["0","2","4","Undefined"],2,"Factor the top and cancel to get x + 2."],
+  ["What is lim(x→0) (sin x)/x?",["1","0","∞","Undefined"],0,"A standard special limit worth memorising."],
+  ["What is lim(x→∞) (3x² + 5)/(7x² − x)?",["0","3/7","7/3","∞"],1,"Equal degrees give the ratio of leading coefficients."],
+  ["What is lim(x→∞) (2x + 1)/(x³ + 4)?",["0","2","∞","1/4"],0,"The denominator's degree is larger, so the quotient dies off."],
+  ["A function f is continuous at x = a exactly when…",["f(a) exists","lim(x→a) f(x) exists","lim(x→a) f(x) = f(a)","f(a) = 0"],2,"All three conditions are packed into that single equation."],
+  ["What kind of discontinuity does f(x) = (x² − 1)/(x − 1) have at x = 1?",["Jump","Removable","Infinite","There is none"],1,"The factor cancels, leaving a hole in the graph."],
+  ["What does the Intermediate Value Theorem guarantee?",["A continuous function on [a, b] takes every value between f(a) and f(b)","Every function has a maximum","A derivative exists everywhere","The limit always equals the function value"],0,"Continuity forces the graph to hit every intermediate height."],
+  ["What is lim(x→1⁺) 1/(x − 1)?",["0","−∞","+∞","1"],2,"Approaching from the right makes the denominator a small positive number."],
+  ["The derivative f′(a) is defined as…",["lim(h→0) [f(a + h) − f(a)]/h","(f(b) − f(a))/(b − a)","lim(x→a) f(x)","f(a)/a"],0,"It is the limit of the difference quotient."],
+  ["What does f′(x) represent geometrically?",["The area under the curve","The y-intercept","The average value of f","The slope of the tangent line"],3,"The derivative is the instantaneous slope."],
+  ["What is d/dx (x⁵)?",["5x⁴","x⁴","5x⁶","4x⁵"],0,"The power rule: bring down the exponent and drop it by one."],
+  ["What is d/dx (7)?",["7","0","7x","1"],1,"A constant function has zero slope everywhere."],
+  ["What is d/dx (3x² − 4x + 9)?",["6x − 4x + 9","6x² − 4x","6x − 4","3x − 4"],2,"Differentiate term by term; the constant vanishes."],
+  ["What is d/dx (sin x)?",["cos x","−cos x","−sin x","sec²x"],0,"Sine differentiates to cosine."],
+  ["What is d/dx (cos x)?",["sin x","−sin x","−cos x","tan x"],1,"Cosine picks up a negative sign."],
+  ["What is d/dx (tan x)?",["sec²x","sec x tan x","−csc²x","cot x"],0,"Use the quotient rule on sin x / cos x."],
+  ["What is d/dx (eˣ)?",["xeˣ⁻¹","eˣ","e","xeˣ"],1,"The natural exponential is its own derivative."],
+  ["What is d/dx (ln x)?",["1/x","ln x","x","−1/x²"],0,"The natural log differentiates to the reciprocal."],
+  ["What is the product rule for (uv)′?",["u′v′","u′v + uv′","u′v − uv′","(u′v − uv′)/v²"],1,"Differentiate one factor at a time and add."],
+  ["What is the quotient rule for (u/v)′?",["(u′v − uv′)/v²","(uv′ − u′v)/v²","u′/v′","(u′v + uv′)/v²"],0,"Low d-high is wrong; it is high-low order over the square of the bottom."],
+  ["What is d/dx (x² sin x)?",["2x cos x","2x sin x + x² cos x","2x sin x − x² cos x","2x cos x + x² sin x"],1,"Product rule with u = x² and v = sin x."],
+  ["What is d/dx ((3x + 1)⁴)?",["4(3x + 1)³","12(3x + 1)³","3(3x + 1)³","12(3x + 1)⁴"],1,"Chain rule: 4(3x + 1)³ times the inside derivative 3."],
+  ["What is d/dx (sin(5x))?",["cos(5x)","5cos(5x)","−5cos(5x)","5sin(5x)"],1,"The inside derivative 5 multiplies out front."],
+  ["What is d/dx (e^(2x))?",["e^(2x)","2e^(2x)","2xe^(2x − 1)","e^(2x)/2"],1,"Chain rule on the exponent."],
+  ["For the circle x² + y² = 25, what is dy/dx?",["−x/y","x/y","−y/x","2x + 2y"],0,"Differentiate implicitly: 2x + 2y·y′ = 0."],
+  ["What does f″(x) > 0 tell you about the graph of f?",["It is concave up","It is increasing","It is decreasing","It has a maximum there"],0,"A positive second derivative bends the curve upward."],
+  ["If f′(c) = 0 and f′ changes from positive to negative at c, then f has…",["A local minimum at c","A local maximum at c","An inflection point at c","A vertical asymptote at c"],1,"The function rises, levels off, then falls."],
+  ["An inflection point occurs where…",["f′ = 0","f″ changes sign","f = 0","f is undefined"],1,"Concavity has to actually flip, not merely reach zero."],
+  ["By the Extreme Value Theorem, a continuous function on a closed interval [a, b]…",["Attains an absolute maximum and an absolute minimum","Is differentiable everywhere","Has exactly one critical point","Is always increasing"],0,"Closed interval plus continuity guarantees both extremes are reached."],
+  ["What is a critical point of f?",["A point where f′(x) = 0 or f′ is undefined","Any x-intercept","A point where f″ = 0","An endpoint of the domain"],0,"Critical points are the candidates for local extrema."],
+  ["What does the Mean Value Theorem guarantee on [a, b]?",["f is constant on [a, b]","Some c in (a, b) has f′(c) = (f(b) − f(a))/(b − a)","Some c has f(c) = 0","f′ is continuous"],1,"Some instantaneous rate equals the average rate."],
+  ["In related rates, if V = (4/3)πr³, what is dV/dt?",["4πr² dr/dt","4πr²","(4/3)πr² dr/dt","12πr² dr/dt"],0,"Differentiate with respect to t and keep the chain-rule factor."],
+  ["The linear approximation of f near x = a is…",["f(a)(x − a)","f′(a)x","f(a) + f′(a)(x − a)","f(a) + f″(a)(x − a)"],2,"It is just the tangent line written as a function."],
+  ["If s(t) is position, what is s″(t)?",["Velocity","Acceleration","Jerk","Displacement"],1,"Differentiating position twice gives acceleration."],
+  ["What is ∫ x³ dx?",["3x² + C","x⁴/4 + C","x⁴ + C","4x⁴ + C"],1,"Raise the exponent by one and divide by the new exponent."],
+  ["What is ∫ (1/x) dx?",["ln|x| + C","−1/x² + C","x⁻² + C","1/(2x²) + C"],0,"The power rule fails at n = −1, so the log appears instead."],
+  ["What is ∫ cos x dx?",["−sin x + C","sin x + C","−cos x + C","tan x + C"],1,"Antidifferentiating cosine gives sine."],
+  ["What is ∫₀² 3x² dx?",["8","4","12","6"],0,"The antiderivative x³ evaluated from 0 to 2."],
+  ["What does the Fundamental Theorem of Calculus (Part 2) say ∫ₐᵇ f(x) dx equals?",["f(b) − f(a)","F(b) − F(a), where F′ = f","F(b) + F(a)","f′(b) − f′(a)"],1,"Evaluate any antiderivative at the two endpoints and subtract."],
+  ["If g(x) = ∫₁ˣ t² dt, what is g′(x)?",["2x","x²","x³/3","1"],1,"Part 1 of the Fundamental Theorem hands back the integrand."],
+  ["What is ∫ 2x(x² + 1)⁵ dx?",["(x² + 1)⁶ + C","(x² + 1)⁶/6 + C","5(x² + 1)⁴ + C","(x² + 1)⁶/12 + C"],1,"Substitute u = x² + 1, so du = 2x dx."],
+  ["A Riemann sum approximates…",["The slope of a tangent line","A derivative","The area under a curve","A limit at infinity"],2,"It adds up the areas of thin rectangles."],
+  ["What is the average value of f on [a, b]?",["(f(a) + f(b))/2","∫ₐᵇ f(x) dx","(1/(b − a))∫ₐᵇ f(x) dx","f′(c)"],2,"Total accumulation divided by the length of the interval."],
+  ["The area between y = f(x) and y = g(x) on [a, b], with f ≥ g, is…",["∫ₐᵇ [f(x) + g(x)] dx","∫ₐᵇ [f(x) − g(x)] dx","∫ₐᵇ f(x)g(x) dx","f(b) − g(a)"],1,"Integrate top minus bottom."],
+  ["Rotating a region about the x-axis using disks gives volume…",["2π∫ₐᵇ R(x) dx","π∫ₐᵇ R(x) dx","π∫ₐᵇ [R(x)]² dx","∫ₐᵇ [R(x)]² dx"],2,"Each slice is a circle of area πR²."],
+  ["If v(t) is velocity, what does ∫ₐᵇ v(t) dt give?",["Total distance travelled","Displacement","Acceleration","Average speed"],1,"Negative velocity subtracts, so this is net change in position."],
+  ["If v(t) is velocity, what does ∫ₐᵇ |v(t)| dt give?",["Total distance travelled","Displacement","Final position","Average velocity"],0,"Absolute value counts backward motion as distance too."],
+  ["What is ∫ eˣ dx?",["xeˣ + C","eˣ/x + C","eˣ + C","e^(x + 1)/(x + 1) + C"],2,"The exponential is its own antiderivative."],
+  ["The differential equation dy/dx = ky has general solution…",["y = kx + C","y = Cx^k","y = C ln(kx)","y = Ce^(kx)"],3,"Growth proportional to size is exponential."]
+];
+BANKS.TOPICS.calc=["Limits","Limits","Special limits","Limits at infinity","Limits at infinity","Continuity","Continuity","Intermediate Value Theorem","One-sided limits","Definition of derivative","Derivative meaning","Power rule","Basic derivatives","Power rule","Trig derivatives","Trig derivatives","Trig derivatives","Exponential derivatives","Log derivatives","Product rule","Quotient rule","Product rule","Chain rule","Chain rule","Chain rule","Implicit differentiation","Concavity","First derivative test","Inflection points","Extreme Value Theorem","Critical points","Mean Value Theorem","Related rates","Linearization","Motion","Antiderivatives","Antiderivatives","Antiderivatives","Definite integrals","Fundamental Theorem","Fundamental Theorem","u-substitution","Riemann sums","Average value","Area between curves","Volumes of revolution","Motion","Motion","Antiderivatives","Differential equations"];
+BANKS.TEST_QUESTIONS.calc=[
+  ["Evaluate lim(x→4) (x² − 16)/(x − 4).",["4","8","0","16"],1,"Cancel the common factor to get x + 4.","Limits"],
+  ["Evaluate lim(x→0) (sin 3x)/x.",["1","3","0","1/3"],1,"Rewrite as 3·(sin 3x)/(3x).","Special limits"],
+  ["Evaluate lim(x→∞) (5x³ − 2x)/(4x³ + 7).",["0","5/4","4/5","∞"],1,"Equal degrees: compare leading coefficients.","Limits at infinity"],
+  ["If f(x) = (x² − 4)/(x − 2) for x ≠ 2 and f(2) = k, what k makes f continuous?",["k = 0","k = 2","k = 4","k = 8"],2,"The limit is x + 2 → 4.","Continuity"],
+  ["Differentiate f(x) = 4x³ − 2x² + 7x.",["12x² − 4x","12x² − 4x + 7","12x³ − 4x² + 7","4x² − 2x + 7"],1,"Apply the power rule to each term.","Power rule"],
+  ["Differentiate f(x) = √x.",["1/(2√x)","2√x","1/√x","√x/2"],0,"Write it as x^(1/2) and use the power rule.","Power rule"],
+  ["Differentiate f(x) = 1/x².",["2/x³","−2/x³","−1/(2x)","−2x"],1,"x⁻² differentiates to −2x⁻³.","Power rule"],
+  ["Differentiate f(x) = x cos x.",["cos x + x sin x","−sin x","cos x − x sin x","−x sin x"],2,"Product rule, remembering cos′ = −sin.","Product rule"],
+  ["Differentiate f(x) = (2x + 3)/(x − 1).",["5/(x − 1)²","−5/(x − 1)²","2/(x − 1)²","−1/(x − 1)²"],1,"(2(x−1) − (2x+3))/(x−1)² = −5/(x−1)².","Quotient rule"],
+  ["Differentiate f(x) = (x² + 1)⁷.",["7(x² + 1)⁶","2x(x² + 1)⁶","14x(x² + 1)⁷","14x(x² + 1)⁶"],3,"Chain rule brings out the factor 2x.","Chain rule"],
+  ["Differentiate f(x) = ln(3x).",["1/x","3/x","1/(3x)","3 ln x"],0,"The chain rule factor 3 cancels the 3x.","Log derivatives"],
+  ["Differentiate f(x) = e^(x²).",["e^(x²)","2xe^(x²)","x²e^(x² − 1)","2e^(x²)"],1,"Multiply by the derivative of the exponent.","Chain rule"],
+  ["Find dy/dx for xy = 6.",["y/x","−x/y","−y/x","x/y"],2,"Implicitly, y + x·y′ = 0, so y′ = −y/x.","Implicit differentiation"],
+  ["Find the slope of the tangent to y = x³ at x = 2.",["6","8","12","3"],2,"y′ = 3x², so 3(4) = 12.","Tangent lines"],
+  ["Find the tangent line to y = x² at x = 3.",["y = 6x + 9","y = 9x − 6","y = 6x − 9","y = 3x"],2,"Slope 6 through the point (3, 9).","Tangent lines"],
+  ["On what interval is f(x) = x² − 6x increasing?",["x < 3","x > 3","x > 0","All reals"],1,"f′ = 2x − 6 is positive past x = 3.","Increasing & decreasing"],
+  ["Find the critical points of f(x) = x³ − 3x.",["x = 0","x = ±1","x = ±√3","x = 3"],1,"3x² − 3 = 0 gives x = ±1.","Critical points"],
+  ["Where is f(x) = x³ concave up?",["x < 0","All reals","x > 0","Nowhere"],2,"f″ = 6x is positive for x > 0.","Concavity"],
+  ["Find the absolute maximum of f(x) = 4 − x² on [−1, 3].",["3","4","0","−5"],1,"The vertex at x = 0 lies inside the interval.","Absolute extrema"],
+  ["A balloon's radius grows at 2 cm/s. How fast is its volume changing when r = 5 cm?",["100π cm³/s","50π cm³/s","200π cm³/s","20π cm³/s"],2,"dV/dt = 4πr²·(dr/dt) = 4π(25)(2).","Related rates"],
+  ["Evaluate ∫ (6x² − 4x) dx.",["2x³ − 4x² + C","6x³ − 4x² + C","12x − 4 + C","2x³ − 2x² + C"],3,"Antidifferentiate each term separately.","Antiderivatives"],
+  ["Evaluate ∫₁³ 2x dx.",["9","8","4","6"],1,"x² from 1 to 3 is 9 − 1.","Definite integrals"],
+  ["Evaluate ∫₀^π sin x dx.",["0","1","2","−2"],2,"−cos x from 0 to π gives 1 + 1.","Definite integrals"],
+  ["Evaluate ∫ sin(4x) dx.",["cos(4x)/4 + C","−cos(4x)/4 + C","−4cos(4x) + C","−cos(4x) + C"],1,"Divide by the inside coefficient 4.","u-substitution"],
+  ["Evaluate ∫ x/(x² + 3) dx.",["ln(x² + 3) + C","2ln(x² + 3) + C","½ln(x² + 3) + C","x²/(x² + 3) + C"],2,"u = x² + 3 gives du = 2x dx, so a factor of ½ appears.","u-substitution"],
+  ["If g(x) = ∫₀ˣ √(t³ + 1) dt, find g′(2).",["9","3","√2","√5"],1,"g′(x) = √(x³ + 1), and √9 = 3.","Fundamental Theorem"],
+  ["Find the area under y = x² from x = 0 to x = 3.",["27","3","18","9"],3,"x³/3 evaluated at 3 gives 9.","Area under a curve"],
+  ["Find the area between y = x and y = x² from x = 0 to x = 1.",["1/2","1/6","1/3","1"],1,"½ − ⅓ = 1/6.","Area between curves"],
+  ["Find the average value of f(x) = x² on [0, 3].",["9","4.5","3","1"],2,"(1/3)·9 = 3.","Average value"],
+  ["A particle has v(t) = 3t². Find its displacement from t = 0 to t = 2.",["4","12","6","8"],3,"∫3t² dt = t³, and 2³ = 8.","Motion"]
+];
+BANKS.CHALLENGE_QUESTIONS.calc=[
+  ["Evaluate lim(x→0) (1 − cos x)/x².",["0","1/2","1","∞"],1,"Multiply by the conjugate, or use L'Hôpital twice.","Special limits"],
+  ["Evaluate lim(x→∞) (1 + 3/x)^x.",["e","e³","3e","1"],1,"This is the standard compound-growth limit with k = 3.","Limits at infinity"],
+  ["Evaluate lim(x→0) (tan x − x)/x³.",["0","1","1/2","1/3"],3,"Three applications of L'Hôpital's Rule give 1/3.","Special limits"],
+  ["Differentiate y = xˣ for x > 0.",["x·xˣ⁻¹","xˣ ln x","xˣ(ln x + 1)","xˣ"],2,"Take logs first: ln y = x ln x.","Logarithmic differentiation"],
+  ["If f(x) = x³ + x, find (f⁻¹)′(2).",["1/4","4","1/2","2"],0,"f(1) = 2 and f′(1) = 4, so the inverse slope is 1/4.","Inverse function derivatives"],
+  ["Find dy/dx for x³ + y³ = 6xy at the point (3, 3).",["1","0","−1","3"],2,"27 + 27y′ = 18 + 18y′ gives y′ = −1.","Implicit differentiation"],
+  ["Evaluate ∫₀¹ x√(1 − x²) dx.",["2/3","1/3","1/6","1/2"],1,"u = 1 − x² turns it into ½∫₀¹ √u du.","u-substitution"],
+  ["Evaluate ∫₀^(π/4) sec²x dx.",["0","π/4","√2","1"],3,"tan x evaluated at π/4 is 1.","Definite integrals"],
+  ["Find the absolute minimum of f(x) = x + 4/x on (0, ∞).",["2","4","0","8"],1,"f′ = 1 − 4/x² = 0 at x = 2, where f(2) = 4.","Optimization"],
+  ["Solve dy/dx = xy with y(0) = 3.",["y = 3eˣ","y = x²/2 + 3","y = 3e^(x²/2)","y = e^(3x)"],2,"Separate variables: ln y = x²/2 + C.","Differential equations"],
+  ["The region under y = 1/x from x = 1 to x = e is revolved about the x-axis. Find the volume.",["π(1 − 1/e)","π","π/e","2π(1 − 1/e)"],0,"π∫₁^e x⁻² dx = π[−1/x]₁^e.","Volumes of revolution"],
+  ["What is d/dx of ∫₀^(x²) sin t dt?",["sin(x²)","cos(x²)·2x","−cos(x²)","2x sin(x²)"],3,"The Fundamental Theorem plus the chain rule.","Fundamental Theorem"],
+  ["Find the value of c guaranteed by the Mean Value Theorem for f(x) = x² on [1, 4].",["2","5/2","3","5"],1,"The average slope is 5, and 2c = 5.","Mean Value Theorem"],
+  ["Find the area enclosed by y = x² and y = 2x.",["8/3","2","4/3","1/3"],2,"∫₀² (2x − x²) dx = 4 − 8/3.","Area between curves"],
+  ["If f is even and differentiable, what is true of f′?",["f′ is odd","f′ is even","f′ = 0","f′ is constant"],0,"Differentiating f(−x) = f(x) flips the symmetry.","Derivative properties"],
+  ["With f(0) = 1, f(1) = 3, f(2) = 4, f(3) = 6, f(4) = 8, estimate ∫₀⁴ f(x) dx by the trapezoidal rule.",["16","18","20","17.5"],3,"½[1 + 2(3) + 2(4) + 2(6) + 8] = 17.5.","Riemann sums"]
+];
+BANKS.AP_QUESTIONS.calc=[
+  ["A 13 ft ladder leans on a wall and its base slides away at 2 ft/s. How fast is the top sliding down when the base is 5 ft out?",["2 ft/s downward","5/6 ft/s downward","12/5 ft/s downward","13/5 ft/s downward"],1,"x·x′ + y·y′ = 0 with x = 5, y = 12 gives y′ = −10/12.","Related rates"],
+  ["Water pours at 9 ft³/min into a cone of height 12 ft and top radius 6 ft. How fast is the depth rising when the water is 4 ft deep?",["9/(16π) ft/min","4π/9 ft/min","9/(4π) ft/min","3/(4π) ft/min"],2,"V = πh³/12, so dV/dt = (πh²/4)·dh/dt = 4π·dh/dt.","Related rates"],
+  ["A farmer has 400 m of fence for a rectangular pen along a straight river, fencing only three sides. What is the largest possible area?",["10,000 m²","20,000 m²","40,000 m²","5,000 m²"],1,"A = x(400 − 2x) peaks at x = 100, y = 200.","Optimization"],
+  ["An open-top box is folded from a 12 in square by cutting x from each corner. What x maximizes the volume?",["3 in","2 in","4 in","6 in"],1,"V′ = (12 − 2x)(12 − 6x) = 0 gives the usable root x = 2.","Optimization"],
+  ["A particle moves with v(t) = t² − 4t + 3 m/s. What total distance does it travel on [0, 4]?",["8/3 m","4/3 m","4 m","2 m"],2,"Velocity changes sign at t = 1 and t = 3; each piece contributes 4/3.","Motion"],
+  ["A ball's height is h(t) = −16t² + 64t + 5 ft. What is its maximum height?",["64 ft","69 ft","72 ft","5 ft"],1,"h′ = 0 at t = 2, where h = 69.","Motion"],
+  ["A culture obeys dP/dt = 0.3P with P(0) = 200. What is P(5)?",["≈ 500","≈ 896","≈ 300","≈ 1,340"],1,"200e^(1.5) ≈ 896.","Differential equations"],
+  ["Coffee cools according to dT/dt = −k(T − 20). What temperature does it approach as t → ∞?",["0°","k degrees","20°","It grows without bound"],2,"The rate vanishes only when T reaches the ambient value.","Differential equations"],
+  ["A car's velocity is 0, 20, 30, 40 m/s at t = 0, 2, 4, 6 s. Estimate the distance with a left Riemann sum.",["180 m","140 m","100 m","90 m"],2,"(0 + 20 + 30)·2 = 100.","Riemann sums"],
+  ["Water leaves a tank at r(t) = 4t litres per minute. How much leaves during the first 5 minutes?",["20 L","100 L","50 L","10 L"],2,"∫₀⁵ 4t dt = 2t² = 50.","Accumulation"],
+  ["The region bounded by y = √x, y = 0 and x = 4 is revolved about the x-axis. What is the volume?",["16π","8π","4π","32π/3"],1,"π∫₀⁴ x dx = π(8).","Volumes of revolution"],
+  ["A solid's base is the region between y = x and y = x² on [0, 1], with square cross-sections perpendicular to the x-axis. Find its volume.",["1/6","1/30","1/12","1/5"],1,"∫₀¹ (x − x²)² dx = 1/3 − 1/2 + 1/5.","Volumes by cross-section"],
+  ["Use a tangent line at x = 100 to approximate √101.",["10.5","10.05","10.01","10.1"],1,"f′(100) = 1/20, so add 0.05 to 10.","Linearization"],
+  ["A car covers 120 miles in 2 hours. The Mean Value Theorem guarantees that at some instant its speed was exactly…",["120 mph","60 mph","30 mph","0 mph"],1,"Some instantaneous speed must equal the 60 mph average.","Mean Value Theorem"],
+  ["If C(x) is the cost of making x units and C′(500) = 12, what does that mean?",["Total cost is $12","The next unit costs about $12 to make","Average cost is $12 per unit","Making 500 units costs $12"],1,"A derivative is a rate: dollars per additional unit.","Derivative meaning"],
+  ["A city's population P(t) is rising but the rise is slowing down. Which is true?",["P′ > 0 and P″ > 0","P′ > 0 and P″ < 0","P′ < 0 and P″ < 0","P′ < 0 and P″ > 0"],1,"Growing means P′ > 0; a slowing growth rate means P″ < 0.","Curve sketching"]
+];
+BANKS.SEED_CARDS.calc=[
+  ["State the limit definition of the derivative.","f′(x) = lim(h→0) [f(x + h) − f(x)]/h."],
+  ["What does a derivative measure?","An instantaneous rate of change — the slope of the tangent line."],
+  ["State the power rule.","d/dx xⁿ = n xⁿ⁻¹."],
+  ["State the product rule.","(uv)′ = u′v + uv′."],
+  ["State the quotient rule.","(u/v)′ = (u′v − uv′)/v²."],
+  ["State the chain rule.","d/dx f(g(x)) = f′(g(x))·g′(x)."],
+  ["Derivatives of sin x, cos x and tan x?","cos x, −sin x, and sec²x."],
+  ["Derivatives of eˣ and ln x?","eˣ and 1/x."],
+  ["Derivative of aˣ?","aˣ ln a."],
+  ["Derivative of arcsin x?","1/√(1 − x²)."],
+  ["What three conditions make f continuous at x = a?","f(a) exists, the limit exists, and the two are equal."],
+  ["What is a removable discontinuity?","A hole: the limit exists but f(a) is missing or does not match it."],
+  ["What is lim(x→0) (sin x)/x?","1."],
+  ["What is lim(x→0) (1 − cos x)/x?","0."],
+  ["How do you find horizontal asymptotes with limits?","Take lim(x→±∞) f(x); for rational functions compare the degrees."],
+  ["What is a critical point?","A value where f′(x) = 0 or f′ is undefined."],
+  ["State the first derivative test.","f′ going + to − gives a local maximum; − to + gives a local minimum."],
+  ["State the second derivative test.","If f′(c) = 0, then f″(c) > 0 means a local minimum and f″(c) < 0 a local maximum."],
+  ["What does the sign of f″ tell you?","Concavity: positive is concave up, negative is concave down."],
+  ["What is an inflection point?","A point where f″ changes sign and the concavity flips."],
+  ["State the Mean Value Theorem.","If f is continuous on [a, b] and differentiable on (a, b), some c has f′(c) = (f(b) − f(a))/(b − a)."],
+  ["State the Intermediate Value Theorem.","A continuous f on [a, b] attains every value between f(a) and f(b)."],
+  ["What are the steps of a related rates problem?","Write an equation relating the quantities, differentiate with respect to t, then substitute the known values."],
+  ["State the linear approximation formula.","L(x) = f(a) + f′(a)(x − a)."],
+  ["How are position, velocity and acceleration related?","v = s′ and a = v′ = s″."],
+  ["State the Fundamental Theorem of Calculus, Part 1.","d/dx ∫ₐˣ f(t) dt = f(x)."],
+  ["State the Fundamental Theorem of Calculus, Part 2.","∫ₐᵇ f(x) dx = F(b) − F(a), where F′ = f."],
+  ["How does u-substitution work?","Let u be the inner function, replace dx using du = u′ dx, and convert the limits if the integral is definite."],
+  ["Average value of f on [a, b]?","(1/(b − a)) ∫ₐᵇ f(x) dx."],
+  ["Disk method volume about the x-axis?","V = π ∫ₐᵇ [R(x)]² dx."]
+];
+BANKS.CHALLENGE_CARDS.calc=[
+  ["When may you use L'Hôpital's Rule?","Only on the indeterminate forms 0/0 or ∞/∞ — then differentiate the numerator and denominator separately."],
+  ["How do you differentiate y = f(x)^g(x)?","Take ln of both sides, differentiate implicitly, then multiply back by y."],
+  ["Formula for the derivative of an inverse function?","(f⁻¹)′(b) = 1/f′(a), where f(a) = b."],
+  ["Displacement versus total distance?","Displacement is ∫ v dt; total distance is ∫ |v| dt."],
+  ["How do you solve a separable differential equation?","Separate the variables, integrate both sides, then use the initial condition to find C."],
+  ["State the washer method.","V = π ∫ₐᵇ ([R(x)]² − [r(x)]²) dx, for a solid of revolution with a hole."]
+];
+BANKS.FEYNMAN_TOPICS.calc=["What a limit really means","Why continuity is more than drawing without lifting your pencil","How the difference quotient becomes the derivative","Why the chain rule works","What implicit differentiation is actually doing","How to set up a related rates problem from a story","Why the second derivative controls concavity","What the Mean Value Theorem really claims","How to turn a word problem into an optimization problem","What a Riemann sum is adding up","Why the Fundamental Theorem links area and slope","What u-substitution undoes","The difference between displacement and total distance","How slicing a solid turns into a volume integral"];
+BANKS.RESOURCES.calc=[
+  {type:"Course",title:"Khan Academy — AP Calculus AB",note:"Unit-by-unit videos and practice matched to the AB syllabus.",url:"https://www.khanacademy.org/math/ap-calculus-ab"},
+  {type:"Reference",title:"Paul's Online Notes — Calculus I",note:"Clear written notes with fully worked examples and practice sets.",url:"https://tutorial.math.lamar.edu/Classes/CalcI/CalcI.aspx"},
+  {type:"Course",title:"MIT OpenCourseWare 18.01SC — Single Variable Calculus",note:"Full university course with lecture videos, problem sets, and solutions.",url:"https://ocw.mit.edu/courses/18-01sc-single-variable-calculus-fall-2010/"},
+  {type:"Video",title:"3Blue1Brown — Essence of Calculus",note:"Visual intuition for derivatives, integrals, and why they are inverses.",url:"https://www.3blue1brown.com/topics/calculus"},
+  {type:"Reference",title:"OpenStax Calculus Volume 1",note:"A free, complete textbook covering limits, derivatives, and integrals.",url:"https://openstax.org/details/books/calculus-volume-1"},
+  {type:"Tool",title:"Desmos Graphing Calculator",note:"Graph a function and its derivative together to see the relationship.",url:"https://www.desmos.com/calculator"}
+];
+
+/* ==== BIOLOGY (grade 9) ==== */
+/* ============================ BIOLOGY ============================ */
+BANKS.QUESTIONS.bio=[
+  ["Which property of water allows a cell to resist sudden temperature swings?",["Its high specific heat, a consequence of extensive hydrogen bonding","Its very low boiling point","Its nonpolar covalent bonds","Its inability to dissolve ionic compounds"],0,"Breaking the many hydrogen bonds between water molecules absorbs a great deal of heat before the temperature climbs."],
+  ["Which two functional groups are present on every amino acid?",["An amino group and a carboxyl group","A phosphate group and a hydroxyl group","Two carboxyl groups","An amino group and a phosphate group"],0,"The amino group of one residue bonds to the carboxyl group of the next, which is what links a protein chain together."],
+  ["Two amino acids are joined by a peptide bond. What else happens in that reaction?",["A molecule of water is released","A molecule of water is consumed","A phosphate is added to each residue","Carbon dioxide is released"],0,"Peptide bonds form by dehydration synthesis, so one water molecule leaves for each bond made."],
+  ["What ultimately determines the three-dimensional shape a protein folds into?",["The sequence of amino acids in its primary structure","The number of ribosomes that assembled it","The number of phosphate groups attached to it","The type of sugar in its backbone"],0,"The order of side chains decides which parts attract, repel, or bond, and that dictates the final fold."],
+  ["Which polysaccharide do plants use to store glucose for later use?",["Starch","Glycogen","Cellulose","Chitin"],0,"Plants store surplus glucose as starch; glycogen is the animal storage form and cellulose is structural."],
+  ["How does an enzyme speed up a chemical reaction?",["By lowering the activation energy needed for the reaction","By raising the activation energy of the reaction","By increasing the temperature of the whole cell","By increasing the total energy released by the reaction"],0,"An enzyme provides a lower-energy pathway; it does not change how much energy the reaction ultimately releases."],
+  ["According to the induced fit model, an enzyme's active site…",["changes shape slightly as the substrate binds, gripping it more closely","is perfectly rigid and never changes shape","binds any molecule that happens to collide with it","is destroyed after catalysing a single reaction"],0,"The active site moulds itself around the substrate, which strains the bonds that need to break."],
+  ["At a fixed enzyme concentration, reaction rate rises with substrate concentration and then levels off. Why?",["Every active site is occupied, so the enzymes are saturated","The enzyme is used up as the reaction proceeds","The excess substrate denatures the enzyme","The activation energy rises as substrate is added"],0,"Once all active sites are busy, adding more substrate cannot make the reaction go any faster."],
+  ["Heating an enzyme well above its optimum temperature slows the reaction mainly because…",["hydrogen bonds break and the enzyme denatures, distorting the active site","molecules collide less often at high temperature","the substrate concentration falls as temperature rises","the activation energy of the reaction increases"],0,"Denaturation destroys the precise shape of the active site, so substrate no longer fits."],
+  ["Which organelle modifies, sorts, and packages proteins for shipment out of the cell?",["The Golgi apparatus","The rough endoplasmic reticulum","The lysosome","The nucleolus"],0,"Proteins arrive at the Golgi in vesicles, get finished and tagged, and leave in vesicles bound for their destination."],
+  ["Rough endoplasmic reticulum earns its name because it is studded with…",["ribosomes","lysosomes","Golgi vesicles","mitochondria"],0,"Ribosomes on its surface synthesise proteins directly into the ER for processing."],
+  ["Which organelle is filled with hydrolytic enzymes that digest worn-out organelles and engulfed material?",["The lysosome","The ribosome","The centriole","The smooth endoplasmic reticulum"],0,"Lysosomes are the cell's recycling and demolition compartment, kept safely membrane-bound."],
+  ["Which observation most strongly supports the endosymbiotic theory?",["Mitochondria have circular DNA and double membranes and divide by binary fission","Mitochondria are found only in animal cells","Mitochondria contain chlorophyll","Mitochondria are assembled by the Golgi apparatus"],0,"Those are all bacterial traits, suggesting mitochondria descend from engulfed free-living prokaryotes."],
+  ["The fluid mosaic model describes the plasma membrane as…",["a phospholipid bilayer with proteins drifting laterally within it","a rigid sheet of protein with no lipids","a single layer of lipid containing no proteins","a solid wall of cellulose fibres"],0,"The lipids are fluid and the embedded proteins form the shifting mosaic."],
+  ["A plant cell is placed in a strongly hypertonic solution. What happens?",["It loses water and the membrane pulls away from the cell wall in plasmolysis","It gains water until it bursts","Nothing changes, because the cell wall blocks all water movement","It gains water and becomes more turgid"],0,"Water leaves toward the higher solute concentration outside, and the shrinking protoplast peels off the wall."],
+  ["How does facilitated diffusion differ from simple diffusion?",["It uses membrane transport proteins but still requires no ATP","It requires ATP for every molecule moved","It moves substances against the concentration gradient","It occurs only in prokaryotic cells"],0,"Facilitated diffusion is still passive; the protein only provides a path for molecules that cannot cross the lipid directly."],
+  ["What does the sodium–potassium pump accomplish?",["It moves 3 Na⁺ out and 2 K⁺ in per ATP, against their gradients","It moves 2 Na⁺ in and 3 K⁺ out without using ATP","It allows glucose to diffuse in while Na⁺ diffuses out","It pumps water out and salt in by osmosis"],0,"Because it works against both gradients it is active transport, and the resulting charge difference is what neurons exploit."],
+  ["Where do the light-dependent reactions occur, and what do they produce?",["In the thylakoid membranes, producing ATP, NADPH, and O₂","In the stroma, producing glucose","In the mitochondrial matrix, producing CO₂","In the cytoplasm, producing lactic acid"],0,"Light excites electrons in the thylakoid membrane, water is split, and the products power the Calvin cycle."],
+  ["What does the Calvin cycle do?",["Uses ATP and NADPH to fix CO₂ into sugar in the stroma","Splits water molecules to release oxygen","Absorbs photons directly using chlorophyll","Produces the ATP that the light reactions consume"],0,"The Calvin cycle is light-independent: it spends the chemical energy the light reactions made."],
+  ["The oxygen gas released during photosynthesis comes from…",["the splitting of water molecules","carbon dioxide","glucose","ATP"],0,"Photolysis of water in photosystem II supplies replacement electrons and releases O₂ as a by-product."],
+  ["Where does glycolysis take place and what does it yield?",["In the cytoplasm, splitting glucose into two molecules of pyruvate","In the mitochondrial matrix, releasing CO₂","In the thylakoid membrane, producing NADPH","In the nucleus, producing mRNA"],0,"Glycolysis needs no oxygen and no organelle, which is why nearly every organism performs it."],
+  ["In a eukaryotic cell, the Krebs (citric acid) cycle takes place in the…",["mitochondrial matrix","inner mitochondrial membrane","cytoplasm","thylakoid space"],0,"The matrix holds the cycle's enzymes; the inner membrane holds the electron transport chain."],
+  ["What role does oxygen play in aerobic cellular respiration?",["It is the final electron acceptor at the end of the electron transport chain","It donates the first electrons to the chain","It is split apart to release ATP directly","It combines with glucose during glycolysis"],0,"Oxygen picks up spent electrons and protons to form water, keeping the chain clear so it can keep pumping."],
+  ["What is the main purpose of fermentation for a cell?",["Regenerating NAD⁺ so that glycolysis can keep running without oxygen","Producing large amounts of ATP directly","Making oxygen for the electron transport chain","Rebuilding glucose from lactic acid"],0,"Fermentation makes almost no ATP itself; its job is recycling the electron carrier glycolysis depends on."],
+  ["DNA replication is called semiconservative because…",["each new double helix keeps one original strand and one newly made strand","both strands of each new molecule are newly made","the original molecule stays intact and an entirely new one is built","only one of the two products contains DNA"],0,"Each parent strand serves as the template for its partner, so half of every daughter molecule is inherited."],
+  ["Transcription differs from translation in that transcription…",["copies a DNA sequence into messenger RNA","joins amino acids together at the ribosome","copies DNA into a second DNA molecule","occurs only in prokaryotes"],0,"Transcription is DNA to RNA; translation is RNA to protein."],
+  ["What is a codon?",["A group of three mRNA bases that specifies one amino acid","A single mRNA base that specifies one amino acid","The part of a tRNA that carries the amino acid","A DNA sequence that switches a gene off"],0,"With four bases read three at a time there are 64 codons, enough to specify 20 amino acids plus stop signals."],
+  ["What does transfer RNA do during translation?",["Carries a specific amino acid and pairs its anticodon with an mRNA codon","Carries the genetic message out of the nucleus","Forms the outer wall of the ribosome","Unwinds the DNA double helix"],0,"The anticodon–codon match is what guarantees the right amino acid is added at the right position."],
+  ["A single nucleotide is deleted near the start of a gene. What is the most likely result?",["A frameshift that changes every codon downstream","A change to exactly one amino acid","No change at all, because the code is redundant","Duplication of the whole chromosome"],0,"Losing one base shifts the reading frame, so the ribosome misreads every triplet that follows."],
+  ["A point mutation changes a codon from GAA to GAG, and both specify glutamate. This is a…",["silent mutation","frameshift mutation","nonsense mutation","missense mutation"],0,"Because the genetic code is redundant, some base changes leave the protein completely unaltered."],
+  ["During which phase of the cell cycle is DNA replicated?",["S phase","G₁ phase","G₂ phase","M phase"],0,"Interphase runs G₁ → S → G₂, and synthesis of new DNA happens only in S."],
+  ["During which phase of mitosis do sister chromatids separate and move toward opposite poles?",["Anaphase","Prophase","Metaphase","Telophase"],0,"Spindle fibres shorten in anaphase, pulling the identical chromatids apart at the centromere."],
+  ["Which event happens in meiosis but never in mitosis?",["Homologous chromosomes pair up and cross over in prophase I","Sister chromatids separate","The nuclear envelope breaks down","DNA is replicated before division begins"],0,"Synapsis and crossing over between homologues are unique to meiosis and are a major source of variation."],
+  ["Meiosis of a single human cell (2n = 46) produces…",["four haploid cells with 23 chromosomes each","two diploid cells with 46 chromosomes each","four diploid cells with 46 chromosomes each","two haploid cells with 23 chromosomes each"],0,"Two divisions after one round of replication halve the chromosome number and give four products."],
+  ["A cross of AaBb × AaBb, with the two genes assorting independently, gives what phenotypic ratio?",["9:3:3:1","3:1","1:2:1","1:1:1:1"],0,"The classic dihybrid ratio comes from combining two independent 3:1 ratios."],
+  ["Crossing a red snapdragon (RR) with a white one (WW) yields all pink offspring. This pattern is…",["incomplete dominance","codominance","complete dominance","sex linkage"],0,"Neither allele fully masks the other, so the heterozygote shows an intermediate blend."],
+  ["A person with type AB blood expresses both A and B antigens on their red blood cells. This illustrates…",["codominance","incomplete dominance","epistasis","polygenic inheritance"],0,"Both alleles are fully and separately expressed rather than blending into something intermediate."],
+  ["Why is red–green colorblindness much more common in males than in females?",["Males have only one X chromosome, so a single recessive allele is expressed","The allele sits on the Y chromosome","Males inherit two copies of the allele","The allele is dominant only in males"],0,"A female needs the recessive allele on both X chromosomes, while a male needs only the one he has."],
+  ["In a population at Hardy–Weinberg equilibrium the recessive allele frequency q is 0.3. What fraction of the population is heterozygous?",["0.42","0.09","0.49","0.21"],0,"Heterozygotes are 2pq = 2 × 0.7 × 0.3 = 0.42."],
+  ["A hurricane wipes out most of an island population at random, and the survivors happen to have different allele frequencies. This is…",["genetic drift, specifically a bottleneck","natural selection","gene flow","directional selection"],0,"Chance, not fitness, changed the allele frequencies, which is the definition of drift."],
+  ["Stabilizing selection favors…",["individuals with intermediate phenotypes, narrowing the range of variation","one extreme phenotype over all others","both extremes at the expense of the middle","only individuals carrying brand-new mutations"],0,"Human birth weight is the standard example: very small and very large newborns both fare worse."],
+  ["On a phylogenetic tree, the node where two branches split represents…",["the most recent common ancestor of those two lineages","a fossil that has actually been discovered","the oldest living species on the tree","a species that is guaranteed to be extinct"],0,"Nodes are inferred ancestors; branch tips are the descendants being compared."],
+  ["Biologists say that energy flows through an ecosystem while matter cycles. This means…",["energy enters as sunlight and is eventually lost as heat, while atoms are reused indefinitely","energy is recycled while matter escapes into space","both energy and matter are recycled endlessly","matter is lost as heat while energy is reused"],0,"Heat cannot be recaptured for work, so energy needs constant resupply, but carbon and nitrogen atoms circulate."],
+  ["Primary succession differs from secondary succession because primary succession…",["begins on bare rock or new land where no soil exists yet","follows a fire that leaves the soil intact","never leads to a climax community","occurs only in aquatic ecosystems"],0,"Pioneer species such as lichens must build soil from scratch, which makes primary succession far slower."],
+  ["A keystone species is one that…",["has an effect on its community far out of proportion to its abundance","is simply the most numerous species present","is always the largest predator by body mass","is the only producer in the ecosystem"],0,"Sea otters are the classic case: few in number, but removing them collapses the kelp forest."],
+  ["A population that follows logistic growth produces an S-shaped curve because…",["growth slows as the population nears carrying capacity","resources remain unlimited the whole time","the population grows exponentially forever","predators are entirely absent"],0,"Limiting factors bite harder as density rises, so the growth rate falls toward zero at K."],
+  ["In negative feedback, the body's response to a change…",["counteracts the change and pushes the variable back toward its set point","amplifies the change and drives the variable further from the set point","has no measurable effect on the variable","permanently raises the set point"],0,"Most homeostatic controls, from body temperature to blood glucose, work this way."],
+  ["Blood glucose rises after a meal and the pancreas releases insulin. Insulin…",["signals body cells to take up glucose, lowering blood sugar","signals the liver to release stored glucose","raises blood sugar further","converts glucose into oxygen"],0,"Glucagon does the opposite job, and the two hormones together hold blood sugar in a narrow range."],
+  ["Oxygen moves from the alveoli into the blood by…",["diffusion down a concentration gradient across a thin, moist surface","active transport powered by ATP","osmosis of water carrying dissolved oxygen","filtration driven by muscular contraction"],0,"Alveoli are one cell thick and richly supplied with capillaries, which keeps the gradient steep."],
+  ["Which sequence correctly traces blood through the heart and lungs?",["Right atrium → right ventricle → lungs → left atrium → left ventricle","Left atrium → left ventricle → lungs → right atrium → right ventricle","Right atrium → left atrium → lungs → right ventricle → left ventricle","Left ventricle → lungs → right ventricle → left atrium → right atrium"],0,"Deoxygenated blood is pumped to the lungs from the right side and returns oxygenated to the left side."]
+];
+BANKS.TOPICS.bio=["Biochemistry","Macromolecules","Macromolecules","Macromolecules","Macromolecules","Enzymes","Enzymes","Enzymes","Enzymes","Cell structure","Cell structure","Cell structure","Cell structure","Cell transport","Cell transport","Cell transport","Cell transport","Photosynthesis","Photosynthesis","Photosynthesis","Cellular respiration","Cellular respiration","Cellular respiration","Cellular respiration","DNA & replication","Protein synthesis","Protein synthesis","Protein synthesis","Mutations","Mutations","Cell cycle & mitosis","Cell cycle & mitosis","Meiosis","Meiosis","Mendelian genetics","Non-Mendelian genetics","Non-Mendelian genetics","Non-Mendelian genetics","Population genetics","Population genetics","Evolution","Classification","Ecology","Ecology","Ecology","Population ecology","Homeostasis","Homeostasis","Human body systems","Human body systems"];
+BANKS.TEST_QUESTIONS.bio=[
+  ["Water is pulled up a tall tree in an unbroken column mainly because of…",["cohesion between water molecules, caused by hydrogen bonding","water's unusually low specific heat","the nonpolar nature of the water molecule","active transport by cells in the xylem"],0,"Hydrogen bonds hold the column together so that evaporation at the leaves can pull water up from the roots.","Biochemistry"],
+  ["Dehydration synthesis builds a polymer by…",["removing a molecule of water as each monomer is attached","adding a molecule of water to break each bond","transferring electrons from one monomer to the next","using RNA as a template for the monomers"],0,"Hydrolysis is the reverse reaction, using water to split polymers back into monomers.","Macromolecules"],
+  ["An enzyme with an optimum pH of about 2 is most likely found in the…",["stomach","small intestine","bloodstream","mitochondrial matrix"],0,"Pepsin works in the stomach's strongly acidic environment; most other human enzymes prefer near-neutral pH.","Enzymes"],
+  ["A noncompetitive inhibitor slows an enzyme by binding…",["to a site away from the active site, changing the enzyme's shape","directly inside the active site","to the substrate and chemically destroying it","to the ribosome so the enzyme is never made"],0,"Because it does not compete for the active site, adding more substrate does not relieve the inhibition.","Enzymes"],
+  ["Which organelle would you expect to be especially abundant in a continuously contracting heart muscle cell?",["Mitochondria","Chloroplasts","Lysosomes","Large central vacuoles"],0,"Constant contraction demands a constant supply of ATP.","Cell structure"],
+  ["A protein destined to be secreted from the cell follows which route?",["Rough ER → Golgi → vesicle → plasma membrane","Nucleus → lysosome → mitochondrion → membrane","Golgi → rough ER → nucleus → membrane","Ribosome → mitochondrion → cell wall → membrane"],0,"The endomembrane system synthesises, processes, and then ships the protein out by exocytosis.","Cell structure"],
+  ["A red blood cell placed in distilled water swells and bursts. The distilled water is…",["hypotonic to the cell","hypertonic to the cell","isotonic to the cell","saturated with solute"],0,"With less solute outside, water rushes in, and an animal cell has no wall to resist the pressure.","Cell transport"],
+  ["Which substance crosses a phospholipid bilayer most easily with no help from proteins?",["Oxygen, a small nonpolar molecule","A sodium ion","A glucose molecule","A globular protein"],0,"The hydrophobic core of the bilayer blocks charged and large polar particles but not small nonpolar gases.","Cell transport"],
+  ["Chlorophyll a appears green because it absorbs…",["red and blue light strongly while reflecting green","green light strongly while reflecting red","all wavelengths equally","only ultraviolet light"],0,"We see the wavelengths a pigment fails to absorb.","Photosynthesis"],
+  ["The Calvin cycle consumes which two products of the light-dependent reactions?",["ATP and NADPH","ATP and O₂","NADH and FADH₂","CO₂ and H₂O"],0,"NADPH supplies the electrons and ATP supplies the energy to reduce carbon dioxide to sugar.","Photosynthesis"],
+  ["What is the correct order of the stages of aerobic respiration?",["Glycolysis, Krebs cycle, electron transport chain","Krebs cycle, glycolysis, electron transport chain","Electron transport chain, glycolysis, Krebs cycle","Glycolysis, electron transport chain, Krebs cycle"],0,"Glucose is split first, the fragments are oxidised in the cycle, and the harvested electrons feed the chain last.","Cellular respiration"],
+  ["Which molecules deliver electrons to the electron transport chain?",["NADH and FADH₂","ATP and ADP","NADPH and ATP","Pyruvate and citrate"],0,"These reduced carriers are loaded during glycolysis and the Krebs cycle and unloaded at the inner membrane.","Cellular respiration"],
+  ["Human muscle cells running short of oxygen during hard exercise produce…",["lactic acid by fermentation","ethanol and carbon dioxide","glucose and oxygen","citric acid in the Krebs cycle"],0,"Yeast performs alcoholic fermentation, but animal cells convert pyruvate to lactate instead.","Cellular respiration"],
+  ["One strand of DNA reads 5'-TACGGA-3'. What is the complementary strand?",["3'-ATGCCT-5'","3'-AUGCCU-5'","3'-TACGGA-5'","3'-GCATTC-5'"],0,"A pairs with T and G with C, and the two strands run antiparallel.","DNA & replication"],
+  ["The DNA template triplet TAC is transcribed into which mRNA codon?",["AUG","ATG","UAC","TAC"],0,"RNA uses uracil in place of thymine, and each template base pairs with its complement.","Protein synthesis"],
+  ["Why is AUG significant in the genetic code?",["It is the start codon and codes for methionine","It is a stop codon","It codes for tryptophan","It marks the boundary of an intron"],0,"Ribosomes begin translating at the first AUG, so every new polypeptide starts with methionine.","Protein synthesis"],
+  ["A point mutation that converts an amino acid codon into a stop codon is called a…",["nonsense mutation","silent mutation","frameshift mutation","chromosomal duplication"],0,"Translation halts early, producing a truncated and usually nonfunctional protein.","Mutations"],
+  ["Cytokinesis in an animal cell happens when…",["a cleavage furrow pinches the membrane inward","a cell plate forms across the middle of the cell","the rigid cell wall splits down the centre","the nucleolus divides into two"],0,"Plant cells build a cell plate instead, because a rigid wall cannot be pinched.","Cell cycle & mitosis"],
+  ["A human cell completing meiosis I produces cells containing…",["23 chromosomes, each still made of two sister chromatids","46 single-chromatid chromosomes","23 single-chromatid chromosomes","92 chromosomes"],0,"Meiosis I separates homologous pairs; the chromatids do not split until meiosis II.","Meiosis"],
+  ["Independent assortment during meiosis means that…",["homologous pairs line up randomly at the metaphase plate, shuffling allele combinations","sister chromatids always separate in anaphase II","DNA is replicated once before the two divisions","crossing over occurs between sister chromatids"],0,"With 23 pairs orienting randomly, a human can produce more than 8 million chromosome combinations.","Meiosis"],
+  ["A man with blood genotype IAi and a woman with IBi have children. Which blood types are possible?",["A, B, AB, or O","AB only","A or B only","O only"],0,"The four gamete combinations give IAIB, IAi, IBi, and ii, one of each type.","Non-Mendelian genetics"],
+  ["Two unaffected parents have a daughter who shows a genetic disorder. The trait is most likely…",["autosomal recessive","autosomal dominant","Y-linked","X-linked dominant"],0,"Both parents must be carriers; an X-linked recessive daughter would require an affected father.","Mendelian genetics"],
+  ["In a Hardy–Weinberg population, 16% of individuals show the recessive phenotype. What is the recessive allele frequency?",["0.4","0.16","0.6","0.84"],0,"q² = 0.16, so q is the square root, 0.4.","Population genetics"],
+  ["Which set of conditions is required for a population to remain in Hardy–Weinberg equilibrium?",["No selection, no mutation, no migration, random mating, and a large population","Strong and constant selection pressure","Frequent migration in and out of the population","A very small breeding population"],0,"These five conditions describe a population that is not evolving, which is why real populations depart from them.","Population genetics"],
+  ["The wing of a bird and the wing of an insect are analogous structures, which is evidence of…",["convergent evolution under similar selection pressures","descent from a recent common ancestor","genetic drift in small populations","artificial selection by humans"],0,"Similar function evolved independently, so the underlying anatomy is completely different.","Evolution"],
+  ["A cladogram groups organisms according to…",["shared derived characteristics that indicate common ancestry","similarity in overall body size","the habitat in which they live","the alphabetical order of their names"],0,"Each branch point marks the origin of a new trait shared by everything above it.","Classification"],
+  ["In the nitrogen cycle, denitrifying bacteria…",["convert nitrates in the soil back into nitrogen gas","convert nitrogen gas into ammonia","convert ammonia into nitrites","live in root nodules and fix nitrogen"],0,"Denitrification returns nitrogen to the atmosphere, completing the cycle.","Ecology"],
+  ["When body temperature rises, the body sweats and blood vessels in the skin dilate. This is…",["negative feedback maintaining homeostasis","positive feedback amplifying the original change","a mutation triggered by high temperature","the active transport of heat out of the body"],0,"The response opposes the change and brings temperature back toward the set point.","Homeostasis"],
+  ["Which sequence correctly traces inhaled air to the site of gas exchange?",["Trachea → bronchi → bronchioles → alveoli","Trachea → alveoli → bronchioles → bronchi","Bronchi → trachea → alveoli → bronchioles","Bronchioles → alveoli → trachea → bronchi"],0,"The airway branches into ever smaller tubes ending in the thin-walled alveolar sacs.","Human body systems"],
+  ["A neuron carries a signal along its axon as…",["an electrical impulse called an action potential","a slow wave of ATP molecules","a hormone released into the bloodstream","a mechanical vibration of the cell wall"],0,"Ion movements across the membrane propagate the impulse, and only at the synapse does it become chemical.","Human body systems"]
+];
+BANKS.CHALLENGE_QUESTIONS.bio=[
+  ["Why is water's high heat of vaporization useful to a sweating mammal?",["Evaporating a small amount of water carries away a large amount of body heat","Water freezes at an unusually high temperature","Water has a very low specific heat","Water is nonpolar and evaporates almost instantly"],0,"Breaking the hydrogen bonds that hold liquid water together takes energy, and that energy leaves with the vapour.","Biochemistry"],
+  ["Membranes stiffen in the cold. Many organisms compensate by…",["increasing the proportion of unsaturated fatty acids in their phospholipids","increasing the proportion of saturated fatty acids","removing all proteins from the membrane","replacing phospholipids with cellulose"],0,"Kinked unsaturated tails cannot pack tightly, so the bilayer stays fluid at lower temperatures.","Cell transport"],
+  ["Cyanide blocks the final enzyme of the electron transport chain. Why is this rapidly fatal even though glycolysis still runs?",["The proton gradient collapses, so nearly all ATP production stops and glycolysis alone cannot meet demand","Glycolysis also shuts down within seconds","The cell can no longer absorb glucose","Cyanide dissolves the nuclear envelope"],0,"The chain supplies the overwhelming majority of a cell's ATP; the two net ATP from glycolysis are nowhere near enough.","Cellular respiration"],
+  ["Why do C4 and CAM plants separate initial carbon fixation from the Calvin cycle in space or in time?",["To limit photorespiration when stomata must close in hot, dry conditions","To avoid producing any oxygen at all","Because they contain no chlorophyll","To carry out respiration instead of photosynthesis"],0,"Closed stomata let O₂ build up, and these strategies keep CO₂ concentrated where rubisco works.","Photosynthesis"],
+  ["Okazaki fragments form on the lagging strand because…",["DNA polymerase can only add nucleotides in the 5' → 3' direction","the lagging strand is made of RNA rather than DNA","helicase can unwind DNA in only one direction","the lagging strand has no template to copy"],0,"One new strand runs opposite to the fork's movement, so it must be built in short backward pieces and then joined.","DNA & replication"],
+  ["The genetic code is described as degenerate, or redundant, because…",["several different codons can specify the same amino acid","a single codon can specify several different amino acids","many codons specify nothing at all","the code differs completely from species to species"],0,"There are 64 codons for 20 amino acids, so most amino acids have more than one codon.","Protein synthesis"],
+  ["Before eukaryotic pre-mRNA leaves the nucleus it is processed by…",["removing introns and splicing exons together, plus adding a cap and poly-A tail","translating it directly into protein","converting all of its uracil back into thymine","replicating it semiconservatively"],0,"Splicing also lets one gene produce several different proteins depending on which exons are kept.","Protein synthesis"],
+  ["The lac operon model explains how bacteria…",["switch groups of related genes on and off in response to their environment","replicate their circular chromosome","undergo meiosis to produce gametes","carry out photosynthesis without chloroplasts"],0,"A repressor blocks transcription until lactose is present, so the enzymes are made only when useful.","Protein synthesis"],
+  ["Every cell in your body carries the same DNA, yet a neuron and a liver cell are utterly different. Why?",["Different sets of genes are expressed in each cell type","Each cell keeps only the genes it needs and discards the rest","Neurons carry twice as many chromosomes","Liver cells have no nucleus"],0,"Regulation of gene expression, not different genomes, produces different cell types.","Protein synthesis"],
+  ["Why does crossing over add more variation than independent assortment could produce on its own?",["It creates entirely new allele combinations within a single chromosome","It doubles the number of chromosomes in each gamete","It produces chromatids that are exactly identical","It eliminates recessive alleles from the population"],0,"Independent assortment only reshuffles whole chromosomes; crossing over recombines the genes inside them.","Meiosis"],
+  ["A lethal recessive allele can persist in a population for many generations because…",["heterozygous carriers are unaffected and continue to pass it on","the allele mutates back and forth constantly","selection actively favors the homozygous recessive genotype","the allele becomes dominant in females"],0,"Selection can only act on the phenotype, and carriers hide the allele from it.","Population genetics"],
+  ["The sickle cell allele remains common in regions where malaria is widespread because…",["heterozygotes resist malaria, giving them a survival advantage","homozygous recessive individuals are immune to malaria","malaria itself causes the sickle cell mutation","the allele has no effect on survival either way"],0,"Heterozygote advantage keeps both alleles in the population, a balance called balancing selection.","Population genetics"],
+  ["A new river divides one population into two, and over many generations they can no longer interbreed. This is…",["allopatric speciation","sympatric speciation","convergent evolution","artificial selection"],0,"Geographic isolation blocks gene flow, and the separated groups diverge until reproductive isolation is complete.","Evolution"],
+  ["A handful of birds blown to an uninhabited island start a population whose allele frequencies differ from the mainland's. This is the…",["founder effect","bottleneck effect","gene flow effect","stabilizing selection effect"],0,"A small founding sample carries only part of the original gene pool, purely by chance.","Evolution"],
+  ["Blood clotting, in which activated platelets recruit still more platelets, is an example of…",["positive feedback","negative feedback","competitive inhibition","osmoregulation"],0,"The response amplifies the original stimulus until the clot is complete, then a separate signal stops it.","Homeostasis"],
+  ["Why does a diet lacking essential amino acids harm the body even when total calories are adequate?",["The body cannot synthesise those amino acids, so protein synthesis stalls","Calories cannot be absorbed at all without them","They are needed to carry oxygen in red blood cells","They form the sugar-phosphate backbone of DNA"],0,"A missing essential amino acid halts every protein that requires it, no matter how much energy is available.","Macromolecules"]
+];
+BANKS.AP_QUESTIONS.bio=[
+  ["An enzyme's activity climbs from 10°C to a peak at 40°C, then falls to zero by 60°C. The fall is best explained by…",["denaturation of the enzyme above its optimum temperature","the substrate running out only at high temperature","fewer molecular collisions occurring at higher temperature","the enzyme being consumed by the reaction"],0,"Above the optimum the weak bonds holding the tertiary structure break, and the active site loses its shape.","Enzymes"],
+  ["Adding an inhibitor raises the substrate concentration needed to reach maximum rate, but the maximum rate itself is unchanged. The inhibitor is…",["competitive, because enough substrate can outcompete it for the active site","noncompetitive, because it lowers the maximum rate","a catalyst that speeds the reaction","permanently denaturing the enzyme"],0,"Only a competitive inhibitor can be overwhelmed by substrate, leaving the maximum rate intact.","Enzymes"],
+  ["A dialysis bag holding 20% sucrose is placed in a beaker of 5% sucrose. After 30 minutes the bag's mass has increased. Why?",["Water moved into the bag, toward the higher solute concentration","Sucrose moved into the bag through the membrane","Water moved out of the bag into the beaker","The bag actively transported water inward using ATP"],0,"The membrane passes water but not sucrose, so water moves down its own gradient into the bag.","Cell transport"],
+  ["A plant's photosynthetic rate rises with light intensity and then plateaus; raising CO₂ concentration then raises the plateau. This shows that…",["CO₂ became the limiting factor once light was saturating","light intensity is never a limiting factor","the plant had stopped respiring","high light had destroyed the chlorophyll"],0,"Whichever requirement is in shortest supply caps the rate, and relieving it lifts the ceiling.","Photosynthesis"],
+  ["A chemical makes the inner mitochondrial membrane freely permeable to protons. The immediate consequence is that…",["the proton gradient collapses and ATP synthase stops making ATP","glycolysis halts in the cytoplasm","far more ATP is produced than before","the mitochondrion begins producing oxygen"],0,"Chemiosmosis depends entirely on the stored gradient; without it the electron transport chain runs but no ATP is made.","Cellular respiration"],
+  ["In a respirometer, germinating peas consume oxygen far faster than dry dormant peas. The best explanation is that…",["germinating seeds have much higher rates of cellular respiration","dry seeds photosynthesise instead of respiring","germinating seeds are undergoing fermentation only","dry seeds contain more mitochondria per cell"],0,"Germination requires energy for growth, so respiration rate rises sharply.","Cellular respiration"],
+  ["Bacteria grown in heavy ¹⁵N are transferred to ¹⁴N. After two rounds of replication, half the DNA is of intermediate density and half is light. This supports…",["semiconservative replication","conservative replication","dispersive replication","the idea that protein is the genetic material"],0,"Dispersive replication would give a single uniform intermediate band; conservative would give heavy and light only.","DNA & replication"],
+  ["Inserting one nucleotide in the middle of a gene destroys the protein's function, while substituting one nucleotide at the same spot does not. Why?",["The insertion shifted the reading frame, altering every codon downstream","The substitution deleted the gene's promoter","The insertion changed only a single amino acid","Insertions cannot affect a protein at all"],0,"A substitution changes at most one codon; an insertion garbles all of them from that point on.","Mutations"],
+  ["In gel electrophoresis, DNA fragments migrate toward the positive electrode and the smallest travel farthest because…",["DNA carries a negative charge and small fragments slip through the gel more easily","DNA carries a positive charge","larger fragments carry more charge and move faster","the gel actively repels small fragments"],0,"The phosphate backbone supplies the negative charge, and the gel acts as a molecular sieve.","DNA & replication"],
+  ["A karyotype shows three copies of chromosome 21. The most likely cause is…",["nondisjunction during meiosis","a frameshift mutation in a single gene","normal crossing over in prophase I","a deletion during DNA replication"],0,"When a homologous pair or chromatid pair fails to separate, a gamete ends up with an extra chromosome.","Meiosis"],
+  ["A dihybrid cross produces offspring in a 9:3:3:1 phenotypic ratio. This indicates that the two genes…",["assort independently, on different chromosomes","are tightly linked on the same chromosome","both show incomplete dominance","are both located on the X chromosome"],0,"The 9:3:3:1 ratio is exactly what independent assortment of two heterozygous gene pairs predicts.","Mendelian genetics"],
+  ["A dihybrid cross yields mostly parental phenotypes with only a small percentage of recombinants. This suggests the two genes are…",["linked on the same chromosome, with recombinants produced by crossing over","on separate chromosomes and assorting independently","identical alleles of the same gene","lethal whenever they occur together"],0,"Linkage keeps parental combinations together, and only a crossover between the loci breaks them apart.","Mendelian genetics"],
+  ["In a population of 500 beetles, 20 show the homozygous recessive phenotype. Assuming Hardy–Weinberg equilibrium, what is the frequency of the dominant allele?",["0.8","0.2","0.04","0.96"],0,"q² = 20/500 = 0.04, so q = 0.2 and p = 1 − 0.2 = 0.8.","Population genetics"],
+  ["After a drought leaves only large, hard seeds, average beak depth in a finch population shifts steadily upward over several generations. This is…",["directional selection","stabilizing selection","disruptive selection","genetic drift"],0,"Selection consistently favours one extreme of the trait, so the whole distribution shifts that way.","Evolution"],
+  ["A long-term graph shows lynx numbers peaking roughly a year after each peak in snowshoe hare numbers, over and over. The best explanation is that…",["predator numbers rise in response to abundant prey and then fall as prey decline","lynx cause hares to reproduce more quickly","the two populations are ecologically unrelated","hares prey on lynx during winter"],0,"Predator and prey populations oscillate with a lag because each responds to the other's abundance.","Ecology"],
+  ["After a glucose drink, a patient's blood glucose stays elevated for hours instead of returning to baseline. This most likely indicates a problem with…",["insulin production or the insulin receptors on body cells","haemoglobin in the red blood cells","the electron transport chain in muscle mitochondria","the sodium–potassium pump in neurons"],0,"Insulin is the signal that drives glucose out of the blood and into cells, so failure of that signal keeps it high.","Homeostasis"]
+];
+BANKS.SEED_CARDS.bio=[
+  ["Name the four biological macromolecules and their monomers.","Carbohydrates (monosaccharides), lipids (fatty acids and glycerol), proteins (amino acids), nucleic acids (nucleotides)."],
+  ["How does an enzyme speed up a reaction?","It lowers the activation energy by binding the substrate in its active site; it is not used up."],
+  ["What does it mean to denature an enzyme?","Heat or extreme pH breaks the weak bonds holding its shape, so the active site no longer fits the substrate."],
+  ["Competitive vs noncompetitive inhibition?","A competitive inhibitor blocks the active site and can be outcompeted by more substrate; a noncompetitive one binds elsewhere and changes the enzyme's shape."],
+  ["What do the rough ER, Golgi, and lysosome each do?","Rough ER synthesises proteins, the Golgi modifies and packages them, and lysosomes digest waste and worn-out organelles."],
+  ["What is the fluid mosaic model?","The membrane is a fluid phospholipid bilayer with proteins, cholesterol, and carbohydrates embedded and drifting in it."],
+  ["Hypertonic, hypotonic, isotonic — what happens to a cell in each?","Hypertonic: the cell loses water and shrinks. Hypotonic: it gains water and swells. Isotonic: no net movement."],
+  ["Passive vs active transport?","Passive transport moves substances down the gradient with no ATP; active transport moves them against the gradient and costs ATP."],
+  ["Where do the light reactions and the Calvin cycle take place?","Light reactions in the thylakoid membranes; the Calvin cycle in the stroma."],
+  ["What do the light-dependent reactions produce?","ATP, NADPH, and O₂ (the oxygen comes from splitting water)."],
+  ["What does the Calvin cycle need and what does it make?","It uses CO₂, ATP, and NADPH to build G3P, which becomes glucose."],
+  ["Name the three stages of aerobic respiration and where each occurs.","Glycolysis in the cytoplasm, the Krebs cycle in the mitochondrial matrix, the electron transport chain on the inner mitochondrial membrane."],
+  ["What is oxygen's role in respiration?","It is the final electron acceptor of the electron transport chain, combining with electrons and protons to form water."],
+  ["Why does a cell ferment?","To regenerate NAD⁺ so glycolysis can keep producing its 2 net ATP when oxygen is unavailable."],
+  ["What are the two types of fermentation?","Lactic acid fermentation (animal muscle, some bacteria) and alcoholic fermentation (yeast, producing ethanol and CO₂)."],
+  ["What does semiconservative replication mean?","Each new DNA molecule contains one original strand and one newly synthesised strand."],
+  ["Name three enzymes of DNA replication and their jobs.","Helicase unwinds the helix, DNA polymerase adds nucleotides 5' to 3', and ligase joins the Okazaki fragments."],
+  ["How does RNA differ from DNA?","RNA has ribose instead of deoxyribose, uracil instead of thymine, and is usually single-stranded."],
+  ["Transcription vs translation — what and where?","Transcription copies DNA into mRNA in the nucleus; translation builds a polypeptide from mRNA at the ribosome."],
+  ["Codon vs anticodon?","A codon is three mRNA bases coding for one amino acid; the anticodon is the complementary triplet on tRNA."],
+  ["What is the start codon and what does it code for?","AUG, which codes for methionine."],
+  ["Name the three kinds of point mutation.","Silent (no amino acid change), missense (one amino acid changed), and nonsense (an early stop codon)."],
+  ["List the phases of the cell cycle.","Interphase (G₁ growth, S DNA synthesis, G₂ preparation) followed by mitosis and cytokinesis."],
+  ["List the stages of mitosis in order and what happens in each.","Prophase (chromosomes condense, envelope breaks down), metaphase (chromosomes align at the equator), anaphase (sister chromatids separate), telophase (nuclei re-form)."],
+  ["How does meiosis differ from mitosis?","Meiosis has two divisions, includes crossing over and independent assortment, and produces four genetically unique haploid cells instead of two identical diploid ones."],
+  ["What is crossing over and when does it happen?","Homologous chromosomes exchange segments during prophase I, creating new allele combinations."],
+  ["Incomplete dominance vs codominance?","Incomplete dominance blends the two alleles (red × white = pink); codominance shows both fully and separately (type AB blood)."],
+  ["What is a test cross and why use one?","Crossing an individual showing the dominant phenotype with a homozygous recessive to reveal whether it is homozygous or heterozygous."],
+  ["State the two Hardy–Weinberg equations.","p + q = 1 and p² + 2pq + q² = 1, where p² is homozygous dominant, 2pq heterozygous, and q² homozygous recessive."],
+  ["Name the three modes of natural selection.","Directional (favours one extreme), stabilizing (favours the intermediate), and disruptive (favours both extremes)."]
+];
+BANKS.CHALLENGE_CARDS.bio=[
+  ["Explain chemiosmosis.","Electron transport pumps protons into the intermembrane space; the protons flow back through ATP synthase, and that flow drives the synthesis of ATP."],
+  ["Why does the lagging strand form Okazaki fragments?","DNA polymerase only builds 5' to 3', so the strand running opposite the replication fork must be made in short pieces that ligase later joins."],
+  ["What happens during eukaryotic mRNA processing?","Introns are spliced out and exons joined, a 5' cap is added, and a poly-A tail is attached before the mRNA leaves the nucleus."],
+  ["Why does the sickle cell allele stay common where malaria is endemic?","Heterozygotes resist malaria while avoiding sickle cell disease, so balancing selection keeps both alleles in the gene pool."],
+  ["Founder effect vs bottleneck effect?","Both are genetic drift: the founder effect comes from a few individuals starting a new population, the bottleneck from a crash that leaves a small, unrepresentative sample."],
+  ["How do cells with identical DNA become different cell types?","Through regulated gene expression — transcription factors switch different sets of genes on and off in each cell type."]
+];
+BANKS.FEYNMAN_TOPICS.bio=["How an enzyme's shape controls what reaction it can catalyse","Why enzyme activity levels off as substrate concentration rises","What the fluid mosaic model says about a membrane","Why a plant cell plasmolyses in salt water but an animal cell just shrinks","How the light reactions and the Calvin cycle hand off to each other","What actually happens to a glucose molecule during aerobic respiration","Why chemiosmosis needs a proton gradient","What semiconservative replication means and how Meselson and Stahl showed it","The difference between transcription and translation, step by step","Why a frameshift mutation is usually worse than a substitution","How meiosis produces four genetically unique cells","How to read a Punnett square for a dihybrid cross","What the Hardy-Weinberg equation tells you about a population","How negative feedback keeps blood glucose steady"];
+BANKS.RESOURCES.bio=[
+  {type:"Course",title:"Khan Academy — High School Biology",note:"Full free course with videos and practice, aligned to a standard 9th-grade biology sequence.",url:"https://www.khanacademy.org/science/hs-bio"},
+  {type:"Video",title:"Amoeba Sisters",note:"Short, unusually clear cartoons — the best first stop when a topic will not click.",url:"https://www.amoebasisters.com/"},
+  {type:"Video",title:"Crash Course Biology",note:"Fast ten-minute overviews of each unit; use them for review, not first exposure.",url:"https://thecrashcourse.com/topic/biology/"},
+  {type:"Reference",title:"HHMI BioInteractive",note:"Free films, click-and-learn modules, and real research data sets on evolution, genetics, and ecology.",url:"https://www.biointeractive.org/"},
+  {type:"Tool",title:"PhET — Gene Expression Essentials",note:"Build a gene, transcribe it, translate it, and watch the protein appear.",url:"https://phet.colorado.edu/en/simulations/gene-expression-essentials"},
+  {type:"Practice",title:"CK-12 Biology",note:"Readings with embedded practice questions and instant feedback, chapter by chapter.",url:"https://www.ck12.org/c/biology/"}
+];
 /* Stamp each practice question with its topic, so topicOf() can read it straight
    off the question instead of trying to find it by index - randomizeChoices()
    copies the array, which makes an indexOf lookup miss. */
@@ -9988,6 +10352,13 @@ try{
   _setn('land-l-badges',_nBa+' badges to hunt down');
   _setn('land-l-shop',_nTh+' themes, '+_nAv+' avatars');
   _setn('land-l-cardxp','A flat '+CARD_XP.toLocaleString()+' XP per flashcard');
+  /* counted, not guessed — de-duplicated across every bank and difficulty tier */
+  var _seen={},_nQ=0;
+  [BANKS.QUESTIONS,BANKS.TEST_QUESTIONS,BANKS.AP_QUESTIONS,BANKS.CHALLENGE_QUESTIONS,
+   QUESTIONS,TEST_QUESTIONS,AP_QUESTIONS,CHALLENGE_QUESTIONS].forEach(function(o){
+    Object.keys(o||{}).forEach(function(k){(o[k]||[]).forEach(function(q){
+      var p=String(q&&q[0]); if(!_seen[p]){_seen[p]=1;_nQ++;} });});});
+  if(_nQ)_setn('land-n-q',(Math.floor(_nQ/100)*100).toLocaleString()+'+');
 }catch(e){}
 
 /* Fill the sign-in page's rank ladder from the same table the app uses. */

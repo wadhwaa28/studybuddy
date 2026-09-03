@@ -616,7 +616,7 @@
       </div>
     </div>
     <h2 class="land-h2">Climb the ranks</h2>
-    <p class="land-h2-sub">Twenty-nine tiers stand between your first flashcard and total mastery. Everyone starts at Iron; almost nobody reaches Kyawthuite.</p>
+    <p class="land-h2-sub"><span id="land-n-ranks3">30</span> tiers stand between your first flashcard and total mastery. Everyone starts at Iron; almost nobody reaches Kyawthuite.</p>
     <div class="land-ranks" id="land-ranks"></div>
     <h2 class="land-h2">Everything you need to study smarter</h2>
     <p class="land-h2-sub">Six tools that work together to help you learn, remember, and stay on top of your work.</p>
@@ -1534,6 +1534,10 @@ function variantCourse(bank){
               10 Chemistry · 11 Physics · 12 AP Biology
      social   6 Ancient civilisations · 7 World History · 8 US History ·
               9 Civics · 10 World History · 11 US History · 12 Gov & Economics
+     Spanish  6 Exploratory · 7 Spanish 1A · 8 Spanish 1B · 9 Spanish 2 ·
+              10 Spanish 3 · 11 Spanish 4 · 12 AP Spanish
+              (1A and 1B are the two halves of Spanish 1, the usual middle-school
+              split, so the level actually rises every single year)
 
    The social-studies repeats are deliberate and match how schools actually
    teach it: early world history in 7 and modern in 10, founding-era US in 8
@@ -1541,19 +1545,19 @@ function variantCourse(bank){
    --------------------------------------------------------------------------- */
 const GRADE_PRESETS = {
   6:[variantCourse("math6"),   variantCourse("ela6"),  variantCourse("sci6"),
-     variantCourse("ss6"),     {id:"spa",name:"Spanish 1",bank:"spa"}],
+     variantCourse("ss6"),     {id:"spa",name:"Exploratory Spanish",bank:"spa"}],
   7:[variantCourse("prealg"),  variantCourse("ela7"),  variantCourse("life"),
-     variantCourse("world"),   {id:"spa",name:"Spanish 1",bank:"spa"}],
+     variantCourse("world"),   {id:"spa",name:"Spanish 1A",bank:"spa"}],
   8:[variantCourse("alg1"),    {id:"ela",name:"English 8",bank:"ela"}, variantCourse("phys"),
-     {id:"his",name:"US History",bank:"his"}, {id:"spa",name:"Spanish 1",bank:"spa"}],
+     {id:"his",name:"US History",bank:"his"}, {id:"spa",name:"Spanish 1B",bank:"spa"}],
   9:[variantCourse("geom"),    {id:"ela",name:"English 9",bank:"ela"}, variantCourse("bio"),
-     {id:"his",name:"Civics",bank:"govecon"}, {id:"spa",name:"Spanish 1",bank:"spa"}],
+     {id:"his",name:"Civics",bank:"govecon"}, {id:"spa",name:"Spanish 2",bank:"spa"}],
   10:[{id:"alg",name:"Algebra 2",bank:"alg"}, {id:"ela",name:"English 10",bank:"ela"},
-     variantCourse("chem"),    variantCourse("world"), {id:"spa",name:"Spanish 2",bank:"spa"}],
+     variantCourse("chem"),    variantCourse("world"), variantCourse("spa3")],
   11:[variantCourse("precalc"),{id:"ela",name:"English 11",bank:"ela"}, {id:"sci",name:"Physics",bank:"sci"},
-     {id:"his",name:"US History",bank:"his"}, variantCourse("spa3")],
+     {id:"his",name:"US History",bank:"his"}, variantCourse("spa4")],
   12:[variantCourse("calc"),   {id:"ela",name:"English 12",bank:"ela"}, {id:"sci",name:"AP Biology",bank:"bio"},
-     variantCourse("govecon"), variantCourse("spa4")]
+     variantCourse("govecon"), {id:"spa",name:"AP Spanish",bank:"spa4"}]
 };
 const GRADES=[6,7,8,9,10,11,12];
 const DEFAULT_GRADE=9;
@@ -9545,6 +9549,7 @@ var RANKS=[
   {at:148,name:'Musgravite',    c:'#7a8f74'},
   {at:167,name:'Jeremejevite',  c:'#7fc4e8'},
   {at:183,name:'Serendibite',   c:'#2e7d78'},   /* for years, fewer than ten faceted stones were known */
+  {at:191,name:'Poudretteite',  c:'#c77fd0'},   /* a few faceted stones exist, all from one Quebec quarry */
   {at:200,name:'Kyawthuite',    c:'#e8703a'}    /* one specimen exists. There is no rank above this. */
 ];
 function rankOf(l){var r=RANKS[0];for(var i=0;i<RANKS.length;i++){if(l>=RANKS[i].at)r=RANKS[i];}return r;}
@@ -10348,7 +10353,7 @@ try{
   var _nTh=Object.keys(THEMES).length, _nBa=BADGES.length,
       _nAv=AVATARS.length, _nRk=RANKS.length;
   _setn('land-n-themes',_nTh); _setn('land-n-badges',_nBa);
-  _setn('land-n-ranks',_nRk);  _setn('land-n-ranks2',_nRk);
+  _setn('land-n-ranks',_nRk);  _setn('land-n-ranks2',_nRk); _setn('land-n-ranks3',_nRk);
   _setn('land-l-badges',_nBa+' badges to hunt down');
   _setn('land-l-shop',_nTh+' themes, '+_nAv+' avatars');
   _setn('land-l-cardxp','A flat '+CARD_XP.toLocaleString()+' XP per flashcard');

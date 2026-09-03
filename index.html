@@ -10871,9 +10871,32 @@ window.ccAddToDeck=function(){
   return r;
 };
 
+/* ---------------------------------------------------------------------------
+   The focus-chain badge is position:fixed, so it floats above whatever page is
+   open. It was only ever cleared on the NEXT graded card, which meant two ways
+   for it to get stranded: navigate away mid-chain and it followed you around
+   the whole app, or simply stop reviewing and it sat there for the rest of the
+   session. It belongs to a live run of flashcards, so it is shown only while
+   one is actually on screen and still inside the chain window.
+   --------------------------------------------------------------------------- */
+function chainLive(){
+  var p=$('page-recall');
+  if(!p||!p.classList.contains('active'))return false;      /* not on flashcards */
+  if(!ARC.combo||ARC.combo<3)return false;                  /* no chain to show  */
+  if(ARC.lastGrade&&(Date.now()-ARC.lastGrade)>CHAIN_WINDOW)return false; /* lapsed */
+  return true;
+}
+function syncChainBadge(){
+  var el=$('arc-combo');if(!el)return;
+  if(!chainLive())el.classList.remove('show');
+}
+/* Catches leaving the page, and the chain quietly timing out while idle. */
+setInterval(syncChainBadge,1000);
+
 /* Navigation — teach go() about the Arcade page it doesn't know exists. */
 window.go=function(p){
   var page=$('page-arcade');
+  setTimeout(syncChainBadge,0);   /* after the new page becomes .active */
   if(p==='arcade'){
     /* record it, or the restore-on-boot below can never fire */
     if(DB&&typeof DB==='object')DB.lastPage='arcade';

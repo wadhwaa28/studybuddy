@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study Buddy — Focus Mode</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='17' fill='%23c67c4e'/%3E%3Ccircle cx='32' cy='21' r='9' fill='%23fdfaf3'/%3E%3Ccircle cx='29' cy='20' r='1.5' fill='%233f382f'/%3E%3Ccircle cx='35' cy='20' r='1.5' fill='%233f382f'/%3E%3Cpath d='M29 23.5 Q32 26.5 35 23.5' fill='none' stroke='%233f382f' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z' fill='%23fdfaf3'/%3E%3Cpath d='M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z' fill='%23f1e8d8'/%3E%3C/svg%3E">
+<title>Study Forge — Focus Mode</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='17' fill='%23c67c4e'/%3E%3Ccircle cx='20' cy='25.5' r='1.8' fill='%23ffd77a'/%3E%3Ccircle cx='45' cy='24.5' r='1.3' fill='%23ffd77a'/%3E%3Ccircle cx='32' cy='17' r='8' fill='%23fdfaf3'/%3E%3Ccircle cx='29.3' cy='16.1' r='1.35' fill='%233f382f'/%3E%3Ccircle cx='34.7' cy='16.1' r='1.35' fill='%233f382f'/%3E%3Cpath d='M29.5 19.4 Q32 21.9 34.5 19.4' fill='none' stroke='%233f382f' stroke-width='1.7' stroke-linecap='round'/%3E%3Cpath d='M9 34 L17.5 29 L49 29 L49 38 L36.5 38 L35 42.5 L45 42.5 L45 50 L19 50 L19 42.5 L29 42.5 L27.5 38 L17.5 38 Z' fill='%23fdfaf3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
@@ -64,7 +64,9 @@
     background:transparent;border:none;color:var(--muted);padding:10px 12px;
     border-radius:10px;font-size:14px;transition:.15s;font-weight:500;
   }
-  .nav-btn .ic{width:20px;text-align:center;font-size:15px;opacity:.85}
+  .nav-btn .ic{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;opacity:.85}
+  /* drawn, not typed — inherits the theme through currentColor */
+  .nav-btn .ic svg{width:20px;height:20px;display:block;fill:none;stroke:currentColor;stroke-width:1.6}
   .nav-btn:hover{background:var(--panel);color:var(--txt)}
   .nav-btn.active{background:var(--panel2);color:var(--txt)}
   .nav-btn.active .ic{opacity:1}
@@ -564,20 +566,40 @@
 </style>
 </head>
 <body>
+<!-- ============================================================================
+     NAV ICONS. These were rare Unicode symbols (⚯ ◵ ▰ ◨ ◷ ▦ …). Two problems:
+     several do not exist in the default font on many phones, so they rendered as
+     empty boxes, and three of them (⚑ ⚙ ✎) flip to full-colour emoji on Android
+     and iOS — which is why the sidebar looked different on every device. Drawn
+     here instead, so every device gets the identical mark. They use currentColor,
+     so every theme (Regalia's gold included) still tints them.
+     ========================================================================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-dash" viewBox="0 0 20 20"><rect x="2.5" y="2.5" width="6.2" height="6.2" rx="1.4"/><rect x="11.3" y="2.5" width="6.2" height="6.2" rx="1.4"/><rect x="2.5" y="11.3" width="6.2" height="6.2" rx="1.4"/><rect x="11.3" y="11.3" width="6.2" height="6.2" rx="1.4"/></symbol>
+<symbol id="i-goal" viewBox="0 0 20 20"><path d="M4.6 2.4v15.2" stroke-linecap="round"/><path d="M4.6 3.4h10.2l-2.4 3.3 2.4 3.3H4.6z"/></symbol>
+<symbol id="i-learn" viewBox="0 0 20 20"><path d="M10 5.6C8.3 4.2 5.9 4 3 4.4v10.3c2.9-.4 5.3-.2 7 1.2 1.7-1.4 4.1-1.6 7-1.2V4.4c-2.9-.4-5.3-.2-7 1.2z"/><path d="M10 5.6v11.3" stroke-linecap="round"/></symbol>
+<symbol id="i-cards" viewBox="0 0 20 20"><rect x="5.4" y="2.6" width="12" height="9.2" rx="1.6" transform="rotate(6 11.4 7.2)"/><rect x="2.6" y="7.4" width="12" height="9.4" rx="1.6"/></symbol>
+<symbol id="i-pom" viewBox="0 0 20 20"><circle cx="10" cy="11" r="7"/><path d="M10 7.2V11l2.6 1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 2.4h4.8" stroke-linecap="round"/></symbol>
+<symbol id="i-feyn" viewBox="0 0 20 20"><path d="M13.4 2.9l3.7 3.7-9 9-4.6.9.9-4.6z" stroke-linejoin="round"/><path d="M11.6 4.7l3.7 3.7"/></symbol>
+<symbol id="i-test" viewBox="0 0 20 20"><rect x="3.4" y="2.6" width="13.2" height="14.8" rx="2"/><path d="M6.8 9.6l2.2 2.2 4.2-4.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-prog" viewBox="0 0 20 20"><path d="M3 17h14" stroke-linecap="round"/><rect x="4.2" y="11" width="3.4" height="4.6" rx="1"/><rect x="8.9" y="7.6" width="3.4" height="8" rx="1"/><rect x="13.6" y="4" width="3.4" height="11.6" rx="1"/></symbol>
+<symbol id="i-course" viewBox="0 0 20 20"><rect x="2.6" y="3" width="6" height="14" rx="1.6"/><rect x="11.4" y="3" width="6" height="9" rx="1.6"/></symbol>
+<symbol id="i-sched" viewBox="0 0 20 20"><rect x="2.8" y="4" width="14.4" height="13" rx="2"/><path d="M2.8 8.2h14.4"/><path d="M6.6 2.4v3.2M13.4 2.4v3.2" stroke-linecap="round"/></symbol>
+<symbol id="i-set" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.9"/><path d="M10 1.9l1.5 2.2 2.6-.6.4 2.6 2.4 1.1-1.3 2.3 1.3 2.3-2.4 1.1-.4 2.6-2.6-.6L10 18.1l-1.5-2.2-2.6.6-.4-2.6-2.4-1.1 1.3-2.3-1.3-2.3 2.4-1.1.4-2.6 2.6.6z" stroke-linejoin="round"/></symbol>
+<symbol id="i-arcade" viewBox="0 0 20 20"><path d="M6.6 3h6.8l3.4 4.4L10 17.2 3.2 7.4z" stroke-linejoin="round"/><path d="M3.2 7.4h13.6M6.6 3l3.4 4.4L13.4 3M10 7.4v9.8"/></symbol>
+</defs></svg>
+
 <!-- LANDING / SIGN-IN -->
 <div id="landing" style="display:none">
   <button id="land-close">✕ Back to app</button>
   <div class="land-inner">
     <svg class="land-logo" viewBox="0 0 64 64" aria-hidden="true">
       <rect width="64" height="64" rx="15" fill="#c67c4e"/>
-      <circle cx="32" cy="21" r="9" fill="#fdfaf3"/>
-      <circle cx="29" cy="20" r="1.5" fill="#3f382f"/><circle cx="35" cy="20" r="1.5" fill="#3f382f"/>
-      <path d="M29 23.5 Q32 26.5 35 23.5" fill="none" stroke="#3f382f" stroke-width="1.8" stroke-linecap="round"/>
-      <path d="M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z" fill="#fdfaf3"/>
-      <path d="M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z" fill="#f1e8d8"/>
-      <line x1="32" y1="34" x2="32" y2="46.5" stroke="#c67c4e" stroke-width="1.4"/>
+      <circle cx="20" cy="25.5" r="1.8" fill="#ffd77a"/><circle cx="45" cy="24.5" r="1.3" fill="#ffd77a"/>
+      <circle cx="32" cy="17" r="8" fill="#fdfaf3"/><circle cx="29.3" cy="16.1" r="1.35" fill="#3f382f"/><circle cx="34.7" cy="16.1" r="1.35" fill="#3f382f"/><path d="M29.5 19.4 Q32 21.9 34.5 19.4" fill="none" stroke="#3f382f" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M9 34 L17.5 29 L49 29 L49 38 L36.5 38 L35 42.5 L45 42.5 L45 50 L19 50 L19 42.5 L29 42.5 L27.5 38 L17.5 38 Z" fill="#fdfaf3"/>
     </svg>
-    <h1>Study Buddy</h1>
+    <h1>Study Forge</h1>
     <p class="land-tag">Level up your studying</p>
     <p class="land-desc">Every card you review, every focus session, every test you sit earns XP. Level up through <span id="land-n-ranks2">29</span> ranks, clear daily quests, collect badges, and spend your coins on themes and power-ups — all wrapped around the study methods that actually work.</p>
     <div class="land-cta" id="land-cta">
@@ -637,7 +659,7 @@
       <div class="land-method"><div class="lm-ic">✎</div><div class="lm-t">Feynman</div><div class="lm-d">Explain it simply to find gaps.</div></div>
     </div>
     <div class="land-foot">
-      Study Buddy — a student project. Your studying, kept private.<br>
+      Study Forge — a student project. Your studying, kept private.<br>
       Your studying is stored in your own Google account and never shared. · <a href="mailto:studybuddy.focusmode@gmail.com">Contact us</a>
     </div>
   </div>
@@ -646,28 +668,25 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <svg class="logo" width="36" height="36" viewBox="0 0 64 64" role="img" aria-label="Study Buddy logo">
+      <svg class="logo" width="36" height="36" viewBox="0 0 64 64" role="img" aria-label="Study Forge logo">
         <rect x="2" y="2" width="60" height="60" rx="17" fill="#c67c4e"/>
-        <circle cx="32" cy="21" r="9" fill="#fdfaf3"/>
-        <circle cx="29" cy="20" r="1.5" fill="#3f382f"/><circle cx="35" cy="20" r="1.5" fill="#3f382f"/>
-        <path d="M29 23.5 Q32 26.5 35 23.5" fill="none" stroke="#3f382f" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z" fill="#fdfaf3"/>
-        <path d="M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z" fill="#f1e8d8"/>
-        <line x1="32" y1="34" x2="32" y2="46.5" stroke="#c67c4e" stroke-width="1.4"/>
+        <circle cx="20" cy="25.5" r="1.8" fill="#ffd77a"/><circle cx="45" cy="24.5" r="1.3" fill="#ffd77a"/>
+        <circle cx="32" cy="17" r="8" fill="#fdfaf3"/><circle cx="29.3" cy="16.1" r="1.35" fill="#3f382f"/><circle cx="34.7" cy="16.1" r="1.35" fill="#3f382f"/><path d="M29.5 19.4 Q32 21.9 34.5 19.4" fill="none" stroke="#3f382f" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M9 34 L17.5 29 L49 29 L49 38 L36.5 38 L35 42.5 L45 42.5 L45 50 L19 50 L19 42.5 L29 42.5 L27.5 38 L17.5 38 Z" fill="#fdfaf3"/>
       </svg>
-      <div><h1>Study Buddy</h1><small>focus mode</small></div>
+      <div><h1>Study Forge</h1><small>focus mode</small></div>
     </div>
-    <button class="nav-btn active" data-page="dashboard"><span class="ic">▦</span><span class="lbl">Dashboard</span></button>
-    <button class="nav-btn" data-page="goals"><span class="ic">⚑</span><span class="lbl">My Goals</span></button>
-    <button class="nav-btn" data-page="resources"><span class="ic">❏</span><span class="lbl">Learn</span></button>
-    <button class="nav-btn" data-page="recall"><span class="ic">⚯</span><span class="lbl">Flashcards</span></button>
-    <button class="nav-btn" data-page="pomodoro"><span class="ic">◷</span><span class="lbl">Pomodoro</span></button>
-    <button class="nav-btn" data-page="feynman"><span class="ic">✎</span><span class="lbl">Feynman</span></button>
-    <button class="nav-btn" data-page="practice"><span class="ic">✓</span><span class="lbl">Practice & Tests</span></button>
-    <button class="nav-btn" data-page="progress"><span class="ic">▰</span><span class="lbl">My Progress</span></button>
-    <button class="nav-btn" data-page="coursework"><span class="ic">◨</span><span class="lbl">Coursework</span></button>
-    <button class="nav-btn" data-page="schedule"><span class="ic">◵</span><span class="lbl">Schedule</span></button>
-    <button class="nav-btn" data-page="settings"><span class="ic">⚙</span><span class="lbl">Settings</span></button>
+    <button class="nav-btn active" data-page="dashboard"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-dash"/></svg></span><span class="lbl">Dashboard</span></button>
+    <button class="nav-btn" data-page="goals"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-goal"/></svg></span><span class="lbl">My Goals</span></button>
+    <button class="nav-btn" data-page="resources"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-learn"/></svg></span><span class="lbl">Learn</span></button>
+    <button class="nav-btn" data-page="recall"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-cards"/></svg></span><span class="lbl">Flashcards</span></button>
+    <button class="nav-btn" data-page="pomodoro"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-pom"/></svg></span><span class="lbl">Pomodoro</span></button>
+    <button class="nav-btn" data-page="feynman"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-feyn"/></svg></span><span class="lbl">Feynman</span></button>
+    <button class="nav-btn" data-page="practice"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-test"/></svg></span><span class="lbl">Practice & Tests</span></button>
+    <button class="nav-btn" data-page="progress"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-prog"/></svg></span><span class="lbl">My Progress</span></button>
+    <button class="nav-btn" data-page="coursework"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-course"/></svg></span><span class="lbl">Coursework</span></button>
+    <button class="nav-btn" data-page="schedule"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-sched"/></svg></span><span class="lbl">Schedule</span></button>
+    <button class="nav-btn" data-page="settings"><span class="ic"><svg viewBox="0 0 20 20"><use href="#i-set"/></svg></span><span class="lbl">Settings</span></button>
     <div class="side-foot"><a href="#" id="side-about" style="color:var(--accent);text-decoration:none">ℹ About / Welcome page</a></div>
   </aside>
   <main class="main">
@@ -679,7 +698,7 @@
           <p class="hero-date" id="hero-date"></p>
           <p class="hero-quote" id="hero-quote"></p>
         </div>
-        <button class="btn sec sm" id="help-btn" title="How to use Study Buddy">❔ How it works</button>
+        <button class="btn sec sm" id="help-btn" title="How to use Study Forge">❔ How it works</button>
       </div>
       <div class="grid g4" style="margin:18px 0 16px">
         <div class="stat" data-jump="recall" style="cursor:pointer"><div class="n" id="st-due">0</div><div class="l">Cards due now</div></div>
@@ -718,7 +737,7 @@
     <section class="page" id="page-goals">
       <div class="between">
         <div><h2 class="title">My Goals</h2>
-        <p class="sub" style="margin:4px 0 0">Set what you're working toward — Study Buddy will point you to the best way to get there.</p></div>
+        <p class="sub" style="margin:4px 0 0">Set what you're working toward — Study Forge will point you to the best way to get there.</p></div>
         <button class="btn sm" id="goal-add">+ Add goal</button>
       </div>
       <div id="goals-list" style="margin-top:20px"></div>
@@ -1301,7 +1320,7 @@
             <li>Leave <strong>Authorized redirect URIs</strong> empty — the in-browser Google Identity token flow this app uses doesn't need one.</li>
             <li>Use scope <code>classroom.coursework.me.readonly</code> with Google Identity Services to fetch assignments.</li>
             <li>Paste the Client ID below and press Connect on the Classroom page — the demo data is swapped for your real courses.</li>
-            <li><strong>The Classroom account does not have to be the account you use for Study Buddy.</strong> Google's account chooser opens every time you connect, so you can sign in to a school account for coursework while your progress stays on your personal one. "Use another account" switches between them; the school account is only ever read for assignments.</li>
+            <li><strong>The Classroom account does not have to be the account you use for Study Forge.</strong> Google's account chooser opens every time you connect, so you can sign in to a school account for coursework while your progress stays on your personal one. "Use another account" switches between them; the school account is only ever read for assignments.</li>
           </ol>
           <div class="help-out" style="margin:10px 0 0;font-size:12.5px">💡 Getting <strong>“Invalid Origin: URIs must not contain a path or end with '/'”</strong>? That's this step — the field must be exactly <code>https://study-buddy-10baa.web.app</code>, with nothing after the domain.</div>
           <label class="fld">Google OAuth Client ID</label>
@@ -1343,7 +1362,7 @@
   <div class="modal help">
     <div class="between" style="align-items:flex-start">
       <div>
-        <h3 style="margin:0;font-size:20px">Welcome to Study Buddy 👋</h3>
+        <h3 style="margin:0;font-size:20px">Welcome to Study Forge 👋</h3>
         <p class="sub" style="margin:4px 0 0">A quick tour of what each section does. You can reopen this anytime from the ❔ button on your dashboard.</p>
       </div>
     </div>
@@ -1367,19 +1386,17 @@
   </div>
 </div>
 <!-- Floating help bubble -->
-<button id="help-fab" title="Ask Study Buddy for help" aria-label="Ask Study Buddy">
+<button id="help-fab" title="Ask Buddy for help" aria-label="Ask Buddy">
   <svg viewBox="0 0 64 64" aria-hidden="true">
-    <circle cx="32" cy="21" r="9" fill="#fdfaf3"/>
-    <circle cx="29" cy="20" r="1.5" fill="#3f382f"/><circle cx="35" cy="20" r="1.5" fill="#3f382f"/>
-    <path d="M29 23.5 Q32 26.5 35 23.5" fill="none" stroke="#3f382f" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z" fill="#fdfaf3"/>
-    <path d="M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z" fill="#f1e8d8"/>
+    <circle cx="32" cy="30" r="17" fill="#fdfaf3"/>
+    <circle cx="26.2" cy="28.2" r="2.7" fill="#3f382f"/><circle cx="37.8" cy="28.2" r="2.7" fill="#3f382f"/>
+    <path d="M26.5 35.3 Q32 40.6 37.5 35.3" fill="none" stroke="#3f382f" stroke-width="3.2" stroke-linecap="round"/>
   </svg>
   <span class="fab-x">✕</span>
 </button>
 <div class="help-panel" id="help-panel">
   <header>
-    <div style="flex:1"><div class="hp-title">Study Buddy Helper</div><div class="hp-sub">Ask me anything about your studying</div></div>
+    <div style="flex:1"><div class="hp-title">Buddy</div><div class="hp-sub">Ask me anything about your studying</div></div>
   </header>
   <div class="hp-body" id="hp-body"></div>
   <div class="hp-foot">
@@ -2973,7 +2990,7 @@ function save(){
       fbStore.collection('users').doc(fbUser.uid)
         .set({db:DB,name:DB.name||'',email:fbUser.email||'',updatedAt:Date.now()},{merge:true})
         .then(function(){setSync('ok');})
-        .catch(function(e){setSync('error',syncErrorText(e));console.warn('[StudyBuddy] Firestore write failed',e);});
+        .catch(function(e){setSync('error',syncErrorText(e));console.warn('[StudyForge] Firestore write failed',e);});
     },1000);
     return;
   }
@@ -7104,7 +7121,7 @@ let crAssignments=DEMO_ASSIGNMENTS, crConnected=false, crToken=null, crTokenClie
 /* Classroom is authorised SEPARATELY from the account you sign in to Study
    Buddy with. A student signed in here with a personal account can pull
    coursework from a school account by signing in to that one at the Google
-   chooser; the school token never touches the Study Buddy account. */
+   chooser; the school token never touches the Study Forge account. */
 let crAccount=null, crClientId=null;
 // subject-safe name/color (real Classroom assignments use the course name, not one of the 5 subjects)
 function crName(a){return subjById(a.subj)?subjById(a.subj).name:(a.course||a.subj||'Class');}
@@ -7159,7 +7176,7 @@ async function crChatSend(){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="cr-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const hist=crChatMsgs.slice(-6).map(m=>(m.who==='me'?'Student':'Helper')+': '+m.text).join('\n');
-    const prompt=`You are Study Buddy, a helpful study coach for a ${gradeLabel()}. They're working on this ${crName(crCurrent)} assignment titled "${crCurrent.title}": "${crCurrent.desc}". Help with their specific question — give hints, explanations, and steps, but don't just do the work for them. Keep it concise and encouraging.\n\nConversation:\n${hist}\n\nReply as Helper:`;
+    const prompt=`You are Buddy, the study helper inside Study Forge, working with a ${gradeLabel()}. They're working on this ${crName(crCurrent)} assignment titled "${crCurrent.title}": "${crCurrent.desc}". Help with their specific question — give hints, explanations, and steps, but don't just do the work for them. Keep it concise and encouraging.\n\nConversation:\n${hist}\n\nReply as Helper:`;
     const r=await aiComplete(prompt,600);
     document.getElementById('cr-typing')?.remove();
     crChatSay(r.trim()||'Could you tell me a bit more about what you\'re stuck on?','coach');
@@ -7536,7 +7553,7 @@ function connectClassroom(){
      personal one. */
   crTokenClient.requestAccessToken({prompt:'select_account'});
 }
-/* Drop the school token and fall back to the sample board. The Study Buddy
+/* Drop the school token and fall back to the sample board. The Study Forge
    account is untouched — this only signs out of Classroom. */
 function disconnectClassroom(){
   try{if(crToken&&google.accounts.oauth2.revoke)google.accounts.oauth2.revoke(crToken,function(){});}catch(e){}
@@ -7576,7 +7593,7 @@ async function loadClassroomData(){
     if(all.length){crAssignments=all;}
     crConnected=true;
     /* Which Google account did this actually come from? Worth showing plainly:
-       it is often NOT the account the student is signed in to Study Buddy with. */
+       it is often NOT the account the student is signed in to Study Forge with. */
     try{
       const uRes=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+crToken}});
       const u=await uRes.json(); crAccount=(u&&u.email)||null;
@@ -7746,7 +7763,7 @@ function nextDateFor(dayName,h,min){
 }
 function icsStamp(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00';}
 function exportICS(grid){
-  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Study Buddy//Schedule//EN','CALSCALE:GREGORIAN'];
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Study Forge//Schedule//EN','CALSCALE:GREGORIAN'];
   let count=0,skipped=0;
   Object.keys(grid).forEach(day=>{
     (grid[day]||[]).forEach((slot,i)=>{
@@ -7767,7 +7784,7 @@ function exportICS(grid){
         'DTEND:'+icsStamp(ed),
         'RRULE:FREQ=WEEKLY;BYDAY='+ICS_BYDAY[day],
         'SUMMARY:Study: '+name,
-        'DESCRIPTION:'+((slot.priority?'Priority: '+slot.priority+'. ':'')+(slot.status?'Status: '+slot.status+'. ':'')+(slot.notes?slot.notes:'Study Buddy session')).replace(/[\r\n,;]/g,' '),
+        'DESCRIPTION:'+((slot.priority?'Priority: '+slot.priority+'. ':'')+(slot.status?'Status: '+slot.status+'. ':'')+(slot.notes?slot.notes:'Study Forge session')).replace(/[\r\n,;]/g,' '),
         'END:VEVENT');
       count++;
     });
@@ -7966,7 +7983,7 @@ document.getElementById('set-reset-srs').onclick=async ()=>{
 })();
 document.getElementById('set-export').onclick=()=>{
   try{
-    const payload={exported:new Date().toISOString(),app:'Study Buddy',name:DB.name||'',
+    const payload={exported:new Date().toISOString(),app:'Study Forge',name:DB.name||'',
                    grade:DB.grade||null,data:DB};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
     const a=document.createElement('a');
@@ -8755,7 +8772,7 @@ async function coachHint(q){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const choices=(q.choices||[]).map((ch,i)=>PR_LETTERS[i]+'. '+ch).join('\n');
-    const prompt=`You are Coach in Study Buddy's Training Grounds, giving a ${gradeLabel()} a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1-3 short sentences in Coach's voice: direct, warm, a little wry, no emoji.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
+    const prompt=`You are Coach in Study Forge's Training Grounds, giving a ${gradeLabel()} a HINT for a multiple-choice question they are still trying to answer themselves.\n\nQuestion: ${q.q}\nChoices:\n${choices}\n\nABSOLUTE RULES — every one is mandatory:\n1. NEVER reveal, state, imply, number, or letter the correct answer.\n2. NEVER say which choice is right OR wrong, and never narrow it to a single choice.\n3. NEVER restate any choice as the solution or say "the answer is…".\n4. Only nudge their thinking: name the concept to recall, a definition or formula to review, or a general strategy for approaching it.\n5. 1-3 short sentences in Coach's voice: direct, warm, a little wry, no emoji.\nIf a real hint can't be given without revealing the answer, instead tell them what topic to review. Giving away the answer is a failure.\n\nGive the hint now (no answer):`;
     const r=(await aiComplete(prompt,220)).trim();
     document.getElementById('coach-typing').remove();
     coachSay(r||fallback,'coach');
@@ -8880,7 +8897,7 @@ async function coachReply(fallback,forceFallback){
   c.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="coach-typing">…</div>`);c.scrollTop=c.scrollHeight;
   try{
     const hist=coach.messages.slice(-8).map(m=>(m.who==='me'?'Student':'Coach')+': '+m.text).join('\n');
-    const prompt=`You are Coach in Study Buddy's Training Grounds, working with a ${gradeLabel()} on "${coach.topic}". Voice: a good trainer — direct, warm, a little wry, never syrupy and never a drill sergeant. You talk about training, reps, and stages rather than homework. You treat mistakes as information. Keep replies short (2-4 sentences). Give hints and explanations, not answers, unless they ask outright. Never use emoji.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
+    const prompt=`You are Coach in Study Forge's Training Grounds, working with a ${gradeLabel()} on "${coach.topic}". Voice: a good trainer — direct, warm, a little wry, never syrupy and never a drill sergeant. You talk about training, reps, and stages rather than homework. You treat mistakes as information. Keep replies short (2-4 sentences). Give hints and explanations, not answers, unless they ask outright. Never use emoji.\n\nConversation so far:\n${hist}\n\nReply as Coach:`;
     const r=await aiComplete(prompt,400);
     document.getElementById('coach-typing').remove();
     coachSay(r.trim()||fallback,'coach');
@@ -9239,7 +9256,7 @@ function openHelpPanel(){
   p.classList.toggle('show',opening);fab.classList.toggle('open',opening);
   if(opening&&!helpGreeted){
     helpGreeted=true;
-    helpSay(`Hi! I'm your Study Buddy helper 👋 Ask me anything — how to study a topic, explain a concept, help with an assignment, or tips to stay focused.`,'coach');
+    helpSay(`Hi! I'm Buddy 👋 Ask me anything — how to study a topic, explain a concept, help with an assignment, or tips to stay focused.`,'coach');
     const b=document.getElementById('hp-body');
     b.insertAdjacentHTML('beforeend',`<div class="row" style="gap:6px;margin-top:2px" id="hp-chips">
       <span class="hp-chip" data-q="How do I study for a test?">Study for a test?</span>
@@ -9263,7 +9280,7 @@ async function helpSend(forced){
   b.insertAdjacentHTML('beforeend',`<div class="cbub coach typing" id="hp-typing">…</div>`);b.scrollTop=b.scrollHeight;
   try{
     const hist=helpMsgs.slice(-8).map(m=>(m.who==='me'?'Student':'Helper')+': '+m.text).join('\n');
-    const prompt=`You are Study Buddy, a warm, encouraging study helper for a ${gradeLabel()}. Reply concisely (2-5 sentences). Give hints and clear explanations, never the answer itself. If they mention a specific assignment or topic, help them work TOWARD it a step at a time.\n\nConversation:\n${hist}\n\nReply as Helper:`;
+    const prompt=`You are Buddy, the warm, encouraging study helper inside Study Forge, working with a ${gradeLabel()}. Reply concisely (2-5 sentences). Give hints and clear explanations, never the answer itself. If they mention a specific assignment or topic, help them work TOWARD it a step at a time.\n\nConversation:\n${hist}\n\nReply as Helper:`;
     const r=await aiComplete(prompt,500);
     document.getElementById('hp-typing')?.remove();
     helpSay(r.trim()||'Hmm, try asking that a different way?','coach');
@@ -9281,7 +9298,7 @@ document.getElementById('help-btn').onclick=openHelp;
 document.getElementById('help-close').onclick=closeHelp;
 document.getElementById('modal-help').onclick=(e)=>{if(e.target.id==='modal-help')closeHelp();};
 /* ============================ ACCOUNTS / SIGN-IN (Firebase Auth + Firestore) ============================ */
-/* Firebase web config for the "Study Buddy" project (study-buddy-10baa).
+/* Firebase web config for the "Study Forge" project (study-buddy-10baa).
    These values are meant to be public — a Firebase web API key identifies the
    project, it does not grant access. What actually protects the data is the
    Firestore security rule that lets a signed-in user touch only users/{their uid},
@@ -9495,7 +9512,7 @@ function showAbout(){
 }
 document.getElementById('land-close').onclick=()=>{landingLock(false);document.getElementById('landing').style.display='none';};
 document.getElementById('side-about').onclick=(e)=>{e.preventDefault();showAbout();};
-(function(){const b=document.querySelector('.brand');if(b){b.style.cursor='pointer';b.title='About Study Buddy';b.onclick=showAbout;}})();
+(function(){const b=document.querySelector('.brand');if(b){b.style.cursor='pointer';b.title='About Study Forge';b.onclick=showAbout;}})();
 function logout(){
   if(fbUser&&fbAuth){fbAuth.signOut().then(()=>location.reload()).catch(()=>location.reload());return;}
   localStorage.removeItem(SESS_KEY);location.reload();
@@ -9868,7 +9885,7 @@ window.SBRANKS={list:RANKS,of:rankOf,band:rankBand};
 function xpNeeded(level){return 100+(level-1)*60;}
 
 var THEMES={
-  base:{name:'Study Buddy',price:0,emoji:'🧸',vars:null,swatch:['#f6efe3','#c67c4e','#7f9b6a']},
+  base:{name:'Study Forge',price:0,emoji:'🧸',vars:null,swatch:['#f6efe3','#c67c4e','#7f9b6a']},
   midnight:{name:'Midnight',price:300,emoji:'🌙',swatch:['#11151b','#e0a06a','#8fc08a'],vars:{'--bg':'#11151b','--icon-invert':'1','--bg2':'#171c24','--panel':'#1b212b','--panel2':'#232b37','--line':'#2e3846','--txt':'#e6e9ee','--muted':'#9aa6b6','--faint':'#6d7a8b','--accent':'#e0a06a','--accent2':'#8fc08a','--warn':'#e2c05f','--bad':'#e08074','--ap':'#b394c9','--shadow':'0 6px 22px rgba(0,0,0,.5)'}},
   forest:{name:'Forest',price:250,emoji:'🌲',swatch:['#eef3e9','#7fae66','#c9a45c'],vars:{'--bg':'#eef3e9','--icon-invert':'0','--bg2':'#e6eee0','--panel':'#f8fbf5','--panel2':'#e4ecdb','--line':'#cfdcc3','--txt':'#2f3a2c','--muted':'#6f7f68','--faint':'#97a68f','--accent':'#7fae66','--accent2':'#c9a45c','--warn':'#d3a63f','--bad':'#c4695c','--ap':'#8fa9c2'}},
   ocean:{name:'Ocean',price:250,emoji:'🌊',swatch:['#eef4f8','#57a3c7','#63bda6'],vars:{'--bg':'#eef4f8','--icon-invert':'0','--bg2':'#e3edf4','--panel':'#f9fcfe','--panel2':'#dfeaf2','--line':'#c7dae6','--txt':'#26333d','--muted':'#64798a','--faint':'#93a6b4','--accent':'#57a3c7','--accent2':'#63bda6','--warn':'#dcae52','--bad':'#d1706a','--ap':'#9498d6'}},
@@ -10986,7 +11003,7 @@ function buildHUD(){
   var settings=document.querySelector('.nav-btn[data-page="settings"]');
   var btn=document.createElement('button');
   btn.className='nav-btn';btn.id='arc-nav';
-  btn.innerHTML='<span class="ic">\u25C8</span><span class="lbl">Arcade</span>';  /* ◈ — matches the app's geometric nav glyphs */
+  btn.innerHTML='<span class="ic"><svg viewBox="0 0 20 20"><use href="#i-arcade"/></svg></span><span class="lbl">Arcade</span>';  /* ◈ — matches the app's geometric nav glyphs */
   btn.onclick=function(){go('arcade');};
   if(settings)settings.parentNode.insertBefore(btn,settings);
   else document.querySelector('.sidebar').appendChild(btn);
@@ -12403,18 +12420,17 @@ var GOLD_MARK=
    '<path d="M28 33.5 Q32 36.5 36 33.5" fill="none" stroke="#2a1d05" stroke-width="1.9" stroke-linecap="round"/>'+
    /* breathing core */
    '<circle class="gb-core" cx="32" cy="30" r="15" fill="none" stroke="#fff6d8" stroke-width="1.1" opacity=".5"/>'+
-   /* open book at the base, carried over from the classic buddy */
-   '<path d="M32 47 C28 45 22.5 45 18 46.5 L18 56 C22.5 54.5 28 54.5 32 56.5 Z" fill="url(#gbg)"/>'+
-   '<path d="M32 47 C36 45 41.5 45 46 46.5 L46 56 C41.5 54.5 36 54.5 32 56.5 Z" fill="#e8b34e"/>'+
+   /* the forge's anvil at the base, struck in gold */
+   '<path d="M14 51 L20 47.5 L50 47.5 L50 53 L40 53 L38.8 56 L46 56 L46 60 L22 60 L22 56 L29.2 56 L28 53 L20 53 Z" fill="url(#gbg)"/>'+
  '</svg>';
 
+/* Buddy is the helper, not the product, so this button wears a face and leaves
+   the anvil to the app's own mark. Kept in sync with the markup in the page. */
 var CLASSIC_MARK=
  '<svg viewBox="0 0 64 64" aria-hidden="true">'+
-   '<circle cx="32" cy="21" r="9" fill="#fdfaf3"/>'+
-   '<circle cx="29" cy="20" r="1.5" fill="#3f382f"/><circle cx="35" cy="20" r="1.5" fill="#3f382f"/>'+
-   '<path d="M29 23.5 Q32 26.5 35 23.5" fill="none" stroke="#3f382f" stroke-width="1.8" stroke-linecap="round"/>'+
-   '<path d="M32 34 C27.5 31.5 21 31.5 15.5 33.5 L15.5 46 C21 44 27.5 44 32 46.5 Z" fill="#fdfaf3"/>'+
-   '<path d="M32 34 C36.5 31.5 43 31.5 48.5 33.5 L48.5 46 C43 44 36.5 44 32 46.5 Z" fill="#f1e8d8"/>'+
+   '<circle cx="32" cy="30" r="17" fill="#fdfaf3"/>'+
+   '<circle cx="26.2" cy="28.2" r="2.7" fill="#3f382f"/><circle cx="37.8" cy="28.2" r="2.7" fill="#3f382f"/>'+
+   '<path d="M26.5 35.3 Q32 40.6 37.5 35.3" fill="none" stroke="#3f382f" stroke-width="3.2" stroke-linecap="round"/>'+
  '</svg>';
 
 /* --------------------------------------------------------------- the data */
@@ -12559,11 +12575,11 @@ function apply(){
   panel.classList.toggle('gb',gold);
   var x=fab.querySelector('.fab-x');
   fab.innerHTML=(gold?GOLD_MARK:CLASSIC_MARK)+'<span class="fab-x">✕</span>';
-  fab.title=gold?'Ask the Golden Buddy':'Ask Study Buddy for help';
+  fab.title=gold?'Ask the Golden Buddy':'Ask Buddy for help';
   var head=panel.querySelector('header');
   if(head){
     head.innerHTML=(gold?'<div class="gb-av">'+GOLD_MARK+'</div>':'')+
-      '<div style="flex:1"><div class="hp-title">'+(gold?'Golden Buddy':'Study Buddy Helper')+'</div>'+
+      '<div style="flex:1"><div class="hp-title">'+(gold?'Golden Buddy':'Buddy')+'</div>'+
       '<div class="hp-sub">'+(gold?'Reads your page, your history, and what is due':'Ask me anything about your studying')+'</div></div>';
   }
   /* the briefing strip belongs to the gold helper only */
@@ -12641,7 +12657,7 @@ function boot(){
     b.scrollTop=b.scrollHeight;
     var hist=(typeof helpMsgs!=='undefined'?helpMsgs:[]).slice(-8)
       .map(function(m){return (m.who==='me'?'Student':'Buddy')+': '+m.text;}).join('\n');
-    var prompt='You are the Golden Buddy, the upgraded study helper inside Study Buddy, working with a '+
+    var prompt='You are the Golden Buddy, the upgraded study helper inside Study Forge, working with a '+
       (typeof gradeLabel==='function'?gradeLabel():'student')+'.\n\n'+
       'WHAT YOU CAN SEE ABOUT THEM RIGHT NOW:\n'+briefing()+'\n\n'+
       'Use these facts when they are relevant — naming their real weak topic or what is actually due is the '+
